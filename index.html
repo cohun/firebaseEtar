@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETAR Rendszer - Modern Emelőgép Nyilvántartás</title>
+    <link rel="icon" type="image/png" href="images/ETAR_H.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            // Nincs szükség extra beállításokra, de a script tag itt kell legyen
+        }
+    </script>
+    <!-- Heroicons for Bootstrap Icons equivalent -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS (for general styles like body font, etc.) -->
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* Az egyedi stílusok mostantól a style.css-ben vannak. Ez a blokk üresen maradhat vagy törölhető. */
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Navigation -->
+    <nav class="bg-gray-800 p-3 fixed w-full top-0 z-50 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <a class="flex items-center text-white text-xl font-bold" href="#">
+                <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10 mr-2">
+                ETAR Rendszer
+            </a>
+            <div class="hidden md:flex space-x-6">
+                <a class="text-blue-200 hover:text-white transition-colors" href="#knowledge-center">Szakmai Tudásközpont</a>
+                <a class="text-blue-200 hover:text-white transition-colors" href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer">H-ITB Kft. Weboldala</a>
+                <a class="text-blue-200 hover:text-white transition-colors" href="privacy.html" target="_blank">Adatvédelmi Irányelvek</a>
+                <a class="ml-4 px-4 py-2 rounded-md font-semibold text-white shadow-md bg-blue-600 hover:bg-blue-700 transition-colors" href="app.html">Bejelentkezés / Partnerportál</a>
+            </div>
+            <!-- Mobile menu button -->
+            <button class="md:hidden text-blue-200 hover:text-white focus:outline-none" id="mobile-menu-button">
+                <i class="fas fa-bars text-2xl"></i>
+            </button>
+        </div>
+        <!-- Mobile menu -->
+        <div class="md:hidden hidden mt-4 space-y-2" id="mobile-menu">
+            <a class="block text-blue-200 hover:text-white transition-colors px-3 py-2" href="#knowledge-center">Szakmai Tudásközpont</a>
+            <a class="block text-blue-200 hover:text-white transition-colors px-3 py-2" href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer">H-ITB Kft. Weboldala</a>
+            <a class="block text-blue-200 hover:text-white transition-colors px-3 py-2" href="privacy.html" target="_blank">Adatvédelmi Irányelvek</a>
+            <a class="block w-full mt-2 px-4 py-2 rounded-md font-semibold text-white shadow-md bg-blue-600 hover:bg-blue-700 text-center" href="app.html">Bejelentkezés / Partnerportál</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero-section">
+        <div class="container mx-auto px-4">
+            <div class="text-center">
+                <h1 class="text-5xl font-bold">Üdvözöljük az ETAR Rendszerben!</h1>
+                <p class="text-2xl font-normal mt-2">Modern, digitális emelőeszköz-nyilvántartás.</p>
+                <p class="text-lg mt-4 max-w-3xl mx-auto">Az ETAR egy felhőalapú platform az emelőeszközök adminisztrációjának egyszerűsítésére és modernizálására.</p>
+                <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto my-4 h-16 rounded-lg"> 
+                <a href="#benefits" class="inline-block px-6 py-3 rounded-md font-semibold bg-white text-blue-800 hover:bg-gray-200 transition-colors text-lg mt-3">Tudjon meg többet</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Value Proposition Section -->
+        <section id="benefits" class="py-12 bg-trans-white">
+            <div class="container mx-auto px-4">
+                <h2 class="section-title text-3xl sm:text-4xl font-bold text-center mb-12">Miért válassza az ETAR Rendszert?</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <i class="fas fa-laptop text-4xl text-blue-600"></i>
+                        <h5 class="text-xl font-bold mt-3">Modernizáció</h5>
+                        <p class="text-gray-600 mt-2">Váltsa le a papíralapú, kockázatokkal teli adminisztrációt egy korszerű, digitális megoldásra.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <i class="fas fa-chart-line text-4xl text-blue-600"></i>
+                        <h5 class="text-xl font-bold mt-3">Optimalizáció</h5>
+                        <p class="text-gray-600 mt-2">Gyorsítsa fel és optimalizálja az adminisztrációs folyamatokat, csökkentve a hibalehetőségeket.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <i class="fas fa-check-circle text-4xl text-blue-600"></i>
+                        <h5 class="text-xl font-bold mt-3">Egyszerűség</h5>
+                        <p class="text-gray-600 mt-2">Egy egyszerű és könnyen átlátható felület, amely nem igényel komplex betanítást.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-blue-600"></i>
+                        <h5 class="text-xl font-bold mt-3">Naprakészség</h5>
+                        <p class="text-gray-600 mt-2">Bárhonnan, bármikor elérhető, naprakész nyilvántartás a felhőalapú technológiának köszönhetően.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ENY Details Section -->
+        <section id="eny-details" class="py-12 bg-gray-100">
+            <div class="container mx-auto px-4">
+                <h2 class="section-title text-3xl sm:text-4xl font-bold text-center mb-12">Az ETAR Nyilvántartó (ENY) – Biztonság és Funkcionalitás</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-12">
+                    <div class="text-center">
+                        <i class="fas fa-user-shield text-8xl text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-2xl font-bold mb-4 text-gray-800">Zárt Rendszer és Biztonságos Hozzáférés</h4>
+                        <p class="mb-4 text-gray-600">Az ETAR egy zárt, meghívásos rendszer, amely a maximális adatbiztonság érdekében működik. A regisztrációhoz partnereinknek fel kell venniük a kapcsolatot a H-ITB Kft. munkatársaival.</p>
+                        <ul class="space-y-3">
+                            <li class="flex items-start"><i class="fas fa-user-shield text-xl text-blue-600 mr-3 mt-1"></i><div><strong class="text-gray-700">Professzionális Hitelesítés:</strong> A felhasználók azonosítása egyedi e-mail cím és jelszó párossal történik a Google Firebase Authentication, egy iparági szabványnak megfelelő, biztonságos platform segítségével.</div></li>
+                            <li class="flex items-start"><i class="fas fa-database text-xl text-blue-600 mr-3 mt-1"></i><div><strong class="text-gray-700">Skálázható Felhő Adatbázis:</strong> A rendszer a Google Firestore, egy nagy teljesítményű, valós idejű NoSQL adatbázis szolgáltatását használja. Ez felváltja a korábbi Excel-alapú tárolást, villámgyors adatkezelést és keresést biztosítva.</div></li>
+                            <li class="flex items-start"><i class="fas fa-tasks text-xl text-blue-600 mr-3 mt-1"></i><div><strong class="text-gray-700">Részletes Jogosultságkezelés:</strong> A hozzáférést a Firebase Security Rules, egy kifinomult szabályrendszer garantálja. Minden felhasználó kizárólag a saját szerepkörének és a hozzá rendelt partnercégnek megfelelő adatokhoz fér hozzá, biztosítva a szigorú adatszegregációt.</div></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <hr class="my-12">
+
+                <h4 class="text-2xl font-bold text-center mb-8 text-gray-800">ENY Funkciók: Átláthatóság és Önkiszolgálás</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <h5 class="text-xl font-bold mb-2"><i class="fas fa-list-check mr-2 text-blue-600"></i>Eszközlistázás és Státusz</h5>
+                        <p class="text-gray-600">Kérdezze le teljes eszközparkját bármikor. A rendszer színkódolt jelzéssel (zöld, narancs, piros) mutatja az eszközök vizsgálati státuszát és a következő vizsgálat esedékességét.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <h5 class="text-xl font-bold mb-2"><i class="fas fa-edit mr-2 text-blue-600"></i>Adatrögzítés</h5>
+                        <p class="text-gray-600">Rögzítse önállóan új eszközeit, előkészítve azokat a jövőbeli vizsgálatokra. Lehetősége van a leselejtezett eszközök egyszerű eltávolítására is.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <h5 class="text-xl font-bold mb-2"><i class="fas fa-file-alt mr-2 text-blue-600"></i>Dokumentáció</h5>
+                        <p class="text-gray-600">Férjen hozzá és töltse le a H-ITB által elvégzett vizsgálatok jegyzőkönyveit, bárhol, bármikor.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <h5 class="text-xl font-bold mb-2"><i class="fas fa-lock mr-2 text-blue-600"></i>Adatintegritás</h5>
+                        <p class="text-gray-600">A vizsgálati adatokat (pl. minősítés) partnereink nem módosíthatják. Ezek a mezők csak olvashatók, garantálva az adatok integritását.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full">
+                        <h5 class="text-xl font-bold mb-2"><i class="fas fa-file-excel mr-2 text-blue-600"></i>Adatbázis Letöltés</h5>
+                        <p class="text-gray-600">Töltse le a teljes, saját eszközadatbázisát egyetlen kattintással Excel (.xlsx) formátumban a további feldolgozáshoz.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Knowledge Center Section -->
+        <section id="knowledge-center" class="py-12 bg-trans-white">
+            <div class="container mx-auto px-4">
+                <h2 class="section-title text-3xl sm:text-4xl font-bold text-center mb-12">Szakmai Tudásközpont</h2>
+                <div class="space-y-2 max-w-4xl mx-auto">
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <button class="flex justify-between items-center w-full p-4 text-left font-semibold text-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200 active-accordion" type="button" data-target="#collapseOne">
+                            <strong>Az Üzemeltető Kötelezettségei (Jogi Háttér)</strong>
+                            <i class="fas fa-chevron-down ml-2 transition-transform rotate-180"></i>
+                        </button>
+                        <div id="collapseOne" class="p-4 border-t border-gray-200 text-gray-600">
+                            <p>Az emelőgépek és teherfelvevő eszközök üzemeltetését a <strong>1993. évi XCIII. törvény a munkavédelemről</strong> és annak speciális végrehajtási rendelete, a <strong>47/1999. (VIII. 4.) GM rendelet (Emelőgép Biztonsági Szabályzat - EBSZ)</strong> szabályozza.</p>
+                            <p class="mt-2"><strong>Az üzemeltető felelőssége:</strong> Az üzemeltető felelőssége nem ruházható át. Köteles gondoskodni az emelőgép biztonságos állapotáról, rendeltetésszerű használatáról, az időszakos vizsgálatokról és a karbantartás szakszerű elvégzéséről.</p>
+                            <p class="mt-2"><strong>Dokumentációs kötelezettség:</strong> Az üzemeltető köteles az emelőgép és a teherfüggesztő eszköz minden okmányát naprakészen vezetni és az eszköz kiselejtezéséig megőrizni. Az ETAR rendszer ezt a nyilvántartási feladatot digitalizálja és automatizálja, minimalizálva a jogszabályi kockázatokat.</p>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-200 rounded-lg">
+                        <button class="flex justify-between items-center w-full p-4 text-left font-semibold text-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200" type="button" data-target="#collapseTwo">
+                            <strong>A Teherfelvevő Eszközök Időszakos Vizsgálatai</strong>
+                            <i class="fas fa-chevron-down ml-2 transition-transform"></i>
+                        </button>
+                        <div id="collapseTwo" class="p-4 border-t border-gray-200 text-gray-600 hidden">
+                            <p>Fontos hangsúlyozni, hogy a teherfelvevő eszközök vizsgálati rendje független az emelőgép vizsgálati ciklusától.</p>
+                            <ul class="list-disc list-inside pl-4 mt-2">
+                                <li><strong>Használat Előtti Ellenőrzés:</strong> Minden műszak, illetve minden emelési feladat megkezdése előtt a kezelőnek szemrevételezéssel meg kell vizsgálnia az eszközt sérülések, deformáció, illetve az érvényes jelölés megléte szempontjából.</li>
+                                <li><strong>Vizsgálati Gyakoriságok:</strong> A jogszabályi minimum követelmények eltérőek lehetnek az eszköz típusától és használatától függően. Az ETAR segít ezeknek a határidőknek a pontos nyomon követésében.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-200 rounded-lg">
+                        <button class="flex justify-between items-center w-full p-4 text-left font-semibold text-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200" type="button" data-target="#collapseThree">
+                            <strong>Biztonságos Teherkötözési Alapelvek</strong>
+                            <i class="fas fa-chevron-down ml-2 transition-transform"></i>
+                        </button>
+                        <div id="collapseThree" class="p-4 border-t border-gray-200 text-gray-600 hidden">
+                            <p>Részletes útmutató a biztonságos teherkötözési gyakorlatokról, beleértve az élvédők használatát, a megfelelő kötözési módok kiválasztását és a terhelési táblázatok értelmezését. <em>(Ez a szekció hamarosan bővül.)</em></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="contact" class="py-8 bg-gray-800 text-white">
+        <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <h5 class="text-xl font-bold mb-4">Kapcsolat</h5>
+                <p class="mb-2"><strong>H-ITB Kft.</strong></p>
+                <p class="mb-2"><i class="fas fa-map-marker-alt mr-2"></i>1119 Budapest Kelenvölgyi htsr. 5</p>
+                <p class="mb-2"><i class="fas fa-phone mr-2"></i><a href="tel:+3612056208" class="text-blue-300 hover:underline">+36 1 205-6208</a></p>
+                <p class="mb-2"><i class="fas fa-envelope mr-2"></i><a href="mailto:hitb@h-itb.hu" class="text-blue-300 hover:underline">hitb@h-itb.hu</a></p>
+            </div>
+            <div>
+                <h5 class="text-xl font-bold mb-4">Hasznos linkek</h5>
+                <ul class="list-none space-y-2">
+                    <li class="flex items-center">
+                        <img src="images/H-ITB_Logo.jpg" alt="H-ITB Kft. Logo" class="h-6 mr-2">
+                        <a href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer" class="text-blue-300 hover:underline">H-ITB Kft. Weboldala</a>
+                    </li>
+                    <li><a href="privacy.html" target="_blank" class="text-blue-300 hover:underline">Adatvédelmi Irányelvek</a></li>
+                    <li><a href="app.html" class="text-blue-300 hover:underline">Partnerportál</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="text-center mt-8 pt-4 border-t border-gray-700">
+            <p>&copy; <span id="current-year">2024</span> H-ITB Kft. Minden jog fenntartva.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for dynamic year and accordion -->
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // Accordion functionality
+        document.querySelectorAll('[data-target]').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.dataset.target;
+                const targetElement = document.querySelector(targetId);
+                const icon = button.querySelector('i');
+
+                const isActive = !targetElement.classList.contains('hidden');
+
+                // Close all other accordions
+                document.querySelectorAll('[data-target]').forEach(otherButton => {
+                    const otherTargetId = otherButton.dataset.target;
+                    const otherTargetElement = document.querySelector(otherTargetId);
+                    const otherIcon = otherButton.querySelector('i');
+                    if (otherTargetId !== targetId) {
+                        otherTargetElement.classList.add('hidden');
+                        otherIcon.classList.remove('rotate-180');
+                        otherButton.classList.remove('active-accordion'); // Remove active class from other buttons
+                    }
+                });
+
+                // Toggle the clicked one
+                targetElement.classList.toggle('hidden');
+                if (isActive) { // If it was active, now it's closed
+                    icon.classList.remove('rotate-180');
+                    button.classList.remove('active-accordion');
+                } else { // If it was closed, now it's active
+                    icon.classList.add('rotate-180');
+                    button.classList.add('active-accordion');
+                }
+            });
+        });
+
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenuButton && mobileMenu) {
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+        }
+
+        // Navbar padding for fixed header
+        window.addEventListener('DOMContentLoaded', function() {
+            const navbar = document.querySelector('nav.fixed');
+            if (navbar) {
+                const setBodyPadding = () => {
+                    document.body.style.paddingTop = navbar.offsetHeight + 'px';
+                };
+                setBodyPadding();
+                window.addEventListener('resize', setBodyPadding);
+            }
+        });
+    </script>
+
+</body>
+</html>

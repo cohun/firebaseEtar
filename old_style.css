@@ -1,0 +1,81 @@
+:root {
+    --etar-primary: #1e3a8a;
+    --etar-secondary: #1e40af;
+    --etar-light: #93c5fd;
+    --etar-dark-text: #e5e7eb;
+    --bs-body-font-family: 'Inter', sans-serif;
+}
+
+html {
+    background-image: url('ETAR_Background.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+}
+
+body {
+    background-color: rgba(255, 255, 255, 0.9); /* Semi-transparent white background for readability */
+}
+
+.hero-section {
+    background: linear-gradient(135deg, var(--etar-primary), #000033);
+    color: white;
+    padding: 100px 0;
+    margin-bottom: 0;
+}
+
+.hero-section h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: white; /* Ensure text is visible */
+}
+
+.hero-section .lead {
+    font-size: 1.25rem;
+    max-width: 700px;
+    margin: 0 auto 30px auto;
+}
+
+/* Improve readability of hero section subtitle */
+.hero-section .h3 {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+
+.section-title {
+    text-align: center;
+    margin-bottom: 50px;
+    font-weight: 700;
+    color: var(--etar-primary);
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+footer a {
+    color: var(--etar-light);
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* Custom Accordion Colors */
+.accordion-button:not(.collapsed) {
+    background-color: var(--etar-primary);
+    color: white;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(30, 58, 138, 0.25);
+}
+
+.accordion-button:not(.collapsed)::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+}

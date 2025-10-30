@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adatvédelmi Nyilatkozat - ETAR Rendszer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-blue-900 text-gray-200 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-3xl mx-auto bg-blue-950/50 p-8 rounded-xl shadow-2xl border border-blue-800">
+        <h1 class="text-3xl font-bold mb-6 text-center">Adatvédelmi Nyilatkozat - ETAR Rendszer</h1>
+        <div class="space-y-4 text-gray-300">
+            <p><strong>Hatálybalépés dátuma:</strong> 2023-11-20</p>
+
+            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">1. Az általunk gyűjtött adatok</h2>
+            <p>Az ETAR Rendszer a Google Bejelentkezés (OAuth 2.0) szolgáltatást használja a felhasználók azonosítására és a szolgáltatás működéséhez. A bejelentkezés során engedélyt kérünk a következő adatokhoz való hozzáféréshez:</p>
+            <ul class="list-disc list-inside pl-4">
+                <li><strong>Alapvető profilinformációk:</strong> A neved és e-mail címed, a felhasználó azonosításához.</li>
+                <li><strong>Google Drive:</strong> Hozzáférés a Google Drive-fiókodhoz, hogy az alkalmazás létrehozhassa, olvashassa és módosíthassa a működéséhez szükséges dokumentumokat és táblázatokat (pl. <code>adatbazis.xlsx</code>, <code>ceg.xlsx</code>, és a generált jegyzőkönyvek).</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">2. Az adatok felhasználása</h2>
+            <p>Az ETAR Rendszer a Google Drive-on tárolt adatokat kizárólag az alkalmazás alapvető funkcióinak biztosítására használja:</p>
+            <ul class="list-disc list-inside pl-4">
+                <li>A felhasználói jogosultságok ellenőrzése az <code>utvonalak.xlsx</code> fájl alapján.</li>
+                <li>Az emelőeszközök adatainak olvasása és írása a partnerhez tartozó <code>adatbazis.xlsx</code> fájlban.</li>
+                <li>Vizsgálati jegyzőkönyvek generálása a megadott sablonok és adatok alapján.</li>
+            </ul>
+            <p>Az alkalmazás nem osztja meg, nem adja el és nem továbbítja a felhasználói adatokat semmilyen harmadik félnek.</p>
+
+            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">3. Adatbiztonság</h2>
+            <p>Minden adatkezelés biztonságos (HTTPS) kapcsolaton keresztül történik a Google API-kon keresztül. Az adatokat közvetlenül a felhasználó saját Google Drive-fiókjában tároljuk, az alkalmazás nem rendelkezik saját szerveroldali adatbázissal.</p>
+
+            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">4. Kapcsolat</h2>
+            <p>Ha bármilyen kérdése van az adatvédelmi gyakorlatunkkal kapcsolatban, kérjük, vegye fel velünk a kapcsolatot a megadott támogatási e-mail címen.</p>
+        </div>
+    </div>
+</body>
+</html>

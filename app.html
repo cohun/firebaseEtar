@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETAR Rendszer - Partnerportál</title>
+    <link rel="icon" type="image/png" href="images/ETAR_H.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            // Nincs szükség extra beállításokra, de a script tag itt kell legyen
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Common Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- App-specific Styles (Overrides) -->
+    <style>
+        /* Felülírjuk a body hátterét, hogy az app oldalon ne legyen áttetsző fehér */
+        body {
+            background-color: transparent;
+        }
+        /* Visszaállítjuk a kártya sötét, áttetsző stílusát csak ezen az oldalon */
+        .card {
+            background-color: rgba(3, 7, 18, 0.6); /* bg-blue-950/60 */
+            border: 1px solid #1e40af; /* border-blue-800 */
+            color: #d1d5db; /* text-gray-300 */
+        }
+        /* A gombok stílusának finomítása a sötét háttérhez */
+        .btn-primary {
+            background-color: #2563eb; /* bg-blue-600 */
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* bg-blue-700 */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <img src="images/ETAR_H.png" alt="ETAR-H Logó" class="hidden md:block fixed top-4 left-4 w-24 h-24 rounded-full border-2 border-blue-400 shadow-xl z-50 transition-transform hover:scale-110 cursor-pointer" onclick="window.location.href='index.html'">
+
+    <div class="container mx-auto max-w-5xl">
+
+        <!-- A képernyők dinamikusan fognak ide betöltődni -->
+        <div id="loadingScreen" class="screen text-center">
+            <div class="card max-w-md mx-auto">
+                <div class="loader mx-auto"></div>
+                <p class="mt-4 text-blue-300">Rendszer betöltése...</p>
+            </div>
+        </div>
+
+        <div id="loginScreen" class="screen active">
+            <!-- Ezt a ui.js fogja generálni -->
+        </div>
+
+        <div id="ejkPartnerSelectScreen" class="screen">
+            <!-- EJK partner kiválasztó képernyő -->
+        </div>
+
+        <div id="ejkMainScreen" class="screen">
+            <!-- EJK főképernyő -->
+        </div>
+
+        <div id="enyMainScreen" class="screen">
+            <!-- ENY főképernyő -->
+        </div>
+        
+        <div id="mainScreen" class="screen"> <!-- Placeholder for general main screen, if needed -->
+        </div>
+
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+
+    <!-- App Scripts -->
+    <script type="module" src="js/main.js"></script> <!-- Ez egyedül elég, a többit ő importálja -->
+
+</body>
+</html>
