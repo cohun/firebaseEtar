@@ -1,7 +1,6 @@
-
 html {
     /* A régi, fixált háttérkép beállítása */
-    background-image: url('images/ETAR_Background.png'); /* Ellenőrizd, hogy a kép neve helyes-e és az images mappában van-e! */
+    background-image: linear-gradient(rgba(10, 10, 20, 0.7), rgba(10, 10, 20, 0.7)), url('images/ETAR_Background.png'); /* Sötétkék szűrő a háttérképen */
     background-size: cover;
     background-repeat: no-repeat;
     background-attachment: fixed;
@@ -81,4 +80,35 @@ body {
 .active-accordion {
     background-color: #1e3a8a; /* --etar-primary */
     color: white !important; /* Az !important biztosítja, hogy felülírja a Tailwind osztályokat */
+}
+
+/* Gomb stílusok */
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-align: center;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #2563eb; /* bg-blue-600 */
+    color: white;
+}
+.btn-primary:hover {
+    background-color: #1d4ed8; /* bg-blue-700 */
+}
+
+.btn-secondary {
+    background-color: #4b5563; /* bg-gray-600 */
+    color: white;
+}
+.btn-secondary:hover {
+    background-color: #374151; /* bg-gray-700 */
+}
+
+.btn-success {
+    background-color: #16a34a; /* bg-green-600 */
+    color: white;
 }

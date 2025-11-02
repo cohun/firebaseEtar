@@ -21,10 +21,10 @@ export function onAuthStateChanged() {
                 const userData = userDoc.data();
                 if (userData.associatedPartner && userData.associatedPartner.length > 0) {
                     const partner = userData.associatedPartner[0];
-                    if (partner.role === 'pending') {
+                    if (partner.role.startsWith('pending')) {
                         showPendingApprovalScreen();
                     } else {
-                        showMainScreen(user);
+                        showMainScreen(user, userData);
                     }
                 } else {
                     showCompanyRegistrationOptions();
@@ -58,7 +58,8 @@ export async function registerUser(email, password, name) {
     await db.collection('users').doc(user.uid).set({
         email: user.email,
         name: name,
-        associatedPartner: []
+        associatedPartner: [],
+        roles: []
     });
     // onAuthStateChanged will trigger and show the correct screen
 }
@@ -82,25 +83,26 @@ export async function registerNewCompany(companyName, companyAddress) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // 2. Update or create user's document
     const userRef = db.collection('users').doc(user.uid);
     const userDoc = await userRef.get();
 
     const newPartnerData = {
         etarCode: etarCode,
         type: 'ENY',
-        role: 'pending'
+        role: 'pendingAdmin'
     };
 
     if (userDoc.exists) {
         await userRef.update({
-            associatedPartner: firebase.firestore.FieldValue.arrayUnion(newPartnerData)
+            associatedPartner: firebase.firestore.FieldValue.arrayUnion(newPartnerData),
+            roles: firebase.firestore.FieldValue.arrayUnion('ENY_pendingAdmin')
         });
     } else {
         await userRef.set({
             email: user.email,
             name: user.displayName,
-            associatedPartner: [newPartnerData]
+            associatedPartner: [newPartnerData],
+            roles: ['ENY_pendingAdmin']
         });
     }
 }
@@ -125,14 +127,19 @@ export async function joinCompanyWithCode(etarCode) {
 
     // 2. Update user's document
     const userRef = db.collection('users').doc(user.uid);
+    const type = etarCode === 'Q27LXR' ? 'EJK' : 'ENY';
+
     const newPartnerData = {
         etarCode: etarCode,
-        type: 'ENY',
+        type: type,
         role: 'pending'
     };
 
+    const newRole = `${type}_pending`;
+
     await userRef.update({
-        associatedPartner: firebase.firestore.FieldValue.arrayUnion(newPartnerData)
+        associatedPartner: firebase.firestore.FieldValue.arrayUnion(newPartnerData),
+        roles: firebase.firestore.FieldValue.arrayUnion(newRole)
     });
 
     return true;

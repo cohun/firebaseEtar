@@ -1,15 +1,26 @@
-import { auth } from './firebase.js';
+import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
+import { getUsersForPermissionManagement, updateUserPartnerRole, getPartnersForSelection } from './admin.js';
 
 const screens = {
     loading: document.getElementById('loadingScreen'),
     login: document.getElementById('loginScreen'),
     main: document.getElementById('mainScreen'),
+    permissionManagement: document.getElementById('permissionManagementScreen'),
+    partnerSelection: document.getElementById('partnerSelectionScreen'),
 };
 
 function showScreen(screenId) {
-    Object.values(screens).forEach(screen => screen.classList.remove('active'));
-    screens[screenId].classList.add('active');
+    // Hide all screens
+    for (const key in screens) {
+        if (screens[key]) {
+            screens[key].classList.remove('active');
+        }
+    }
+    // Show the target screen
+    if (screens[screenId]) {
+        screens[screenId].classList.add('active');
+    }
 }
 
 export function showLoginScreen() {
@@ -204,24 +215,372 @@ export function showPendingApprovalScreen() {
     });
 }
 
+export async function showMainScreen(user, userData) {
+    const partnerInfo = userData && userData.associatedPartner && userData.associatedPartner.length > 0
+        ? userData.associatedPartner[0]
+        : null;
 
-export function showMainScreen(user) {
-    const mainHtml = `
-        <div class="card">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold">ETAR Főképernyő</h1>
-                <button id="signOutButton" class="btn btn-secondary text-sm">Kijelentkezés</button>
+    let partnerDetails = null;
+    if (partnerInfo && partnerInfo.etarCode) {
+        const snapshot = await db.collection('partners').where('etarCode', '==', partnerInfo.etarCode).limit(1).get();
+        if (!snapshot.empty) {
+            partnerDetails = snapshot.docs[0].data();
+        }
+    }
+
+    const role = partnerInfo ? partnerInfo.role : null;
+    const type = partnerInfo ? partnerInfo.type : null;
+
+    let menuHtml = '';
+    if (role && role !== 'pending') {
+        const isEjkAdmin = type === 'EJK' && role === 'admin';
+        const isEnyAdmin = type === 'ENY' && role === 'admin';
+        const canManagePermissions = isEjkAdmin || isEnyAdmin;
+
+        const isEjkUser = type === 'EJK';
+        const isEnyUserWithMultiplePartners = type === 'ENY' && userData.associatedPartner && userData.associatedPartner.length > 1;
+        const canSelectPartner = isEjkUser || isEnyUserWithMultiplePartners;
+
+        let buttonsHtml = '';
+        if (canManagePermissions) {
+            buttonsHtml += `<button id="managePermissionsBtn" class="btn btn-secondary w-full">Jogosultságok kezelése</button>`;
+        }
+        if (canSelectPartner) {
+            buttonsHtml += `<button id="selectPartnerBtn" class="btn btn-secondary w-full">Partner adatbázis kiválasztása</button>`;
+        }
+
+        // Add new buttons for ENY users
+        if (type === 'ENY') {
+            buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Még egy céget regisztrálok</button>`;
+            buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
+        }
+
+        if (buttonsHtml) {
+            menuHtml = `
+                <div class="space-y-4 mt-8">
+                    ${buttonsHtml}
+                    <button id="signOutButton" class="btn btn-primary w-full mt-4">Kijelentkezés</button>
+                </div>
+            `;
+        } else {
+            menuHtml = `
+                <div class="mt-8">
+                    <button id="signOutButton" class="btn btn-primary w-full">Kijelentkezés</button>
+                </div>
+            `;
+        }
+    } else {
+        // Ha a szerepkör 'pending' vagy nincs, csak a kijelentkezés gomb látszik
+        menuHtml = `
+            <div class="mt-8">
+                <button id="signOutButton" class="btn btn-primary w-full">Kijelentkezés</button>
             </div>
-            <p>Üdv, ${user.displayName || user.email}!</p>
-            <p class="mt-4">Innen folytatjuk a fejlesztést...</p>
+        `;
+    }
+
+    const companyInfoHtml = partnerDetails
+        ? `
+            <div class="text-left my-4 p-3 border border-blue-800 rounded-lg bg-blue-900/30">
+                <p class="text-gray-300 font-semibold">Cégnév: <strong class="font-normal text-blue-300">${partnerDetails.name}</strong></p>
+                <p class="text-gray-300 font-semibold">Cím: <strong class="font-normal text-blue-300">${partnerDetails.address}</strong></p>
+            </div>
+        `
+        : '';
+
+    const mainHtml = `
+        <div class="card max-w-md mx-auto text-center">
+            <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto mb-8 w-64 h-auto rounded-lg shadow-md">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2">ETAR Rendszer</h1>
+            <p class="mb-2 text-blue-300">Bejelentkezve mint: ${user.displayName || user.email}</p>
+            ${companyInfoHtml}
+            
+            <div class="text-left my-6 p-4 border border-blue-800 rounded-lg">
+                <p class="text-gray-300">Típus: <strong class="font-semibold text-blue-300">${type || 'N/A'}</strong> | Szerepkör: <strong class="font-semibold text-blue-300">${role || 'Nincs meghatározva'}</strong></p>
+                <!-- Ide jöhet a jövőben a főképernyő tartalma -->
+            </div>
+
+            ${menuHtml}
         </div>
     `;
     screens.main.innerHTML = mainHtml;
     showScreen('main');
 
+    // Kijelentkezés gomb eseménykezelője
     document.getElementById('signOutButton').addEventListener('click', () => {
         auth.signOut().catch(error => {
             console.error("Kijelentkezési hiba:", error);
         });
+    });
+
+    // A menügombok eseménykezelői, ha léteznek
+    if (role && role !== 'pending') {
+        const managePermissionsBtn = document.getElementById('managePermissionsBtn');
+        if (managePermissionsBtn) {
+            managePermissionsBtn.addEventListener('click', async () => {
+                showPermissionManagementLoadingScreen();
+                try {
+                    const users = await getUsersForPermissionManagement(user, userData);
+                    showPermissionManagementScreen(users, userData);
+                } catch (error) {
+                    console.error("Hiba a jogosultságkezelő adatok lekérése során:", error);
+                    alert("Hiba történt a felhasználói adatok lekérése közben.");
+                    window.location.reload(); // Go back
+                }
+            });
+        }
+
+        const selectPartnerBtn = document.getElementById('selectPartnerBtn');
+        if (selectPartnerBtn) {
+            selectPartnerBtn.addEventListener('click', async () => {
+                showPartnerSelectionLoadingScreen();
+                try {
+                    const partners = await getPartnersForSelection(userData);
+                    showPartnerSelectionScreen(partners, userData);
+                } catch (error) {
+                    console.error("Hiba a partnerek lekérése során:", error);
+                    alert("Hiba történt a partner adatok lekérése közben.");
+                    window.location.reload(); // Go back
+                }
+            });
+        }
+
+        // Event listeners for new ENY buttons
+        if (type === 'ENY') {
+            const registerAnotherCompanyBtn = document.getElementById('registerAnotherCompanyBtn');
+            if (registerAnotherCompanyBtn) {
+                registerAnotherCompanyBtn.addEventListener('click', () => {
+                    showNewCompanyForm();
+                    showScreen('login');
+                });
+            }
+
+            const joinAnotherCompanyBtn = document.getElementById('joinAnotherCompanyBtn');
+            if (joinAnotherCompanyBtn) {
+                joinAnotherCompanyBtn.addEventListener('click', () => {
+                    showJoinCompanyForm();
+                    showScreen('login');
+                });
+            }
+        }
+    }
+}
+
+export function showPermissionManagementLoadingScreen() {
+    const loadingHtml = `
+        <div class="card max-w-4xl mx-auto text-center">
+            <h1 class="text-3xl font-bold mb-6">Jogosultságok Kezelése</h1>
+            <div class="loader mx-auto"></div>
+            <p class="mt-4 text-blue-300">Felhasználók és partnerek betöltése...</p>
+            <button id="backToMainScreenBtn" class="btn btn-secondary mt-6">Vissza</button>
+        </div>
+    `;
+    screens.permissionManagement.innerHTML = loadingHtml;
+    showScreen('permissionManagement');
+
+    document.getElementById('backToMainScreenBtn').addEventListener('click', () => {
+        window.location.reload();
+    });
+}
+
+export function showPermissionManagementScreen(users, currentUserData) {
+    const currentUserType = currentUserData && currentUserData.associatedPartner && currentUserData.associatedPartner.length > 0
+        ? currentUserData.associatedPartner[0].type
+        : null;
+
+    const typeOptions = ['EJK', 'ENY'];
+    const roleOptions = ['pending', 'pendingAdmin', 'admin', 'write', 'read'];
+
+    const userListHtml = users.map(user => {
+        const associationsHtml = user.associations.map(assoc => {
+            if (!assoc.partnerDetails) return '';
+
+            let typeDropdown = '';
+            if (currentUserType === 'EJK') {
+                typeDropdown = `
+                    <div>
+                        <label for="type-select-${user.id}-${assoc.etarCode}" class="block text-sm font-medium text-gray-400">Típus</label>
+                        <select id="type-select-${user.id}-${assoc.etarCode}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
+                            ${typeOptions.map(opt => `<option value="${opt}" ${assoc.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            const roleDropdown = `
+                <div>
+                    <label for="role-select-${user.id}-${assoc.etarCode}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                    <select id="role-select-${user.id}-${assoc.etarCode}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
+                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            
+            const partnerDetailsHtml = `
+                <div class="flex-1">
+                    <p><strong>Cégnév:</strong> ${assoc.partnerDetails.name || 'N/A'}</p>
+                    <p><strong>Cím:</strong> ${assoc.partnerDetails.address || 'N/A'}</p>
+                    <p class="text-sm text-gray-400"><strong>ETAR Kód:</strong> ${assoc.etarCode || 'N/A'}</p>
+                    <p class="text-sm text-gray-400"><strong>Létrehozva:</strong> ${assoc.partnerDetails.createdAt ? new Date(assoc.partnerDetails.createdAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
+                    <p class="text-sm text-gray-400"><strong>Módosítva:</strong> ${assoc.partnerDetails.updatedAt ? new Date(assoc.partnerDetails.updatedAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
+                </div>
+            `;
+
+            return `
+            <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-center">
+                ${partnerDetailsHtml}
+                <div class="text-center">
+                    <button id="save-btn-${user.id}-${assoc.etarCode}" class="btn btn-primary rounded-full w-16 h-16 flex items-center justify-center hidden">Mentés</button>
+                </div>
+                <div class="flex flex-col gap-4">
+                    ${typeDropdown}
+                    ${roleDropdown}
+                </div>
+            </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="p-4 border border-blue-800 rounded-lg mb-4">
+                <h3 class="text-xl font-bold text-red-700">${user.name}</h3>
+                <p class="text-blue-300">${user.email}</p>
+                <div class="mt-4 space-y-2">
+                    <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
+                    ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const screenHtml = `
+        <div class="card max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold">Jogosultságok Kezelése</h1>
+                <button id="backToMainScreenBtn" class="btn btn-secondary">Vissza</button>
+            </div>
+            <div class="max-h-[60vh] overflow-y-auto pr-2">
+                ${userListHtml.length > 0 ? userListHtml : '<p class="text-center text-gray-400">Nincsenek a feltételeknek megfelelő felhasználók.</p>'}
+            </div>
+        </div>
+    `;
+    screens.permissionManagement.innerHTML = screenHtml;
+    showScreen('permissionManagement');
+
+    // Logic to show/hide save buttons
+    users.forEach(user => {
+        user.associations.forEach(assoc => {
+            if (!assoc.partnerDetails) return;
+
+            const typeSelect = document.getElementById(`type-select-${user.id}-${assoc.etarCode}`);
+            const roleSelect = document.getElementById(`role-select-${user.id}-${assoc.etarCode}`);
+            const saveButton = document.getElementById(`save-btn-${user.id}-${assoc.etarCode}`);
+
+            const showSaveButton = () => {
+                if (saveButton) {
+                    saveButton.classList.remove('hidden');
+                }
+            };
+
+            if (typeSelect) {
+                typeSelect.addEventListener('change', showSaveButton);
+            }
+            if (roleSelect) {
+                roleSelect.addEventListener('change', showSaveButton);
+            }
+
+            if (saveButton) {
+                saveButton.addEventListener('click', async () => {
+                    const newType = typeSelect ? typeSelect.value : assoc.type;
+                    const newRole = roleSelect.value;
+
+                    // Show loading state
+                    saveButton.disabled = true;
+                    saveButton.textContent = '...';
+
+                    try {
+                        await updateUserPartnerRole(user.id, assoc.etarCode, newType, newRole);
+                        
+                        // Visual feedback for success
+                        saveButton.textContent = 'Mentve';
+                        saveButton.classList.remove('btn-primary');
+                        saveButton.classList.add('btn-success');
+
+                        setTimeout(() => {
+                            saveButton.classList.add('hidden');
+                            saveButton.disabled = false;
+                            saveButton.textContent = 'Mentés';
+                            saveButton.classList.remove('btn-success');
+                            saveButton.classList.add('btn-primary');
+                        }, 2000);
+
+                    } catch (error) {
+                        console.error("Hiba a jogosultságok mentésekor:", error);
+                        alert(`Hiba történt a mentés során: ${error.message}`);
+                        
+                        // Re-enable button on failure
+                        saveButton.disabled = false;
+                        saveButton.textContent = 'Mentés';
+                    }
+                });
+            }
+        });
+    });
+
+    document.getElementById('backToMainScreenBtn').addEventListener('click', () => {
+        window.location.reload();
+    });
+}
+
+export function showPartnerSelectionLoadingScreen() {
+    const loadingHtml = `
+        <div class="card max-w-4xl mx-auto text-center">
+            <h1 class="text-3xl font-bold mb-6">Partnerek Betöltése</h1>
+            <div class="loader mx-auto"></div>
+            <p class="mt-4 text-blue-300">Partner adatok lekérése...</p>
+            <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary mt-6">Vissza</button>
+        </div>
+    `;
+    screens.partnerSelection.innerHTML = loadingHtml;
+    showScreen('partnerSelection');
+
+    document.getElementById('backToMainScreenFromPartnerSelectBtn').addEventListener('click', () => {
+        window.location.reload(); // Simple way to go back to main screen
+    });
+}
+
+export function showPartnerSelectionScreen(partners, userData) {
+    const userType = userData && userData.associatedPartner && userData.associatedPartner.length > 0 ? userData.associatedPartner[0].type : null;
+    const userRole = userData && userData.associatedPartner && userData.associatedPartner.length > 0 ? userData.associatedPartner[0].role : null;
+
+    const canSeeEtarCode = userType === 'EJK' || (userType === 'ENY' && userRole === 'admin');
+
+    const partnerListHtml = partners.map(partner => {
+        const etarCodeHtml = canSeeEtarCode
+            ? `<p class="text-gray-400 mt-2">ETAR Kód: ${partner.etarCode}</p>`
+            : '';
+
+        return `
+        <div class="p-4 border border-blue-800 rounded-lg mb-4">
+            <h3 class="text-xl font-bold text-red-700">${partner.name}</h3>
+            <p class="text-blue-300">${partner.address}</p>
+            ${etarCodeHtml}
+        </div>
+    `}).join('');
+
+    const screenHtml = `
+        <div class="card max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold">Partnerek</h1>
+                <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary">Vissza</button>
+            </div>
+            <div class="max-h-[60vh] overflow-y-auto pr-2">
+                ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'}
+            </div>
+        </div>
+    `;
+    screens.partnerSelection.innerHTML = screenHtml;
+    showScreen('partnerSelection');
+
+    document.getElementById('backToMainScreenFromPartnerSelectBtn').addEventListener('click', () => {
+        window.location.reload();
     });
 }
