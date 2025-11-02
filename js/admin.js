@@ -137,7 +137,7 @@ export async function getPartnersForSelection(userData) {
 
     if (userType === 'EJK') {
         const partnersSnapshot = await db.collection('partners').get();
-        return partnersSnapshot.docs.map(doc => doc.data());
+        return partnersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } else { // ENY user
         const etarCodes = userData.associatedPartner.map(p => p.etarCode);
         if (etarCodes.length === 0) {
@@ -155,7 +155,7 @@ export async function getPartnersForSelection(userData) {
         const partners = [];
         partnerSnapshots.forEach(snapshot => {
             snapshot.forEach(doc => {
-                partners.push(doc.data());
+                partners.push({ id: doc.id, ...doc.data() });
             });
         });
         return partners;

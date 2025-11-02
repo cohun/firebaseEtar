@@ -1,6 +1,7 @@
 import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
 import { getUsersForPermissionManagement, updateUserPartnerRole, getPartnersForSelection } from './admin.js';
+import { getPartnerWorkScreenHtml } from './partner.js';
 
 const screens = {
     loading: document.getElementById('loadingScreen'),
@@ -8,9 +9,10 @@ const screens = {
     main: document.getElementById('mainScreen'),
     permissionManagement: document.getElementById('permissionManagementScreen'),
     partnerSelection: document.getElementById('partnerSelectionScreen'),
+    partnerWork: document.getElementById('partnerWorkScreen'),
 };
 
-function showScreen(screenId) {
+export function showScreen(screenId) {
     // Hide all screens
     for (const key in screens) {
         if (screens[key]) {
@@ -20,6 +22,13 @@ function showScreen(screenId) {
     // Show the target screen
     if (screens[screenId]) {
         screens[screenId].classList.add('active');
+    }
+
+    // Add a class to the body when the partner work screen is active
+    if (screenId === 'partnerWork') {
+        document.body.classList.add('partner-work-active');
+    } else {
+        document.body.classList.remove('partner-work-active');
     }
 }
 
@@ -291,7 +300,7 @@ export async function showMainScreen(user, userData) {
         <div class="card max-w-md mx-auto text-center">
             <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto mb-8 w-64 h-auto rounded-lg shadow-md">
             <h1 class="text-3xl sm:text-4xl font-bold mb-2">ETAR Rendszer</h1>
-            <p class="mb-2 text-blue-300">Bejelentkezve mint: ${user.displayName || user.email}</p>
+            <p class="mb-2 text-blue-300">Bejelentkezve mint: ${userData.name || user.displayName || user.email}</p>
             ${companyInfoHtml}
             
             <div class="text-left my-6 p-4 border border-blue-800 rounded-lg">
@@ -547,6 +556,8 @@ export function showPartnerSelectionLoadingScreen() {
     });
 }
 
+
+
 export function showPartnerSelectionScreen(partners, userData) {
     const userType = userData && userData.associatedPartner && userData.associatedPartner.length > 0 ? userData.associatedPartner[0].type : null;
     const userRole = userData && userData.associatedPartner && userData.associatedPartner.length > 0 ? userData.associatedPartner[0].role : null;
@@ -559,7 +570,7 @@ export function showPartnerSelectionScreen(partners, userData) {
             : '';
 
         return `
-        <div class="p-4 border border-blue-800 rounded-lg mb-4">
+        <div class="p-4 border border-blue-800 rounded-lg mb-4 cursor-pointer hover:bg-blue-900/50 transition-colors" data-partner-id="${partner.id}">
             <h3 class="text-xl font-bold text-red-700">${partner.name}</h3>
             <p class="text-blue-300">${partner.address}</p>
             ${etarCodeHtml}
@@ -572,7 +583,7 @@ export function showPartnerSelectionScreen(partners, userData) {
                 <h1 class="text-3xl font-bold">Partnerek</h1>
                 <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary">Vissza</button>
             </div>
-            <div class="max-h-[60vh] overflow-y-auto pr-2">
+            <div id="partner-list" class="max-h-[60vh] overflow-y-auto pr-2">
                 ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'}
             </div>
         </div>
@@ -583,4 +594,27 @@ export function showPartnerSelectionScreen(partners, userData) {
     document.getElementById('backToMainScreenFromPartnerSelectBtn').addEventListener('click', () => {
         window.location.reload();
     });
+
+    document.getElementById('partner-list').addEventListener('click', (e) => {
+        const card = e.target.closest('[data-partner-id]');
+        if (card) {
+            const partnerId = card.dataset.partnerId;
+            const partner = partners.find(p => p.id === partnerId);
+            if (partner) {
+                showPartnerWorkScreen(partner, userData);
+            }
+        }
+    });
 }
+
+function showPartnerWorkScreen(partner, userData) {
+    const partnerWorkScreen = document.getElementById('partnerWorkScreen');
+    partnerWorkScreen.innerHTML = getPartnerWorkScreenHtml(partner, userData);
+    showScreen('partnerWork');
+
+    document.getElementById('backToMainFromWorkScreenBtn').addEventListener('click', () => {
+        window.location.reload(); // Reload to go back to the main screen
+    });
+}
+
+

@@ -20,6 +20,26 @@ body {
     display: block; 
 }
 
+/* Partner work screen specific styles */
+body.partner-work-active {
+    display: block; /* Override flex settings */
+    padding: 0;
+}
+
+.partner-work-active #home-logo-img,
+.partner-work-active .container {
+    display: none; /* Hide main logo and container */
+}
+
+#partnerWorkScreen.active {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1e3a8a, #000033);
+    color: white;
+}
+
+
 .loader {
     border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db;
     width: 40px; height: 40px; animation: spin 2s linear infinite;
