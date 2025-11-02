@@ -132,6 +132,37 @@ export async function updateUserPartnerRole(userId, etarCode, newType, newRole) 
     });
 }
 
+export async function removeUserPartnerAssociation(userId, etarCodeToRemove) {
+    if (!userId || !etarCodeToRemove) {
+        throw new Error("Hiányzó paraméterek a partnerkapcsolat törléséhez.");
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+        throw new Error("A felhasználó nem található.");
+    }
+
+    const userData = userDoc.data();
+    const associatedPartners = userData.associatedPartner || [];
+
+    const initialLength = associatedPartners.length;
+    const updatedAssociatedPartners = associatedPartners.filter(p => p.etarCode !== etarCodeToRemove);
+
+    if (updatedAssociatedPartners.length === initialLength) {
+        throw new Error("A megadott ETAR kóddal rendelkező partnerkapcsolat nem található a felhasználónál.");
+    }
+
+    // Regenerate the roles array from the updated associatedPartners
+    const newRoles = updatedAssociatedPartners.map(p => `${p.type}_${p.role}`);
+
+    await userRef.update({
+        associatedPartner: updatedAssociatedPartners,
+        roles: newRoles
+    });
+}
+
 export async function getPartnersForSelection(userData) {
     const userType = userData.associatedPartner[0].type;
 

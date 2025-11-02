@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
-import { getUsersForPermissionManagement, updateUserPartnerRole, getPartnersForSelection } from './admin.js';
+import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection } from './admin.js';
 import { getPartnerWorkScreenHtml } from './partner.js';
 
 const screens = {
@@ -397,7 +397,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
         : null;
 
     const typeOptions = ['EJK', 'ENY'];
-    const roleOptions = ['pending', 'pendingAdmin', 'admin', 'write', 'read'];
+    const roleOptions = ['pending', 'admin', 'write', 'read', 'Törlés'];
 
     const userListHtml = users.map(user => {
         const associationsHtml = user.associations.map(assoc => {
@@ -409,8 +409,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
                     <div>
                         <label for="type-select-${user.id}-${assoc.etarCode}" class="block text-sm font-medium text-gray-400">Típus</label>
                         <select id="type-select-${user.id}-${assoc.etarCode}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                            ${typeOptions.map(opt => `<option value="${opt}" ${assoc.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                        </select>
+                                                        ${typeOptions.map(opt => `<option value="${opt}" ${assoc.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}                        </select>
                     </div>
                 `;
             }
@@ -419,8 +418,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
                 <div>
                     <label for="role-select-${user.id}-${assoc.etarCode}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
                     <select id="role-select-${user.id}-${assoc.etarCode}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                    </select>
+                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''} ${opt === 'Törlés' ? 'class="text-red-500"' : ''}>${opt}</option>`).join('')}                    </select>
                 </div>
             `;
             
@@ -434,11 +432,17 @@ export function showPermissionManagementScreen(users, currentUserData) {
                 </div>
             `;
 
+            const isInitiallyDeleteType = assoc.role === 'Törlés';
+
+            const saveButtonHtml = `<button id="save-btn-${user.id}-${assoc.etarCode}" class="btn btn-primary rounded-full w-16 h-16 flex items-center justify-center ${isInitiallyDeleteType ? 'hidden' : ''}">Mentés</button>`;
+            const deleteButtonHtml = `<button id="delete-btn-${user.id}-${assoc.etarCode}" class="btn bg-red-600 hover:bg-red-700 text-white rounded-full w-16 h-16 flex items-center justify-center ${!isInitiallyDeleteType ? 'hidden' : ''}">Törlés</button>`;
+
             return `
             <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-center">
                 ${partnerDetailsHtml}
                 <div class="text-center">
-                    <button id="save-btn-${user.id}-${assoc.etarCode}" class="btn btn-primary rounded-full w-16 h-16 flex items-center justify-center hidden">Mentés</button>
+                    ${saveButtonHtml}
+                    ${deleteButtonHtml}
                 </div>
                 <div class="flex flex-col gap-4">
                     ${typeDropdown}
@@ -474,7 +478,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
     screens.permissionManagement.innerHTML = screenHtml;
     showScreen('permissionManagement');
 
-    // Logic to show/hide save buttons
+    // Logic to show/hide save/delete buttons and handle their actions
     users.forEach(user => {
         user.associations.forEach(assoc => {
             if (!assoc.partnerDetails) return;
@@ -482,18 +486,46 @@ export function showPermissionManagementScreen(users, currentUserData) {
             const typeSelect = document.getElementById(`type-select-${user.id}-${assoc.etarCode}`);
             const roleSelect = document.getElementById(`role-select-${user.id}-${assoc.etarCode}`);
             const saveButton = document.getElementById(`save-btn-${user.id}-${assoc.etarCode}`);
+            const deleteButton = document.getElementById(`delete-btn-${user.id}-${assoc.etarCode}`);
 
-            const showSaveButton = () => {
-                if (saveButton) {
-                    saveButton.classList.remove('hidden');
+            const updateButtonVisibility = () => {
+                const currentSelectedType = typeSelect ? typeSelect.value : assoc.type;
+                const currentSelectedRole = roleSelect ? roleSelect.value : assoc.role;
+
+                const hasTypeChanged = typeSelect ? (typeSelect.value !== assoc.type) : false;
+                const hasRoleChanged = roleSelect ? (roleSelect.value !== assoc.role) : false;
+
+                const hasAnyChange = hasTypeChanged || hasRoleChanged;
+
+                if (currentSelectedRole === 'Törlés') {
+                    if (deleteButton) {
+                        deleteButton.classList.remove('hidden');
+                    }
+                    if (saveButton) {
+                        saveButton.classList.add('hidden');
+                    }
+                } else {
+                    if (deleteButton) {
+                        deleteButton.classList.add('hidden');
+                    }
+                    if (saveButton) {
+                        if (hasAnyChange) {
+                            saveButton.classList.remove('hidden');
+                        } else {
+                            saveButton.classList.add('hidden');
+                        }
+                    }
                 }
             };
 
+            // Call it once to set the initial state based on current values
+            updateButtonVisibility();
+
             if (typeSelect) {
-                typeSelect.addEventListener('change', showSaveButton);
+                typeSelect.addEventListener('change', updateButtonVisibility);
             }
             if (roleSelect) {
-                roleSelect.addEventListener('change', showSaveButton);
+                roleSelect.addEventListener('change', updateButtonVisibility);
             }
 
             if (saveButton) {
@@ -528,6 +560,41 @@ export function showPermissionManagementScreen(users, currentUserData) {
                         // Re-enable button on failure
                         saveButton.disabled = false;
                         saveButton.textContent = 'Mentés';
+                    }
+                });
+            }
+
+            if (deleteButton) {
+                deleteButton.addEventListener('click', async () => {
+                    const confirmation = confirm(`Biztosan törölni szeretné a(z) ${assoc.partnerDetails.name} partnerkapcsolatot ${user.name} felhasználótól? Ez a művelet nem visszavonható.`);
+                    
+                    if (confirmation) {
+                        // Show loading state
+                        deleteButton.disabled = true;
+                        deleteButton.textContent = '...';
+
+                        try {
+                            await removeUserPartnerAssociation(user.id, assoc.etarCode);
+                            
+                            // Visual feedback for success
+                            deleteButton.textContent = 'Törölve';
+                            deleteButton.classList.remove('bg-red-600', 'hover:bg-red-700');
+                            deleteButton.classList.add('btn-success');
+
+                            setTimeout(() => {
+                                window.location.reload(); // Reload to reflect changes
+                            }, 1500);
+
+                        } catch (error) {
+                            console.error("Hiba a partnerkapcsolat törlésekor:", error);
+                            alert(`Hiba történt a törlés során: ${error.message}`);
+                            
+                            // Re-enable button on failure
+                            deleteButton.disabled = false;
+                            deleteButton.textContent = 'Törlés';
+                            deleteButton.classList.remove('btn-success');
+                            deleteButton.classList.add('bg-red-600', 'hover:bg-red-700');
+                        }
                     }
                 });
             }
