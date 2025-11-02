@@ -248,6 +248,7 @@ export async function showMainScreen(user, userData) {
 
         const isEjkUser = type === 'EJK';
         const isEnyUserWithMultiplePartners = type === 'ENY' && userData.associatedPartner && userData.associatedPartner.length > 1;
+        const isEnyUserWithSinglePartner = type === 'ENY' && userData.associatedPartner && userData.associatedPartner.length === 1;
         const canSelectPartner = isEjkUser || isEnyUserWithMultiplePartners;
 
         let buttonsHtml = '';
@@ -256,6 +257,9 @@ export async function showMainScreen(user, userData) {
         }
         if (canSelectPartner) {
             buttonsHtml += `<button id="selectPartnerBtn" class="btn btn-secondary w-full">Partner adatbázis kiválasztása</button>`;
+        } else if (isEnyUserWithSinglePartner) {
+            // New button for ENY users with only one associated partner
+            buttonsHtml += `<button id="partnerPortalBtn" class="btn btn-primary w-full">Partner portál</button>`;
         }
 
         // Add new buttons for ENY users
@@ -368,6 +372,14 @@ export async function showMainScreen(user, userData) {
                 joinAnotherCompanyBtn.addEventListener('click', () => {
                     showJoinCompanyForm();
                     showScreen('login');
+                });
+            }
+
+            const partnerPortalBtn = document.getElementById('partnerPortalBtn');
+            if (partnerPortalBtn) {
+                partnerPortalBtn.addEventListener('click', () => {
+                    // Assuming there's only one partner for ENY users in this case
+                    showPartnerWorkScreen(partnerDetails, userData);
                 });
             }
         }

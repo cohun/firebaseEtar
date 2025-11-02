@@ -11,7 +11,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 <div>
                     <h1 class="text-xl font-bold text-blue-300">${partner.name}</h1>
                     <p class="text-sm text-gray-400">${partner.address}</p>
-                    <p class="text-sm text-gray-400 mt-2">Bejelentkezve: ${userData.name || user.displayName || user.email}</p>
+                    <p class="text-sm text-gray-400 mt-2">Bejelentkezve: ${userData.name || user.displayName || user.email} (${userData.associatedPartner.find(ap => ap.etarCode === partner.etarCode)?.role || 'N/A'})</p>
                 </div>
             </div>
             <div class="flex items-center space-x-2">
