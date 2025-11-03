@@ -320,6 +320,8 @@ export async function showMainScreen(user, userData) {
 
     // Kijelentkezés gomb eseménykezelője
     document.getElementById('signOutButton').addEventListener('click', () => {
+        sessionStorage.removeItem('lastPartnerId');
+        document.body.classList.remove('partner-mode-active');
         auth.signOut().catch(error => {
             console.error("Kijelentkezési hiba:", error);
         });
@@ -686,12 +688,16 @@ export function showPartnerSelectionScreen(partners, userData) {
     });
 }
 
-function showPartnerWorkScreen(partner, userData) {
+export function showPartnerWorkScreen(partner, userData) {
+    sessionStorage.setItem('lastPartnerId', partner.id);
+    document.body.classList.add('partner-mode-active');
     const partnerWorkScreen = document.getElementById('partnerWorkScreen');
     partnerWorkScreen.innerHTML = getPartnerWorkScreenHtml(partner, userData);
     showScreen('partnerWork');
 
     document.getElementById('backToMainFromWorkScreenBtn').addEventListener('click', () => {
+        sessionStorage.removeItem('lastPartnerId');
+        document.body.classList.remove('partner-mode-active');
         window.location.reload(); // Reload to go back to the main screen
     });
 }

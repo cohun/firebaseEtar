@@ -31,11 +31,15 @@ body.partner-work-active {
     display: none; /* Hide main logo and container */
 }
 
+body.partner-mode-active {
+    background: linear-gradient(135deg, #1e3a8a, #000033);
+}
+
 #partnerWorkScreen.active {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background: linear-gradient(135deg, #1e3a8a, #000033);
+    background: transparent;
     color: white;
 }
 
@@ -48,7 +52,7 @@ body.partner-work-active {
 
 /* Új osztály az áttetsző fehér háttérhez */
 .bg-trans-white {
-    background-color: rgba(255, 255, 255, 0.9); /* 90%-os fehér háttér */
+    background-color: rgba(255, 255, 255, 0.8); /* 70%-os fehér háttér */
 }
 
 /* --- A régi oldalról áthozott stílusok --- */

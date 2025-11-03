@@ -44,6 +44,11 @@
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
+    <script>
+        if (sessionStorage.getItem('lastPartnerId')) {
+            document.body.classList.add('partner-mode-active');
+        }
+    </script>
 
     <img id="home-logo-img" src="images/ETAR_H.png" alt="ETAR-H Logó" class="hidden md:block fixed top-4 left-4 w-24 h-24 rounded-full border-2 border-blue-400 shadow-xl z-50 transition-transform hover:scale-110 cursor-pointer" onclick="window.location.href='index.html'">
 

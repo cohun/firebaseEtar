@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETAR Rendszer - Adatbevitel</title>
+    <link rel="icon" type="image/png" href="images/ETAR_H.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Common Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a, #000033);
+        }
+        .card {
+            background-color: rgba(3, 7, 18, 0.6); /* bg-blue-950/60 */
+            border: 1px solid #1e40af; /* border-blue-800 */
+            color: #d1d5db; /* text-gray-300 */
+        }
+        .btn-primary {
+            background-color: #2563eb; /* bg-blue-600 */
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* bg-blue-700 */
+        }
+        .input-field {
+            background-color: white; color: black !important; font-weight: bold;
+            width: 100%; padding: 0.5rem; border-radius: 0.375rem;
+            border: 1px solid #93c5fd; transition: all 0.2s;
+        }
+        .input-field:focus {
+            outline: 2px solid transparent; outline-offset: 2px;
+            border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6;
+        }
+        .input-field::placeholder { color: #a0aec0; font-weight: normal; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="container mx-auto max-w-5xl">
+        <div class="text-center mb-4">
+            <img src="images/logo.jpg" alt="Logo" class="mx-auto h-16 rounded-lg">
+        </div>
+        <header class="bg-blue-950 p-4 rounded-t-xl mb-1 shadow-lg border-b border-blue-800 flex items-center justify-between">
+            <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10">
+            <h2 class="text-xl font-bold text-white">Adatbevitel</h2>
+            <div class="w-10"></div>
+        </header>
+        <div class="card rounded-t-none">
+            <h3 class="text-xl font-semibold border-b border-blue-700 pb-2 mb-6">Új eszköz alapadatai</h3>
+             <form id="dataEntryForm" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <!-- Bal oszlop -->
+                <div><label class="block text-sm">Megnevezés</label><input name="eszkoz_megnevezes" class="input-field" required></div>
+                <div><label class="block text-sm">Gyári szám</label><input name="eszkoz_gyariszam" class="input-field" required></div>
+                <div><label class="block text-sm">Típus</label><input name="eszkoz_tipus" class="input-field"></div>
+                <div><label class="block text-sm">Gyártó</label><input name="eszkoz_gyarto" class="input-field"></div>
+                <div><label class="block text-sm">Hasznos hossz</label><input name="eszkoz_hossz" class="input-field"></div>
+                <div><label class="block text-sm">Gyártás éve</label><input name="gyartas_eve" class="input-field"></div>
+                <div><label class="block text-sm">Teherbírás (WLL)</label><input name="eszkoz_teherbiras" class="input-field"></div>
+                <div><label class="block text-sm">Üzemeltetői azonosító</label><input name="eszkoz_uzemeltetoi_azonosito" class="input-field"></div>
+            </form>
+            <div class="flex justify-start mt-6">
+                <button onclick="history.back()" class="btn btn-secondary">Vissza</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

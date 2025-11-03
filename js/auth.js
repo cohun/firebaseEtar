@@ -1,5 +1,5 @@
 import { auth, db } from './firebase.js';
-import { showLoginScreen, showMainScreen, showCompanyRegistrationOptions, showPendingApprovalScreen } from './ui.js';
+import { showLoginScreen, showMainScreen, showCompanyRegistrationOptions, showPendingApprovalScreen, showPartnerWorkScreen } from './ui.js';
 
 /**
  * Generates a 6-character random alphanumeric ETAR code.
@@ -19,6 +19,24 @@ export function onAuthStateChanged() {
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
+
+                const lastPartnerId = sessionStorage.getItem('lastPartnerId');
+                if (lastPartnerId && userData.associatedPartner && userData.associatedPartner.length > 0) {
+                    try {
+                        const partnerDoc = await db.collection('partners').doc(lastPartnerId).get();
+                        if (partnerDoc.exists) {
+                            const partnerData = { id: partnerDoc.id, ...partnerDoc.data() };
+                            const hasAccess = userData.associatedPartner.some(p => p.etarCode === partnerData.etarCode);
+                            if (hasAccess) {
+                                showPartnerWorkScreen(partnerData, userData);
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error fetching last partner:", e);
+                    }
+                }
+
                 if (userData.associatedPartner && userData.associatedPartner.length > 0) {
                     const partner = userData.associatedPartner[0];
                     if (partner.role.startsWith('pending')) {

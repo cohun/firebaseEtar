@@ -18,6 +18,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 <button class="btn btn-secondary">Adatlap</button>
                 <button class="btn btn-secondary">Eszközök</button>
                 <button class="btn btn-secondary">Jegyzőkönyvek</button>
+                <button onclick="window.location.href='adatbevitel.html'" class="btn btn-secondary">Új eszköz feltöltés</button>
                 <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
             </div>
         </header>
