@@ -646,15 +646,28 @@ export function showPartnerSelectionScreen(partners, userData) {
     const canSeeEtarCode = userType === 'EJK' || (userType === 'ENY' && userRole === 'admin');
 
     const partnerListHtml = partners.map(partner => {
+        const association = userData.associatedPartner.find(ap => ap.etarCode === partner.etarCode);
+        const role = association ? association.role : null;
+        const isPending = role === 'pending';
+
         const etarCodeHtml = canSeeEtarCode
             ? `<p class="text-gray-400 mt-2">ETAR Kód: ${partner.etarCode}</p>`
             : '';
 
+        const cardClasses = isPending
+            ? 'p-4 border border-blue-800 rounded-lg mb-4 opacity-50'
+            : 'p-4 border border-blue-800 rounded-lg mb-4 cursor-pointer hover:bg-blue-900/50 transition-colors';
+
+        const pendingHtml = isPending
+            ? '<p class="text-yellow-400 font-bold mt-2">Jóváhagyásra vár</p>'
+            : '';
+
         return `
-        <div class="p-4 border border-blue-800 rounded-lg mb-4 cursor-pointer hover:bg-blue-900/50 transition-colors" data-partner-id="${partner.id}">
+        <div class="${cardClasses}" ${!isPending ? `data-partner-id="${partner.id}"` : ''}>
             <h3 class="text-xl font-bold text-red-700">${partner.name}</h3>
             <p class="text-blue-300">${partner.address}</p>
             ${etarCodeHtml}
+            ${pendingHtml}
         </div>
     `}).join('');
 
@@ -665,7 +678,7 @@ export function showPartnerSelectionScreen(partners, userData) {
                 <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary">Vissza</button>
             </div>
             <div id="partner-list" class="max-h-[60vh] overflow-y-auto pr-2">
-                ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'}
+                ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'} 
             </div>
         </div>
     `;
@@ -687,7 +700,6 @@ export function showPartnerSelectionScreen(partners, userData) {
         }
     });
 }
-
 export function showPartnerWorkScreen(partner, userData) {
     sessionStorage.setItem('lastPartnerId', partner.id);
     document.body.classList.add('partner-mode-active');
