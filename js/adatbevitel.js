@@ -3,6 +3,31 @@ import { auth, db } from './firebase.js';
 
 document.addEventListener('DOMContentLoaded', function () {
     const saveButton = document.getElementById('saveButton');
+    const loadPreviousButton = document.getElementById('loadPreviousButton');
+    const form = document.getElementById('dataEntryForm');
+    const storageKey = 'previousDeviceData';
+
+    // Function to populate form from an object
+    const populateForm = (data) => {
+        form.querySelector('[name="eszkoz_megnevezes"]').value = data.description || '';
+        form.querySelector('[name="eszkoz_tipus"]').value = data.type || '';
+        form.querySelector('[name="eszkoz_gyarto"]').value = data.manufacturer || '';
+        form.querySelector('[name="eszkoz_hossz"]').value = data.effectiveLength || '';
+        form.querySelector('[name="gyartas_eve"]').value = data.yearOfManufacture || '';
+        form.querySelector('[name="eszkoz_teherbiras"]').value = data.loadCapacity || '';
+        // Gyári szám és üzemeltetői azonosító szándékosan kihagyva
+    };
+
+    // Load previous data button event listener
+    loadPreviousButton.addEventListener('click', function() {
+        const savedData = localStorage.getItem(storageKey);
+        if (savedData) {
+            populateForm(JSON.parse(savedData));
+        } else {
+            alert('Nincsenek mentett előző adatok.');
+        }
+    });
+
     saveButton.addEventListener('click', async function () {
         const user = auth.currentUser;
         if (!user) {
@@ -16,7 +41,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const form = document.getElementById('dataEntryForm');
         const description = form.querySelector('[name="eszkoz_megnevezes"]').value;
         const serialNumber = form.querySelector('[name="eszkoz_gyariszam"]').value;
         const loadCapacity = form.querySelector('[name="eszkoz_teherbiras"]').value;
@@ -30,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let createdByName = user.displayName;
         if (!createdByName) {
-            // Fallback: if displayName is not set, try to get it from the users collection
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 createdByName = userDoc.data().name || user.email;
@@ -53,6 +76,13 @@ document.addEventListener('DOMContentLoaded', function () {
             partnerId: partnerId,
             status: 'active'
         };
+
+        // Save data for "load previous" functionality (excluding specified fields)
+        const dataToStore = { ...newDevice };
+        delete dataToStore.serialNumber;
+        delete dataToStore.operatorId;
+        delete dataToStore.createdAt; // also remove server-generated fields
+        localStorage.setItem(storageKey, JSON.stringify(dataToStore));
 
         console.log("Attempting to save new device:", newDevice);
 

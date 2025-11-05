@@ -1,7 +1,7 @@
 import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
 import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection } from './admin.js';
-import { getPartnerWorkScreenHtml } from './partner.js';
+import { getPartnerWorkScreenHtml, initEszkozLista } from './partner.js';
 
 const screens = {
     loading: document.getElementById('loadingScreen'),
@@ -225,166 +225,119 @@ export function showPendingApprovalScreen() {
 }
 
 export async function showMainScreen(user, userData) {
-    const partnerInfo = userData && userData.associatedPartner && userData.associatedPartner.length > 0
-        ? userData.associatedPartner[0]
-        : null;
+    const partnerRoles = userData.partnerRoles || {};
+    const partnerIds = Object.keys(partnerRoles);
+    const hasPartners = partnerIds.length > 0;
+    const isEjkUser = userData.isEjkUser || false;
 
-    let partnerDetails = null;
-    if (partnerInfo && partnerInfo.etarCode) {
-        const snapshot = await db.collection('partners').where('etarCode', '==', partnerInfo.etarCode).limit(1).get();
-        if (!snapshot.empty) {
-            partnerDetails = snapshot.docs[0].data();
-        }
+    // Determine if user has an admin role for any partner
+    const hasAdminRole = Object.values(partnerRoles).some(role => role === 'admin');
+    const canManagePermissions = hasAdminRole;
+
+    // Determine button visibility
+    const canSelectPartner = isEjkUser || partnerIds.length > 1;
+    const isEnyUserWithSinglePartner = !isEjkUser && partnerIds.length === 1;
+
+    let buttonsHtml = '';
+    if (canManagePermissions) {
+        buttonsHtml += `<button id="managePermissionsBtn" class="btn btn-secondary w-full">Jogosultságok kezelése</button>`;
+    }
+    if (canSelectPartner) {
+        buttonsHtml += `<button id="selectPartnerBtn" class="btn btn-secondary w-full">Partner adatbázis kiválasztása</button>`;
+    } else if (isEnyUserWithSinglePartner) {
+        buttonsHtml += `<button id="partnerPortalBtn" class="btn btn-primary w-full">Partner portál</button>`;
     }
 
-    const role = partnerInfo ? partnerInfo.role : null;
-    const type = partnerInfo ? partnerInfo.type : null;
-
-    let menuHtml = '';
-    if (role && role !== 'pending') {
-        const isEjkAdmin = type === 'EJK' && role === 'admin';
-        const isEnyAdmin = type === 'ENY' && role === 'admin';
-        const canManagePermissions = isEjkAdmin || isEnyAdmin;
-
-        const isEjkUser = type === 'EJK';
-        const isEnyUserWithMultiplePartners = type === 'ENY' && userData.associatedPartner && userData.associatedPartner.length > 1;
-        const isEnyUserWithSinglePartner = type === 'ENY' && userData.associatedPartner && userData.associatedPartner.length === 1;
-        const canSelectPartner = isEjkUser || isEnyUserWithMultiplePartners;
-
-        let buttonsHtml = '';
-        if (canManagePermissions) {
-            buttonsHtml += `<button id="managePermissionsBtn" class="btn btn-secondary w-full">Jogosultságok kezelése</button>`;
-        }
-        if (canSelectPartner) {
-            buttonsHtml += `<button id="selectPartnerBtn" class="btn btn-secondary w-full">Partner adatbázis kiválasztása</button>`;
-        } else if (isEnyUserWithSinglePartner) {
-            // New button for ENY users with only one associated partner
-            buttonsHtml += `<button id="partnerPortalBtn" class="btn btn-primary w-full">Partner portál</button>`;
-        }
-
-        // Add new buttons for ENY users
-        if (type === 'ENY') {
-            buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Még egy céget regisztrálok</button>`;
-            buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
-        }
-
-        if (buttonsHtml) {
-            menuHtml = `
-                <div class="space-y-4 mt-8">
-                    ${buttonsHtml}
-                    <button id="signOutButton" class="btn btn-primary w-full mt-4">Kijelentkezés</button>
-                </div>
-            `;
-        } else {
-            menuHtml = `
-                <div class="mt-8">
-                    <button id="signOutButton" class="btn btn-primary w-full">Kijelentkezés</button>
-                </div>
-            `;
-        }
-    } else {
-        // Ha a szerepkör 'pending' vagy nincs, csak a kijelentkezés gomb látszik
-        menuHtml = `
-            <div class="mt-8">
-                <button id="signOutButton" class="btn btn-primary w-full">Kijelentkezés</button>
-            </div>
-        `;
+    // "Add new company" buttons are always available for non-EJK users
+    if (!isEjkUser) {
+        buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Új céget regisztrálok</button>`;
+        buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
     }
 
-    const companyInfoHtml = partnerDetails
-        ? `
-            <div class="text-left my-4 p-3 border border-blue-800 rounded-lg bg-blue-900/30">
-                <p class="text-gray-300 font-semibold">Cégnév: <strong class="font-normal text-blue-300">${partnerDetails.name}</strong></p>
-                <p class="text-gray-300 font-semibold">Cím: <strong class="font-normal text-blue-300">${partnerDetails.address}</strong></p>
-            </div>
-        `
-        : '';
+    const menuHtml = `
+        <div class="space-y-4 mt-8">
+            ${buttonsHtml}
+            <button id="signOutButton" class="btn btn-danger w-full mt-4">Kijelentkezés</button>
+        </div>
+    `;
+
+    // Display info about the user type
+    const userInfoHtml = `
+        <div class="text-left my-6 p-4 border border-blue-800 rounded-lg bg-blue-900/30">
+            <p class="text-gray-300">Felhasználói típus: <strong class="font-semibold text-blue-300">${isEjkUser ? 'EJK' : 'ENY'}</strong></p>
+            <p class="text-gray-300">Társított partnerek: <strong class="font-semibold text-blue-300">${partnerIds.length}</strong></p>
+        </div>
+    `;
 
     const mainHtml = `
         <div class="card max-w-md mx-auto text-center">
             <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto mb-8 w-64 h-auto rounded-lg shadow-md">
             <h1 class="text-3xl sm:text-4xl font-bold mb-2">ETAR Rendszer</h1>
             <p class="mb-2 text-blue-300">Bejelentkezve mint: ${userData.name || user.displayName || user.email}</p>
-            ${companyInfoHtml}
-            
-            <div class="text-left my-6 p-4 border border-blue-800 rounded-lg">
-                <p class="text-gray-300">Típus: <strong class="font-semibold text-blue-300">${type || 'N/A'}</strong> | Szerepkör: <strong class="font-semibold text-blue-300">${role || 'Nincs meghatározva'}</strong></p>
-                <!-- Ide jöhet a jövőben a főképernyő tartalma -->
-            </div>
-
+            ${userInfoHtml}
             ${menuHtml}
         </div>
     `;
     screens.main.innerHTML = mainHtml;
     showScreen('main');
 
-    // Kijelentkezés gomb eseménykezelője
+    // --- Event Listeners ---
+
     document.getElementById('signOutButton').addEventListener('click', () => {
         sessionStorage.removeItem('lastPartnerId');
         document.body.classList.remove('partner-mode-active');
-        auth.signOut().catch(error => {
-            console.error("Kijelentkezési hiba:", error);
-        });
+        auth.signOut().catch(error => console.error("Kijelentkezési hiba:", error));
     });
 
-    // A menügombok eseménykezelői, ha léteznek
-    if (role && role !== 'pending') {
-        const managePermissionsBtn = document.getElementById('managePermissionsBtn');
-        if (managePermissionsBtn) {
-            managePermissionsBtn.addEventListener('click', async () => {
-                showPermissionManagementLoadingScreen();
-                try {
-                    const users = await getUsersForPermissionManagement(user, userData);
-                    showPermissionManagementScreen(users, userData);
-                } catch (error) {
-                    console.error("Hiba a jogosultságkezelő adatok lekérése során:", error);
-                    alert("Hiba történt a felhasználói adatok lekérése közben.");
-                    window.location.reload(); // Go back
-                }
-            });
-        }
-
-        const selectPartnerBtn = document.getElementById('selectPartnerBtn');
-        if (selectPartnerBtn) {
-            selectPartnerBtn.addEventListener('click', async () => {
-                showPartnerSelectionLoadingScreen();
-                try {
-                    const partners = await getPartnersForSelection(userData);
-                    showPartnerSelectionScreen(partners, userData);
-                } catch (error) {
-                    console.error("Hiba a partnerek lekérése során:", error);
-                    alert("Hiba történt a partner adatok lekérése közben.");
-                    window.location.reload(); // Go back
-                }
-            });
-        }
-
-        // Event listeners for new ENY buttons
-        if (type === 'ENY') {
-            const registerAnotherCompanyBtn = document.getElementById('registerAnotherCompanyBtn');
-            if (registerAnotherCompanyBtn) {
-                registerAnotherCompanyBtn.addEventListener('click', () => {
-                    showNewCompanyForm();
-                    showScreen('login');
-                });
+    if (canManagePermissions) {
+        document.getElementById('managePermissionsBtn').addEventListener('click', async () => {
+            showPermissionManagementLoadingScreen();
+            try {
+                const users = await getUsersForPermissionManagement(user, userData);
+                showPermissionManagementScreen(users, userData);
+            } catch (error) {
+                console.error("Hiba a jogosultságkezelő adatok lekérése során:", error);
+                alert("Hiba történt a felhasználói adatok lekérése közben.");
+                window.location.reload();
             }
+        });
+    }
 
-            const joinAnotherCompanyBtn = document.getElementById('joinAnotherCompanyBtn');
-            if (joinAnotherCompanyBtn) {
-                joinAnotherCompanyBtn.addEventListener('click', () => {
-                    showJoinCompanyForm();
-                    showScreen('login');
-                });
+    if (canSelectPartner) {
+        document.getElementById('selectPartnerBtn').addEventListener('click', async () => {
+            showPartnerSelectionLoadingScreen();
+            try {
+                const partners = await getPartnersForSelection(userData);
+                showPartnerSelectionScreen(partners, userData);
+            } catch (error) {
+                console.error("Hiba a partnerek lekérése során:", error);
+                alert("Hiba történt a partner adatok lekérése közben.");
+                window.location.reload();
             }
+        });
+    }
 
-            const partnerPortalBtn = document.getElementById('partnerPortalBtn');
-            if (partnerPortalBtn) {
-                partnerPortalBtn.addEventListener('click', () => {
-                    // Assuming there's only one partner for ENY users in this case
-                    showPartnerWorkScreen(partnerDetails, userData);
-                });
+    if (isEnyUserWithSinglePartner) {
+        document.getElementById('partnerPortalBtn').addEventListener('click', async () => {
+            const partnerId = partnerIds[0];
+            const partnerDoc = await db.collection('partners').doc(partnerId).get();
+            if (partnerDoc.exists) {
+                showPartnerWorkScreen({ id: partnerDoc.id, ...partnerDoc.data() }, userData);
+            } else {
+                alert("Hiba: A társított partner nem található az adatbázisban.");
             }
-        }
+        });
+    }
+
+    if (!isEjkUser) {
+        document.getElementById('registerAnotherCompanyBtn').addEventListener('click', () => {
+            showNewCompanyForm();
+            showScreen('login');
+        });
+        document.getElementById('joinAnotherCompanyBtn').addEventListener('click', () => {
+            showJoinCompanyForm();
+            showScreen('login');
+        });
     }
 }
 
@@ -406,61 +359,45 @@ export function showPermissionManagementLoadingScreen() {
 }
 
 export function showPermissionManagementScreen(users, currentUserData) {
-    const currentUserType = currentUserData && currentUserData.associatedPartner && currentUserData.associatedPartner.length > 0
-        ? currentUserData.associatedPartner[0].type
-        : null;
+    const isAdminEJK = currentUserData.isEjkUser;
 
-    const typeOptions = ['EJK', 'ENY'];
-    const roleOptions = ['pending', 'admin', 'write', 'read', 'Törlés'];
+    const roleOptions = ['pending', 'admin', 'write', 'read'];
 
     const userListHtml = users.map(user => {
         const associationsHtml = user.associations.map(assoc => {
             if (!assoc.partnerDetails) return '';
 
-            let typeDropdown = '';
-            if (currentUserType === 'EJK') {
-                typeDropdown = `
-                    <div>
-                        <label for="type-select-${user.id}-${assoc.etarCode}" class="block text-sm font-medium text-gray-400">Típus</label>
-                        <select id="type-select-${user.id}-${assoc.etarCode}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                                                        ${typeOptions.map(opt => `<option value="${opt}" ${assoc.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}                        </select>
-                    </div>
-                `;
-            }
+            const partnerId = assoc.partnerId;
 
+            // Szerepkör legördülő menü
             const roleDropdown = `
                 <div>
-                    <label for="role-select-${user.id}-${assoc.etarCode}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
-                    <select id="role-select-${user.id}-${assoc.etarCode}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''} ${opt === 'Törlés' ? 'class="text-red-500"' : ''}>${opt}</option>`).join('')}                    </select>
+                    <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
+                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        <option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>
+                    </select>
                 </div>
             `;
             
+            // Partner részleteinek megjelenítése
             const partnerDetailsHtml = `
                 <div class="flex-1">
                     <p><strong>Cégnév:</strong> ${assoc.partnerDetails.name || 'N/A'}</p>
                     <p><strong>Cím:</strong> ${assoc.partnerDetails.address || 'N/A'}</p>
-                    <p class="text-sm text-gray-400"><strong>ETAR Kód:</strong> ${assoc.etarCode || 'N/A'}</p>
-                    <p class="text-sm text-gray-400"><strong>Létrehozva:</strong> ${assoc.partnerDetails.createdAt ? new Date(assoc.partnerDetails.createdAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
-                    <p class="text-sm text-gray-400"><strong>Módosítva:</strong> ${assoc.partnerDetails.updatedAt ? new Date(assoc.partnerDetails.updatedAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
+                    <p class="text-sm text-gray-400"><strong>Partner ID:</strong> ${partnerId}</p>
                 </div>
             `;
 
-            const isInitiallyDeleteType = assoc.role === 'Törlés';
-
-            const saveButtonHtml = `<button id="save-btn-${user.id}-${assoc.etarCode}" class="btn btn-primary rounded-full w-16 h-16 flex items-center justify-center ${isInitiallyDeleteType ? 'hidden' : ''}">Mentés</button>`;
-            const deleteButtonHtml = `<button id="delete-btn-${user.id}-${assoc.etarCode}" class="btn bg-red-600 hover:bg-red-700 text-white rounded-full w-16 h-16 flex items-center justify-center ${!isInitiallyDeleteType ? 'hidden' : ''}">Törlés</button>`;
+            // Mentés és Törlés gombok
+            const saveButtonHtml = `<button id="save-btn-${user.id}-${partnerId}" class="btn btn-primary w-full mt-2 hidden">Mentés</button>`;
 
             return `
-            <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-center">
+            <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-start">
                 ${partnerDetailsHtml}
-                <div class="text-center">
-                    ${saveButtonHtml}
-                    ${deleteButtonHtml}
-                </div>
-                <div class="flex flex-col gap-4">
-                    ${typeDropdown}
+                <div class="flex flex-col gap-2">
                     ${roleDropdown}
+                    ${saveButtonHtml}
                 </div>
             </div>
             `;
@@ -468,8 +405,8 @@ export function showPermissionManagementScreen(users, currentUserData) {
 
         return `
             <div class="p-4 border border-blue-800 rounded-lg mb-4">
-                <h3 class="text-xl font-bold text-red-700">${user.name}</h3>
-                <p class="text-blue-300">${user.email}</p>
+                <h3 class="text-xl font-bold text-blue-300">${user.name}</h3>
+                <p class="text-gray-400">${user.email}</p>
                 <div class="mt-4 space-y-2">
                     <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
                     ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
@@ -492,126 +429,81 @@ export function showPermissionManagementScreen(users, currentUserData) {
     screens.permissionManagement.innerHTML = screenHtml;
     showScreen('permissionManagement');
 
-    // Logic to show/hide save/delete buttons and handle their actions
+    // Eseménykezelők a mentés és törlés gombokhoz
     users.forEach(user => {
         user.associations.forEach(assoc => {
             if (!assoc.partnerDetails) return;
 
-            const typeSelect = document.getElementById(`type-select-${user.id}-${assoc.etarCode}`);
-            const roleSelect = document.getElementById(`role-select-${user.id}-${assoc.etarCode}`);
-            const saveButton = document.getElementById(`save-btn-${user.id}-${assoc.etarCode}`);
-            const deleteButton = document.getElementById(`delete-btn-${user.id}-${assoc.etarCode}`);
+            const partnerId = assoc.partnerId;
+            const roleSelect = document.getElementById(`role-select-${user.id}-${partnerId}`);
+            const saveButton = document.getElementById(`save-btn-${user.id}-${partnerId}`);
+            const originalRole = roleSelect.dataset.originalRole;
 
-            const updateButtonVisibility = () => {
-                const currentSelectedType = typeSelect ? typeSelect.value : assoc.type;
-                const currentSelectedRole = roleSelect ? roleSelect.value : assoc.role;
+            roleSelect.addEventListener('change', () => {
+                const selectedValue = roleSelect.value;
 
-                const hasTypeChanged = typeSelect ? (typeSelect.value !== assoc.type) : false;
-                const hasRoleChanged = roleSelect ? (roleSelect.value !== assoc.role) : false;
-
-                const hasAnyChange = hasTypeChanged || hasRoleChanged;
-
-                if (currentSelectedRole === 'Törlés') {
-                    if (deleteButton) {
-                        deleteButton.classList.remove('hidden');
-                    }
-                    if (saveButton) {
-                        saveButton.classList.add('hidden');
-                    }
+                if (selectedValue === originalRole) {
+                    // Visszaállt az eredeti, gomb elrejtése
+                    saveButton.classList.add('hidden');
+                } else if (selectedValue === 'Törlés') {
+                    // Törlés opció, gomb pirosra váltása
+                    saveButton.textContent = 'Törlés';
+                    saveButton.classList.remove('hidden', 'btn-primary', 'btn-success');
+                    saveButton.classList.add('btn-danger');
                 } else {
-                    if (deleteButton) {
-                        deleteButton.classList.add('hidden');
-                    }
-                    if (saveButton) {
-                        if (hasAnyChange) {
-                            saveButton.classList.remove('hidden');
-                        } else {
-                            saveButton.classList.add('hidden');
+                    // Más szerepkör, mentés gomb megjelenítése
+                    saveButton.textContent = 'Mentés';
+                    saveButton.classList.remove('hidden', 'btn-danger', 'btn-success');
+                    saveButton.classList.add('btn-primary');
+                }
+            });
+
+            saveButton.addEventListener('click', async () => {
+                const newRole = roleSelect.value;
+
+                if (newRole === "Törlés") {
+                    // Törlési logika
+                    const confirmation = confirm(`Biztosan törölni szeretné a(z) ${assoc.partnerDetails.name} partnerkapcsolatot ${user.name} felhasználótól? Ez a művelet nem visszavonható.`);
+                    if (confirmation) {
+                        saveButton.disabled = true;
+                        saveButton.textContent = 'Törlés...';
+                        try {
+                            await removeUserPartnerAssociation(user.id, partnerId);
+                            saveButton.textContent = 'Törölve';
+                            setTimeout(() => window.location.reload(), 1000);
+                        } catch (error) {
+                            console.error("Hiba a partnerkapcsolat törlésekor:", error);
+                            alert(`Hiba történt a törlés során: ${error.message}`);
+                            saveButton.disabled = false;
+                            saveButton.textContent = 'Törlés'; // Visszaállítjuk a gombot hiba esetén
                         }
                     }
-                }
-            };
-
-            // Call it once to set the initial state based on current values
-            updateButtonVisibility();
-
-            if (typeSelect) {
-                typeSelect.addEventListener('change', updateButtonVisibility);
-            }
-            if (roleSelect) {
-                roleSelect.addEventListener('change', updateButtonVisibility);
-            }
-
-            if (saveButton) {
-                saveButton.addEventListener('click', async () => {
-                    const newType = typeSelect ? typeSelect.value : assoc.type;
-                    const newRole = roleSelect.value;
-
-                    // Show loading state
+                } else {
+                    // Frissítési logika
                     saveButton.disabled = true;
-                    saveButton.textContent = '...';
-
+                    saveButton.textContent = 'Mentés...';
                     try {
-                        await updateUserPartnerRole(user.id, assoc.etarCode, newType, newRole);
-                        
-                        // Visual feedback for success
+                        await updateUserPartnerRole(user.id, partnerId, newRole);
                         saveButton.textContent = 'Mentve';
-                        saveButton.classList.remove('btn-primary');
                         saveButton.classList.add('btn-success');
+                        
+                        // Frissítjük az originalRole-t a sikeres mentés után
+                        roleSelect.dataset.originalRole = newRole;
 
                         setTimeout(() => {
                             saveButton.classList.add('hidden');
                             saveButton.disabled = false;
                             saveButton.textContent = 'Mentés';
                             saveButton.classList.remove('btn-success');
-                            saveButton.classList.add('btn-primary');
                         }, 2000);
-
                     } catch (error) {
                         console.error("Hiba a jogosultságok mentésekor:", error);
                         alert(`Hiba történt a mentés során: ${error.message}`);
-                        
-                        // Re-enable button on failure
                         saveButton.disabled = false;
                         saveButton.textContent = 'Mentés';
                     }
-                });
-            }
-
-            if (deleteButton) {
-                deleteButton.addEventListener('click', async () => {
-                    const confirmation = confirm(`Biztosan törölni szeretné a(z) ${assoc.partnerDetails.name} partnerkapcsolatot ${user.name} felhasználótól? Ez a művelet nem visszavonható.`);
-                    
-                    if (confirmation) {
-                        // Show loading state
-                        deleteButton.disabled = true;
-                        deleteButton.textContent = '...';
-
-                        try {
-                            await removeUserPartnerAssociation(user.id, assoc.etarCode);
-                            
-                            // Visual feedback for success
-                            deleteButton.textContent = 'Törölve';
-                            deleteButton.classList.remove('bg-red-600', 'hover:bg-red-700');
-                            deleteButton.classList.add('btn-success');
-
-                            setTimeout(() => {
-                                window.location.reload(); // Reload to reflect changes
-                            }, 1500);
-
-                        } catch (error) {
-                            console.error("Hiba a partnerkapcsolat törlésekor:", error);
-                            alert(`Hiba történt a törlés során: ${error.message}`);
-                            
-                            // Re-enable button on failure
-                            deleteButton.disabled = false;
-                            deleteButton.textContent = 'Törlés';
-                            deleteButton.classList.remove('btn-success');
-                            deleteButton.classList.add('bg-red-600', 'hover:bg-red-700');
-                        }
-                    }
-                });
-            }
+                }
+            });
         });
     });
 
@@ -640,34 +532,51 @@ export function showPartnerSelectionLoadingScreen() {
 
 
 export function showPartnerSelectionScreen(partners, userData) {
-    const userType = userData && userData.associatedPartner && userData.associatedPartner.length > 0 ? userData.associatedPartner[0].type : null;
-    const userRole = userData && userData.associatedPartner && userData.associatedPartner.length > 0 ? userData.associatedPartner[0].role : null;
+    const partnerRoles = userData.partnerRoles || {};
+    const isEjkUser = userData.isEjkUser || false;
 
-    const canSeeEtarCode = userType === 'EJK' || (userType === 'ENY' && userRole === 'admin');
+    // An admin of any partner is allowed to see the ETAR code for all partners they can see.
+    const hasAdminRole = Object.values(partnerRoles).some(role => role === 'admin');
+    const canSeeEtarCode = isEjkUser || hasAdminRole;
 
     const partnerListHtml = partners.map(partner => {
-        const association = userData.associatedPartner.find(ap => ap.etarCode === partner.etarCode);
-        const role = association ? association.role : null;
-        const isPending = role === 'pending';
+        const role = partnerRoles[partner.id];
+        const isPending = role && role.startsWith('pending');
 
         const etarCodeHtml = canSeeEtarCode
             ? `<p class="text-gray-400 mt-2">ETAR Kód: ${partner.etarCode}</p>`
             : '';
 
-        const cardClasses = isPending
-            ? 'p-4 border border-blue-800 rounded-lg mb-4 opacity-50'
-            : 'p-4 border border-blue-800 rounded-lg mb-4 cursor-pointer hover:bg-blue-900/50 transition-colors';
+        let isClickable = false;
+        let cardClasses = '';
+        let statusHtml = '';
 
-        const pendingHtml = isPending
-            ? '<p class="text-yellow-400 font-bold mt-2">Jóváhagyásra vár</p>'
-            : '';
+        if (isEjkUser) {
+            isClickable = true;
+            // For EJK users, show their specific role if they have one, otherwise show a generic access message.
+            statusHtml = role 
+                ? `<p class="text-blue-400 mt-2">Szerepkör: ${role}</p>` 
+                : '<p class="text-gray-400 mt-2">Teljes hozzáférés</p>';
+        } else {
+            isClickable = role && !isPending;
+            if (isPending) {
+                statusHtml = '<p class="text-yellow-400 font-bold mt-2">Jóváhagyásra vár</p>';
+            } else if (!role) {
+                // This case should not be visible to ENY users due to how partners are fetched, but as a fallback.
+                statusHtml = '<p class="text-gray-500 font-bold mt-2">Nincs hozzáférés</p>';
+            }
+        }
+
+        cardClasses = isClickable
+            ? 'p-4 border border-blue-800 rounded-lg mb-4 cursor-pointer hover:bg-blue-900/50 transition-colors'
+            : 'p-4 border border-blue-800 rounded-lg mb-4 opacity-60 cursor-not-allowed';
 
         return `
-        <div class="${cardClasses}" ${!isPending ? `data-partner-id="${partner.id}"` : ''}>
-            <h3 class="text-xl font-bold text-red-700">${partner.name}</h3>
-            <p class="text-blue-300">${partner.address}</p>
+        <div class="${cardClasses}" ${isClickable ? `data-partner-id="${partner.id}"` : ''}>
+            <h3 class="text-xl font-bold text-blue-300">${partner.name}</h3>
+            <p class="text-gray-300">${partner.address}</p>
             ${etarCodeHtml}
-            ${pendingHtml}
+            ${statusHtml}
         </div>
     `}).join('');
 
@@ -678,7 +587,7 @@ export function showPartnerSelectionScreen(partners, userData) {
                 <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary">Vissza</button>
             </div>
             <div id="partner-list" class="max-h-[60vh] overflow-y-auto pr-2">
-                ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'} 
+                ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'}
             </div>
         </div>
     `;
@@ -699,13 +608,13 @@ export function showPartnerSelectionScreen(partners, userData) {
             }
         }
     });
-}
-export function showPartnerWorkScreen(partner, userData) {
+}export function showPartnerWorkScreen(partner, userData) {
     sessionStorage.setItem('lastPartnerId', partner.id);
     document.body.classList.add('partner-mode-active');
     const partnerWorkScreen = document.getElementById('partnerWorkScreen');
     partnerWorkScreen.innerHTML = getPartnerWorkScreenHtml(partner, userData);
     showScreen('partnerWork');
+    initEszkozLista(partner.id); // ESZKÖZLISTA INICIALIZÁLÁSA
 
     document.getElementById('backToMainFromWorkScreenBtn').addEventListener('click', () => {
         sessionStorage.removeItem('lastPartnerId');

@@ -15,31 +15,63 @@ function generateEtarCode() {
 export function onAuthStateChanged() {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
+            const userRef = db.collection('users').doc(user.uid);
+            let userDoc = await userRef.get();
+
+            // =================================================================
+            // ÚJ: Automatikus adatmigrációs logika
+            // =================================================================
+            if (userDoc.exists && userDoc.data().associatedPartner && !userDoc.data().partnerRoles) {
+                console.log(`Migráció szükséges a felhasználónál: ${user.email}. Átalakítás...`);
+                const oldData = userDoc.data();
+                const newPartnerRoles = {};
+                let isEjk = false;
+
+                // A régi 'associatedPartner' tömbből kinyerjük az adatokat
+                for (const assoc of oldData.associatedPartner) {
+                    if (assoc.type === 'EJK') isEjk = true;
+                    
+                    // Lekérdezzük a partner ID-t az ETAR kód alapján
+                    const partnerSnapshot = await db.collection('partners').where('etarCode', '==', assoc.etarCode).limit(1).get();
+                    if (!partnerSnapshot.empty) {
+                        const partnerId = partnerSnapshot.docs[0].id;
+                        newPartnerRoles[partnerId] = assoc.role; // Pl: { "partnerId_abc": "admin" }
+                    }
+                }
+
+                // Frissítjük a user dokumentumot az új mezőkkel és töröljük a régit
+                await userRef.update({
+                    partnerRoles: newPartnerRoles,
+                    isEjkUser: isEjk,
+                    associatedPartner: firebase.firestore.FieldValue.delete() // Régi mező törlése
+                });
+                
+                console.log("Migráció sikeres.");
+                userDoc = await userRef.get(); // Friss adatok újraolvasása
+            }
+            // =================================================================
+            // Migráció vége
+            // =================================================================
+
             console.log("Bejelentkezve:", user.email);
-            const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
 
                 const lastPartnerId = sessionStorage.getItem('lastPartnerId');
-                if (lastPartnerId && userData.associatedPartner && userData.associatedPartner.length > 0) {
-                    try {
-                        const partnerDoc = await db.collection('partners').doc(lastPartnerId).get();
-                        if (partnerDoc.exists) {
-                            const partnerData = { id: partnerDoc.id, ...partnerDoc.data() };
-                            const hasAccess = userData.associatedPartner.some(p => p.etarCode === partnerData.etarCode);
-                            if (hasAccess) {
-                                showPartnerWorkScreen(partnerData, userData);
-                                return;
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Error fetching last partner:", e);
+
+                if (lastPartnerId && userData.partnerRoles && userData.partnerRoles[lastPartnerId]) {
+                    const partnerDoc = await db.collection('partners').doc(lastPartnerId).get();
+                    if (partnerDoc.exists) {
+                        showPartnerWorkScreen({ id: partnerDoc.id, ...partnerDoc.data() }, userData);
+                        return;
                     }
                 }
 
-                if (userData.associatedPartner && userData.associatedPartner.length > 0) {
-                    const partner = userData.associatedPartner[0];
-                    if (partner.role.startsWith('pending')) {
+                if (userData.partnerRoles && Object.keys(userData.partnerRoles).length > 0) {
+                    const roles = Object.values(userData.partnerRoles);
+                    const allRolesArePending = roles.length > 0 && roles.every(role => role.startsWith('pending'));
+
+                    if (allRolesArePending) {
                         showPendingApprovalScreen();
                     } else {
                         showMainScreen(user, userData);
@@ -93,36 +125,22 @@ export async function registerNewCompany(companyName, companyAddress) {
 
     const etarCode = generateEtarCode();
 
-    // 1. Create partner document
-    await db.collection('partners').add({
+    // 1. Create partner document and get its ID
+    const partnerRef = await db.collection('partners').add({
         name: companyName,
         address: companyAddress,
         etarCode: etarCode,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    const partnerId = partnerRef.id;
 
     const userRef = db.collection('users').doc(user.uid);
-    const userDoc = await userRef.get();
 
-    const newPartnerData = {
-        etarCode: etarCode,
-        type: 'ENY',
-        role: 'pendingAdmin'
-    };
-
-    if (userDoc.exists) {
-        await userRef.update({
-            associatedPartner: firebase.firestore.FieldValue.arrayUnion(newPartnerData),
-            roles: firebase.firestore.FieldValue.arrayUnion('ENY_pendingAdmin')
-        });
-    } else {
-        await userRef.set({
-            email: user.email,
-            name: user.displayName,
-            associatedPartner: [newPartnerData],
-            roles: ['ENY_pendingAdmin']
-        });
-    }
+    // Update user with the new partner role using dot notation
+    await userRef.update({
+        [`partnerRoles.${partnerId}`]: 'pendingAdmin',
+        roles: firebase.firestore.FieldValue.arrayUnion('ENY_pendingAdmin')
+    });
 }
 
 /**
@@ -142,22 +160,17 @@ export async function joinCompanyWithCode(etarCode) {
         console.log("Nincs partner ezzel a kóddal:", etarCode);
         return false;
     }
+    const partnerId = snapshot.docs[0].id;
 
     // 2. Update user's document
     const userRef = db.collection('users').doc(user.uid);
     const type = etarCode === 'Q27LXR' ? 'EJK' : 'ENY';
-
-    const newPartnerData = {
-        etarCode: etarCode,
-        type: type,
-        role: 'pending'
-    };
-
-    const newRole = `${type}_pending`;
+    const newRole = 'pending';
 
     await userRef.update({
-        associatedPartner: firebase.firestore.FieldValue.arrayUnion(newPartnerData),
-        roles: firebase.firestore.FieldValue.arrayUnion(newRole)
+        [`partnerRoles.${partnerId}`]: newRole,
+        isEjkUser: type === 'EJK',
+        roles: firebase.firestore.FieldValue.arrayUnion(`${type}_${newRole}`)
     });
 
     return true;
