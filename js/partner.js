@@ -86,21 +86,24 @@ export function initPartnerWorkScreen(partnerId) {
     const deviceListScreen = document.getElementById('deviceListScreen');
     const newInspectionScreen = document.getElementById('newInspectionScreen');
     
-    const showDeviceListBtn = document.getElementById('showDeviceListBtn');
     const showNewInspectionBtn = document.getElementById('showNewInspectionBtn');
-    const showDeviceListBtnMobile = document.getElementById('showDeviceListBtnMobile');
     const showNewInspectionBtnMobile = document.getElementById('showNewInspectionBtnMobile');
     const backToDeviceListBtn = document.getElementById('backToDeviceListBtn');
+    const partnerWorkScreenHeader = document.getElementById('partner-work-screen-header');
 
     function showScreen(screenToShow) {
         deviceListScreen.classList.remove('active');
         newInspectionScreen.classList.remove('active');
         screenToShow.classList.add('active');
+
+        if (screenToShow === newInspectionScreen) {
+            partnerWorkScreenHeader.classList.add('hidden');
+        } else {
+            partnerWorkScreenHeader.classList.remove('hidden');
+        }
     }
 
-    showDeviceListBtn.addEventListener('click', () => showScreen(deviceListScreen));
     showNewInspectionBtn.addEventListener('click', () => showScreen(newInspectionScreen));
-    showDeviceListBtnMobile.addEventListener('click', () => showScreen(deviceListScreen));
     showNewInspectionBtnMobile.addEventListener('click', () => showScreen(newInspectionScreen));
     backToDeviceListBtn.addEventListener('click', () => showScreen(deviceListScreen));
 
@@ -500,7 +503,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     }
 
     return `
-        <header class="bg-gray-800 text-white shadow-lg relative">
+        <header id="partner-work-screen-header" class="bg-gray-800 text-white shadow-lg relative">
             <div class="p-4 flex items-center justify-between">
                 <div class="flex items-center">
                     <img src="${logoUrl}" alt="${partner.name} Logo" class="h-12 w-12 xl:h-16 xl:w-16 object-contain mr-4 rounded-full border-2 border-blue-400">
@@ -520,21 +523,19 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 </div>
                  <!-- Desktop Menu -->
                 <nav class="hidden xl:flex items-center space-x-2">
-                    <button class="btn btn-secondary">Adatlap</button>
-                    <button id="showDeviceListBtn" class="btn btn-secondary">Eszközök</button>
-                    <button id="showNewInspectionBtn" class="btn btn-secondary">Új vizsgálat</button>
-                    <button class="btn btn-secondary">Jegyzőkönyvek</button>
+                    <button class="btn btn-secondary">Adatbázis letöltés</button>
                     ${uploadButtonHtml.replace('w-full text-left', '')}
+                    <button id="showNewInspectionBtn" class="btn btn-secondary">Új vizsgálat</button>
+                    <button class="btn btn-secondary">Jegyzőkönyv generálás</button>
                     <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
                 </nav>
             </div>
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
-                <button class="btn btn-secondary w-full text-left">Adatlap</button>
-                <button id="showDeviceListBtnMobile" class="btn btn-secondary w-full text-left">Eszközök</button>
-                <button id="showNewInspectionBtnMobile" class="btn btn-secondary w-full text-left">Új vizsgálat</button>
-                <button class="btn btn-secondary w-full text-left">Jegyzőkönyvek</button>
+                <button class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
                 ${uploadButtonHtml}
+                <button id="showNewInspectionBtnMobile" class="btn btn-secondary w-full text-left">Új vizsgálat</button>
+                <button class="btn btn-secondary w-full text-left">Jegyzőkönyv generálás</button>
                 <button id="backToMainFromWorkScreenBtnMobile" class="btn btn-primary w-full text-left">Vissza</button>
             </nav>
         </header>
