@@ -18,40 +18,6 @@ export function onAuthStateChanged() {
             const userRef = db.collection('users').doc(user.uid);
             let userDoc = await userRef.get();
 
-            // =================================================================
-            // ÚJ: Automatikus adatmigrációs logika
-            // =================================================================
-            if (userDoc.exists && userDoc.data().associatedPartner && !userDoc.data().partnerRoles) {
-                console.log(`Migráció szükséges a felhasználónál: ${user.email}. Átalakítás...`);
-                const oldData = userDoc.data();
-                const newPartnerRoles = {};
-                let isEjk = false;
-
-                // A régi 'associatedPartner' tömbből kinyerjük az adatokat
-                for (const assoc of oldData.associatedPartner) {
-                    if (assoc.type === 'EJK') isEjk = true;
-                    
-                    // Lekérdezzük a partner ID-t az ETAR kód alapján
-                    const partnerSnapshot = await db.collection('partners').where('etarCode', '==', assoc.etarCode).limit(1).get();
-                    if (!partnerSnapshot.empty) {
-                        const partnerId = partnerSnapshot.docs[0].id;
-                        newPartnerRoles[partnerId] = assoc.role; // Pl: { "partnerId_abc": "admin" }
-                    }
-                }
-
-                // Frissítjük a user dokumentumot az új mezőkkel és töröljük a régit
-                await userRef.update({
-                    partnerRoles: newPartnerRoles,
-                    isEjkUser: isEjk,
-                    associatedPartner: firebase.firestore.FieldValue.delete() // Régi mező törlése
-                });
-                
-                console.log("Migráció sikeres.");
-                userDoc = await userRef.get(); // Friss adatok újraolvasása
-            }
-            // =================================================================
-            // Migráció vége
-            // =================================================================
 
             console.log("Bejelentkezve:", user.email);
             if (userDoc.exists) {
@@ -108,7 +74,7 @@ export async function registerUser(email, password, name) {
     await db.collection('users').doc(user.uid).set({
         email: user.email,
         name: name,
-        associatedPartner: [],
+        partnerRoles: {},
         roles: []
     });
     // onAuthStateChanged will trigger and show the correct screen

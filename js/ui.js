@@ -1,7 +1,7 @@
 import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
 import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection } from './admin.js';
-import { getPartnerWorkScreenHtml, initEszkozLista } from './partner.js';
+import { getPartnerWorkScreenHtml, initPartnerWorkScreen } from './partner.js';
 
 const screens = {
     loading: document.getElementById('loadingScreen'),
@@ -614,13 +614,31 @@ export function showPartnerSelectionScreen(partners, userData) {
     const partnerWorkScreen = document.getElementById('partnerWorkScreen');
     partnerWorkScreen.innerHTML = getPartnerWorkScreenHtml(partner, userData);
     showScreen('partnerWork');
-    initEszkozLista(partner.id); // ESZKÖZLISTA INICIALIZÁLÁSA
+    initPartnerWorkScreen(partner.id); // ESZKÖZLISTA INICIALIZÁLÁSA
 
-    document.getElementById('backToMainFromWorkScreenBtn').addEventListener('click', () => {
+    const backToMain = () => {
         sessionStorage.removeItem('lastPartnerId');
         document.body.classList.remove('partner-mode-active');
         window.location.reload(); // Reload to go back to the main screen
-    });
+    };
+
+    // Desktop back button
+    document.getElementById('backToMainFromWorkScreenBtn').addEventListener('click', backToMain);
+
+    // Hamburger menu logic
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileBackBtn = document.getElementById('backToMainFromWorkScreenBtnMobile');
+
+    if (hamburgerBtn && mobileMenu) {
+        hamburgerBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    }
+    
+    if (mobileBackBtn) {
+        mobileBackBtn.addEventListener('click', backToMain);
+    }
 }
 
 
