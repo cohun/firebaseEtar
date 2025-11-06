@@ -7,6 +7,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('dataEntryForm');
     const storageKey = 'previousDeviceData';
 
+    // Pre-fill serial number if available in sessionStorage
+    const newDeviceSerialNumber = sessionStorage.getItem('newDeviceSerialNumber');
+    if (newDeviceSerialNumber) {
+        const serialNumberField = form.querySelector('[name="eszkoz_gyariszam"]');
+        if (serialNumberField) {
+            serialNumberField.value = newDeviceSerialNumber;
+        }
+        sessionStorage.removeItem('newDeviceSerialNumber');
+    }
+
+
     // Function to populate form from an object
     const populateForm = (data) => {
         form.querySelector('[name="eszkoz_megnevezes"]').value = data.description || '';

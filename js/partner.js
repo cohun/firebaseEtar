@@ -193,6 +193,41 @@ export function initPartnerWorkScreen(partnerId) {
         }
     }
 
+    function getKovVizsgColorClass(kovVizsgDate) {
+        if (!kovVizsgDate) {
+            return 'text-gray-300';
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize today's date
+
+        const vizsgDate = new Date(kovVizsgDate);
+        vizsgDate.setHours(0, 0, 0, 0); // Normalize inspection date
+
+        const diffTime = vizsgDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return 'text-red-400 font-bold'; // Lejárt
+        } else if (diffDays <= 45) {
+            return 'text-orange-400 font-semibold'; // 45 napon belül lejár
+        } else {
+            return 'text-green-400'; // Több mint 45 nap
+        }
+    }
+
+    function getStatusColorClass(status) {
+        if (!status) {
+            return 'text-gray-300';
+        }
+        if (status === 'Megfelelt') {
+            return 'text-green-400 font-semibold';
+        } else if (status === 'Nem felelt meg') {
+            return 'text-red-400 font-bold';
+        }
+        return 'text-gray-300';
+    }
+
     function renderTable(devices) {
         if (!devices || devices.length === 0) {
             if (currentPage === 1) {
@@ -201,7 +236,10 @@ export function initPartnerWorkScreen(partnerId) {
             return;
         }
 
-        tableBody.innerHTML = devices.map(dev => `
+        tableBody.innerHTML = devices.map(dev => {
+            const kovVizsgColorClass = getKovVizsgColorClass(dev.kov_vizsg);
+            const statusColorClass = getStatusColorClass(dev.status);
+            return `
             <tr class="hover:bg-gray-700/50">
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.vizsg_idopont || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white">${dev.description || ''}</td>
@@ -209,13 +247,13 @@ export function initPartnerWorkScreen(partnerId) {
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.effectiveLength || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.serialNumber || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.operatorId || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.status || 'N/A'}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.kov_vizsg || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass}">${dev.status || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass}">${dev.kov_vizsg || 'N/A'}</td>
                 <td class="relative whitespace-nowrap py-2 px-3 text-center align-middle">
                     <canvas class="qr-code-canvas" data-id="${dev.id}"></canvas>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
 
         generateQRCodes();
     }
@@ -334,6 +372,14 @@ export function initPartnerWorkScreen(partnerId) {
     const deviceSearchResult = document.getElementById('deviceSearchResult');
     let currentInspectedDevice = null;
 
+    window.saveSerialAndRedirect = function() {
+        const serialNumber = serialNumberInput.value.trim();
+        if (serialNumber) {
+            sessionStorage.setItem('newDeviceSerialNumber', serialNumber);
+        }
+        window.location.href = 'adatbevitel.html';
+    }
+
     searchDeviceForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const serialNumber = serialNumberInput.value.trim();
@@ -348,7 +394,7 @@ export function initPartnerWorkScreen(partnerId) {
             if (querySnapshot.empty) {
                 deviceSearchResult.innerHTML = `
                     <p class="text-red-400">Nem található eszköz ezzel a gyári számmal.</p>
-                    <button onclick="window.location.href='adatbevitel.html'" class="btn btn-primary mt-4">Új eszköz felvitele</button>
+                    <button onclick="saveSerialAndRedirect()" class="btn btn-primary mt-4">Új eszköz felvitele</button>
                 `;
                 currentInspectedDevice = null;
             } else {
@@ -424,8 +470,162 @@ export function initPartnerWorkScreen(partnerId) {
                 `;
 
                 detailsHtml += '</div>';
-                // TODO: Add the new inspection data form here
+
+                detailsHtml += `
+                    <div class="mt-6 pt-4 border-t border-blue-700">
+                        <h3 class="text-xl font-bold mb-4 text-green-300">Vizsgálati adatok rögzítése</h3>
+                        <div id="new-inspection-form" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                            <div>
+                                <label class="block text-sm">Következő időszakos vizsgálat</label>
+                                <select name="kov_idoszakos_vizsgalat_period" class="input-field">
+                                    <option value="">Válasszon periódust</option>
+                                    <option value="0.25">1/4 év</option>
+                                    <option value="0.5">1/2 év</option>
+                                    <option value="0.75">3/4 év</option>
+                                    <option value="1">1 év</option>
+                                </select>
+                                <input name="kov_idoszakos_vizsgalat" type="date" class="input-field mt-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm">Következő Terhelési próba</label>
+                                <select name="kov_terhelesi_proba_period" class="input-field">
+                                    <option value="">Válasszon periódust</option>
+                                    <option value="0.25">1/4 év</option>
+                                    <option value="0.5">1/2 év</option>
+                                    <option value="0.75">3/4 év</option>
+                                    <option value="1">1 év</option>
+                                </select>
+                                <input name="kov_terhelesi_proba" type="date" class="input-field mt-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm">Vizsgálat eredménye</label>
+                                <select name="vizsgalat_eredmenye" class="input-field">
+                                    <option>Megfelelt</option>
+                                    <option>Nem felelt meg</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm">Feltárt hiba</label>
+                                <textarea name="feltart_hiba" class="input-field" rows="2"></textarea>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm">Felhasznált anyagok</label>
+                                <textarea name="felhasznalt_anyagok" class="input-field" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <button id="saveInspectionButton" class="btn btn-primary">Vizsgálat mentése</button>
+                        </div>
+                    </div>
+                `;
+
                 deviceSearchResult.innerHTML = detailsHtml;
+
+                const inspectionDateInputForCalc = document.getElementById('inspectionDateInput');
+                const kovIdoszakosVizsgalatPeriod = document.querySelector('[name="kov_idoszakos_vizsgalat_period"]');
+                const kovIdoszakosVizsgalatDate = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
+                const kovTerhelesiProbaPeriod = document.querySelector('[name="kov_terhelesi_proba_period"]');
+                const kovTerhelesiProbaDate = document.querySelector('[name="kov_terhelesi_proba"]');
+
+                function calculateNextDate(baseDate, years) {
+                    if (!baseDate || !years || isNaN(years)) return '';
+                    const date = new Date(baseDate);
+                    const monthsToAdd = Math.floor(years * 12);
+                    date.setMonth(date.getMonth() + monthsToAdd);
+                    return date.toISOString().slice(0, 10);
+                }
+
+                if (kovIdoszakosVizsgalatPeriod) {
+                    kovIdoszakosVizsgalatPeriod.addEventListener('change', (e) => {
+                        const period = parseFloat(e.target.value);
+                        const baseDate = inspectionDateInputForCalc.value;
+                        kovIdoszakosVizsgalatDate.value = calculateNextDate(baseDate, period);
+                    });
+                }
+
+                if (kovTerhelesiProbaPeriod) {
+                    kovTerhelesiProbaPeriod.addEventListener('change', (e) => {
+                        const period = parseFloat(e.target.value);
+                        const baseDate = inspectionDateInputForCalc.value;
+                        kovTerhelesiProbaDate.value = calculateNextDate(baseDate, period);
+                    });
+                }
+
+                inspectionDateInputForCalc.addEventListener('change', () => {
+                    if (kovIdoszakosVizsgalatPeriod) {
+                        const idoszakosPeriod = parseFloat(kovIdoszakosVizsgalatPeriod.value);
+                        kovIdoszakosVizsgalatDate.value = calculateNextDate(inspectionDateInputForCalc.value, idoszakosPeriod);
+                    }
+                    if (kovTerhelesiProbaPeriod) {
+                        const terhelesiPeriod = parseFloat(kovTerhelesiProbaPeriod.value);
+                        kovTerhelesiProbaDate.value = calculateNextDate(inspectionDateInputForCalc.value, terhelesiPeriod);
+                    }
+                });
+
+                const saveInspectionButton = document.getElementById('saveInspectionButton');
+                if (saveInspectionButton) {
+                    saveInspectionButton.addEventListener('click', async () => {
+                        const user = auth.currentUser;
+                        if (!user || !currentInspectedDevice) {
+                            alert('Hiba: Nincs bejelentkezett felhasználó vagy kiválasztott eszköz.');
+                            return;
+                        }
+
+                        const inspectionData = {
+                            deviceId: currentInspectedDevice.id,
+                            partnerId: partnerId,
+                            vizsgalatJellege: document.getElementById('templateSelectNewInspection').value,
+                            szakerto: document.getElementById('expertSelectNewInspection').value,
+                            vizsgalatHelye: document.getElementById('inspectionLocationInput').value,
+                            vizsgalatIdopontja: document.getElementById('inspectionDateInput').value,
+                            kovetkezoIdoszakosVizsgalat: document.querySelector('[name="kov_idoszakos_vizsgalat"]').value,
+                            kovetkezoTerhelesiProba: document.querySelector('[name="kov_terhelesi_proba"]').value,
+                            vizsgalatEredmenye: document.querySelector('[name="vizsgalat_eredmenye"]').value,
+                            feltartHiba: document.querySelector('[name="feltart_hiba"]').value,
+                            felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]').value,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdBy: user.displayName || user.email,
+                        };
+
+                        // Validation
+                        const requiredFields = [
+                            inspectionData.vizsgalatJellege,
+                            inspectionData.szakerto,
+                            inspectionData.vizsgalatHelye,
+                            inspectionData.vizsgalatIdopontja,
+                            inspectionData.kovetkezoIdoszakosVizsgalat,
+                            inspectionData.kovetkezoTerhelesiProba,
+                            inspectionData.vizsgalatEredmenye
+                        ];
+
+                        if (requiredFields.some(field => !field || field.trim() === '')) {
+                            alert('Kérjük, töltse ki az összes kötelező mezőt a vizsgálat mentéséhez! (A "Feltárt hiba" és a "Felhasznált anyagok" nem kötelező).');
+                            return;
+                        }
+
+                        try {
+                            // 1. Save the inspection record
+                            await db.collection('inspections').add(inspectionData);
+
+                            // 2. Update the device document
+                            const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id);
+                            await deviceRef.update({
+                                kov_vizsg: inspectionData.kovetkezoIdoszakosVizsgalat,
+                                // kov_terhelesi_proba: inspectionData.kovetkezoTerhelesiProba, // This field does not exist in the table
+                                status: inspectionData.vizsgalatEredmenye,
+                                vizsg_idopont: inspectionData.vizsgalatIdopontja // Update existing field
+                            });
+
+                            alert('Vizsgálat sikeresen mentve!');
+                            // Optionally, clear the form or give other feedback
+                            deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
+
+                        } catch (error) {
+                            console.error("Hiba a vizsgálat mentésekor: ", error);
+                            alert('Hiba történt a vizsgálat mentésekor: ' + error.message);
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error("Hiba az eszköz keresésekor:", error);
