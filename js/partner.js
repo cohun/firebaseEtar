@@ -44,6 +44,7 @@ function getEszkozListaHtml() {
                             <table class="min-w-full divide-y divide-gray-700">
                                 <thead class="bg-gray-800">
                                     <tr>
+                                        <th scope="col" class="relative px-6 py-3.5"><input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
                                         <th scope="col" data-sort="vizsg_idopont" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Vizsg. Időp. <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="description" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable active-sort">Megnevezés <i class="fas fa-sort-down"></i></th>
                                         <th scope="col" data-sort="type" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Típus <i class="fas fa-sort"></i></th>
@@ -75,6 +76,20 @@ function getEszkozListaHtml() {
             </nav>
         </div>
     `;
+}
+
+/**
+ * Generates a SHA-256 hash of the input string.
+ * @param {string} data The string to hash.
+ * @returns {Promise<string>} The hexadecimal representation of the hash.
+ */
+async function generateHash(data) {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
 }
 
 /**
@@ -131,6 +146,7 @@ export function initPartnerWorkScreen(partnerId) {
     const kovVizsgInput = document.getElementById('filter-kov-vizsg');
     const resetFiltersBtn = document.getElementById('reset-filters-btn');
     const tableHeaders = document.querySelectorAll('th.sortable');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
 
     function debounce(func, delay) {
         let timeout;
@@ -141,9 +157,19 @@ export function initPartnerWorkScreen(partnerId) {
         };
     }
 
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const rowCheckboxes = tableBody.querySelectorAll('.row-checkbox');
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+    }
+
     async function fetchDevices(direction = 'next') {
         if (!tableBody) return;
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-400">Adatok betöltése...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-400">Adatok betöltése...</td></tr>`;
 
         try {
             let query = db.collection('partners').doc(partnerId).collection('devices');
@@ -231,7 +257,7 @@ export function initPartnerWorkScreen(partnerId) {
     function renderTable(devices) {
         if (!devices || devices.length === 0) {
             if (currentPage === 1) {
-                tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-400">Nincsenek a szűrési feltételeknek megfelelő eszközök.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-400">Nincsenek a szűrési feltételeknek megfelelő eszközök.</td></tr>`;
             }
             return;
         }
@@ -241,6 +267,7 @@ export function initPartnerWorkScreen(partnerId) {
             const statusColorClass = getStatusColorClass(dev.status);
             return `
             <tr class="hover:bg-gray-700/50">
+                <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.vizsg_idopont || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white">${dev.description || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.type || ''}</td>
@@ -587,6 +614,9 @@ export function initPartnerWorkScreen(partnerId) {
                             createdBy: user.displayName || user.email,
                         };
 
+                        const dataToHash = `${inspectionData.deviceId}${inspectionData.szakerto}${inspectionData.vizsgalatIdopontja}`;
+                        inspectionData.hash = await generateHash(dataToHash);
+
                         // Validation
                         const requiredFields = [
                             inspectionData.vizsgalatJellege,
@@ -604,6 +634,7 @@ export function initPartnerWorkScreen(partnerId) {
                         }
 
                         try {
+                            console.log("Data to be saved:", inspectionData);
                             // 1. Save the inspection record
                             await db.collection('inspections').add(inspectionData);
 
