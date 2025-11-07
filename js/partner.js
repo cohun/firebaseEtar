@@ -118,9 +118,39 @@ export function initPartnerWorkScreen(partnerId) {
         }
     }
 
-    showNewInspectionBtn.addEventListener('click', () => showScreen(newInspectionScreen));
-    showNewInspectionBtnMobile.addEventListener('click', () => showScreen(newInspectionScreen));
+    if (showNewInspectionBtn) {
+        showNewInspectionBtn.addEventListener('click', () => showScreen(newInspectionScreen));
+    }
+    if (showNewInspectionBtnMobile) {
+        showNewInspectionBtnMobile.addEventListener('click', () => showScreen(newInspectionScreen));
+    }
     backToDeviceListBtn.addEventListener('click', () => showScreen(deviceListScreen));
+
+
+    // --- EXPERT LOADING LOGIC ---
+    async function loadExperts() {
+        const selectEl = document.getElementById('expertSelectNewInspection');
+        if (!selectEl) return;
+
+        try {
+            const snapshot = await db.collection('experts').orderBy('name').get();
+            const experts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            selectEl.innerHTML = '<option value="" disabled selected>Válassz egy szakértőt...</option>'; // Reset
+
+            experts.forEach(expert => {
+                const option = document.createElement('option');
+                option.value = expert.name;
+                option.textContent = expert.name;
+                option.dataset.certificateNumber = expert.certificateNumber;
+                selectEl.appendChild(option);
+            });
+
+        } catch (error) {
+            console.error("Hiba a szakértők betöltésekor:", error);
+            selectEl.innerHTML = '<option value="" disabled selected>Hiba a betöltés során</option>';
+        }
+    }
 
 
     // --- DEVICE LIST LOGIC ---
@@ -196,6 +226,27 @@ export function initPartnerWorkScreen(partnerId) {
 
             const snapshot = await query.get();
             const devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // ÚJ RÉSZ: Minden eszközhöz lekérem a legfrissebb vizsgálatot
+            const inspectionPromises = devices.map(device => {
+                return db.collection('partners').doc(partnerId)
+                         .collection('devices').doc(device.id)
+                         .collection('inspections')
+                         .orderBy('createdAt', 'desc')
+                         .limit(1)
+                         .get()
+                         .then(inspectionSnapshot => {
+                             if (!inspectionSnapshot.empty) {
+                                 const latestInspection = inspectionSnapshot.docs[0].data();
+                                 // Felülírjuk az eszköz adatait a legfrissebb vizsgálat adataival
+                                 device.vizsg_idopont = latestInspection.vizsgalatIdopontja;
+                                 device.status = latestInspection.vizsgalatEredmenye;
+                                 device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                             }
+                         });
+            });
+
+            await Promise.all(inspectionPromises);
             
             if (direction === 'prev') devices.reverse();
 
@@ -392,6 +443,7 @@ export function initPartnerWorkScreen(partnerId) {
     });
 
     fetchDevices();
+    loadExperts();
 
     // --- NEW INSPECTION LOGIC ---
     const searchDeviceForm = document.getElementById('searchDeviceForm');
@@ -635,8 +687,9 @@ export function initPartnerWorkScreen(partnerId) {
 
                         try {
                             console.log("Data to be saved:", inspectionData);
-                            // 1. Save the inspection record
-                            await db.collection('inspections').add(inspectionData);
+                            // 1. Save the inspection record to the new subcollection
+                            const newInspectionRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id).collection('inspections');
+                            await newInspectionRef.add(inspectionData);
 
                             // 2. Update the device document
                             const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id);
@@ -687,11 +740,7 @@ function getNewInspectionScreenHtml() {
                 <div>
                     <h3 class="text-lg font-semibold mb-3">2. Szakértő</h3>
                     <select id="expertSelectNewInspection" class="input-field" required>
-                        <option value="" disabled selected>Válassz egy szakértőt...</option>
-                        <option value="Nagy Imre">Nagy Imre</option>
-                        <option value="Gerőly Iván">Gerőly Iván</option>
-                        <option value="Szadlon Norbert">Szadlon Norbert</option>
-                        <option value="Bagyinszki Lóránt">Bagyinszki Lóránt</option>
+                        <option value="" disabled selected>Szakértők betöltése...</option>
                     </select>
                 </div>
                 <div>
@@ -723,14 +772,26 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     const user = auth.currentUser;
     const logoUrl = partner.logoUrl || 'images/ETAR_H.png';
     const role = userData.partnerRoles[partner.id];
+    const userRoles = userData.roles || [];
 
     const isReadOnly = role === 'read';
+    const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write');
 
     let uploadButtonHtml;
     if (isReadOnly) {
         uploadButtonHtml = `<button onclick="alert('Read jogosultsággal nem tölthet fel adatokat. Forduljon a jogosultság osztójához.')" class="btn btn-secondary opacity-50 cursor-not-allowed w-full text-left">Új eszköz feltöltés</button>`;
     } else {
         uploadButtonHtml = `<button onclick="window.location.href='adatbevitel.html'" class="btn btn-secondary w-full text-left">Új eszköz feltöltés</button>`;
+    }
+
+    let newInspectionButtonHtml = '';
+    if (canInspect) {
+        newInspectionButtonHtml = `<button id="showNewInspectionBtn" class="btn btn-secondary">Új vizsgálat</button>`;
+    }
+
+    let newInspectionButtonHtmlMobile = '';
+    if (canInspect) {
+        newInspectionButtonHtmlMobile = `<button id="showNewInspectionBtnMobile" class="btn btn-secondary w-full text-left">Új vizsgálat</button>`;
     }
 
     return `
@@ -756,7 +817,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 <nav class="hidden xl:flex items-center space-x-2">
                     <button class="btn btn-secondary">Adatbázis letöltés</button>
                     ${uploadButtonHtml.replace('w-full text-left', '')}
-                    <button id="showNewInspectionBtn" class="btn btn-secondary">Új vizsgálat</button>
+                    ${newInspectionButtonHtml}
                     <button class="btn btn-secondary">Jegyzőkönyv generálás</button>
                     <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
                 </nav>
@@ -765,7 +826,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
                 <button class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
                 ${uploadButtonHtml}
-                <button id="showNewInspectionBtnMobile" class="btn btn-secondary w-full text-left">Új vizsgálat</button>
+                ${newInspectionButtonHtmlMobile}
                 <button class="btn btn-secondary w-full text-left">Jegyzőkönyv generálás</button>
                 <button id="backToMainFromWorkScreenBtnMobile" class="btn btn-primary w-full text-left">Vissza</button>
             </nav>
