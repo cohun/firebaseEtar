@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getRoleForPartner(partnerId) {
+      return getUserData().partnerRoles[partnerId];
+    }
+
+    function isEjkUser() {
+      return getUserData().isEjkUser == true;
+    }
+
+    function isAnAdmin() {
+      return getUserData().roles.hasAny(['EJK_admin', 'ENY_admin', 'ENY_pendingAdmin']);
+    }
+
+    // ÚJ FÜGGVÉNY: Ellenőrzi, hogy a felhasználó EJK admin vagy EJK író-e.
+    function canWriteInspection() {
+      return getUserData().roles.hasAny(['EJK_admin', 'EJK_write']);
+    }
+
+    match /users/{userId} {
+      allow read: if isAnAdmin() || request.auth.uid == userId;
+      allow write: if request.auth.uid == userId || isAnAdmin();
+    }
+
+    match /partners/{partnerId} {
+      allow create: if request.auth != null;
+      allow read, list: if request.auth != null;
+      allow update: if getRoleForPartner(partnerId) == 'admin';
+      allow delete: if false;
+    }
+
+    match /partners/{partnerId}/devices/{deviceId} {
+      allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
+			allow write: if (isEjkUser() && canWriteInspection()) || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write';
+    }
+
+    	// VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
+		match /partners/{partnerId}/devices/{deviceId}/inspections/{inspectionId} {
+  		allow create, update: if canWriteInspection() || request.auth.token.email == 'attila.hitb@gmail.com';
+  		allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
+		}
+    
+      // ÚJ SZABÁLY: Szakértők kollekció olvasása
+    match /experts/{expertId} {
+      allow read, list: if request.auth != null;
+    }
+
+  }
+}
+
+
+
+
+
