@@ -960,6 +960,14 @@ async function generateAndDownloadZip(templateName, devices, partnerId) {
     showLoadingModal('Jegyzőkönyvek generálása... Kérjük, várjon.');
 
     try {
+        // Partner adatok lekérdezése
+        const partnerRef = db.collection('partners').doc(partnerId);
+        const partnerDoc = await partnerRef.get();
+        if (!partnerDoc.exists) {
+            throw new Error('Partner nem található!');
+        }
+        const partnerData = partnerDoc.data();
+
         // 1. Sablon letöltése
         const templateRef = storage.ref(`templates/${templateName}`);
         const url = await templateRef.getDownloadURL();
@@ -995,6 +1003,11 @@ async function generateAndDownloadZip(templateName, devices, partnerId) {
 
             // 5. Adatobjektum összeállítása a sablonhoz
             const templateData = {
+                partner_nev: partnerData.name || '',
+                partner_cim: partnerData.address || '',
+                eszkoz_megnevezes: device.description || '',
+                sorszam: inspectionData.hash?.substring(0, 6).toUpperCase() || '',
+
                 eszkoz_hossz: device.effectiveLength || '',
                 eszkoz_teherbiras: device.loadCapacity || '',
                 eszkoz_gyarto: device.manufacturer || '',
