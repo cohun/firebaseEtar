@@ -19,7 +19,7 @@ function getEszkozListaHtml() {
                 </div>
             </div>
             <!-- Szűrő és Kereső Vezérlők -->
-            <div id="filter-controls" class="mt-4 mb-3 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div id="filter-controls" class="mt-4 mb-3 grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                 <div class="md:col-span-2">
                     <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
                     <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
@@ -31,6 +31,16 @@ function getEszkozListaHtml() {
                 <div>
                     <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
                     <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
+                </div>
+                <div class="flex items-center justify-center pb-2">
+                    <div class="relative flex items-start">
+                        <div class="flex h-6 items-center">
+                            <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                        </div>
+                        <div class="ml-3 text-sm leading-6">
+                            <label for="inactive-toggle" class="font-medium text-gray-300">Inaktívak</label>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
@@ -168,6 +178,7 @@ export function initPartnerWorkScreen(partnerId) {
     let firstVisibleDoc = null;
     let lastVisibleDoc = null;
     let currentPage = 1;
+    let currentView = 'active'; // Nézet váltó: 'active' vagy 'inactive'
 
     const tableBody = document.getElementById('eszköz-lista-body');
     const paginationInfo = document.getElementById('pagination-info');
@@ -179,6 +190,11 @@ export function initPartnerWorkScreen(partnerId) {
     const resetFiltersBtn = document.getElementById('reset-filters-btn');
     const tableHeaders = document.querySelectorAll('th.sortable');
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const inactiveToggle = document.getElementById('inactive-toggle');
+    const deleteBtn = document.getElementById('delete-device-btn');
+    const deleteBtnMobile = document.getElementById('delete-device-btn-mobile');
+    const decommissionBtn = document.getElementById('decommission-reactivate-btn');
+    const decommissionBtnMobile = document.getElementById('decommission-reactivate-btn-mobile');
 
     function debounce(func, delay) {
         let timeout;
@@ -187,6 +203,20 @@ export function initPartnerWorkScreen(partnerId) {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(context, args), delay);
         };
+    }
+
+    function updateUiForView() {
+        if (currentView === 'inactive') {
+            decommissionBtn.textContent = 'Újraaktiválás';
+            decommissionBtnMobile.textContent = 'Újraaktiválás';
+            deleteBtn.style.display = 'none';
+            deleteBtnMobile.style.display = 'none';
+        } else {
+            decommissionBtn.textContent = 'Leselejtezés';
+            decommissionBtnMobile.textContent = 'Leselejtezés';
+            deleteBtn.style.display = '';
+            deleteBtnMobile.style.display = '';
+        }
     }
 
     if (selectAllCheckbox) {
@@ -204,7 +234,8 @@ export function initPartnerWorkScreen(partnerId) {
         tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-400">Adatok betöltése...</td></tr>`;
 
         try {
-            let query = db.collection('partners').doc(partnerId).collection('devices');
+            let query = db.collection('partners').doc(partnerId).collection('devices')
+                .where('comment', '==', currentView);
 
             if (searchTerm) {
                 query = query.where('serialNumber', '==', searchTerm);
@@ -380,6 +411,36 @@ export function initPartnerWorkScreen(partnerId) {
         fetchDevices();
     }
 
+    async function updateSelectedDevicesComment(newComment) {
+        const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy eszközt a művelethez!');
+            return;
+        }
+
+        const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        const actionText = newComment === 'inactive' ? 'leselejtezni' : (newComment === 'active' ? 'újraaktiválni' : 'törölni');
+        
+        if (!confirm(`Biztosan szeretné ${actionText} a kiválasztott ${deviceIds.length} eszközt?`)) {
+            return;
+        }
+
+        try {
+            const batch = db.batch();
+            deviceIds.forEach(id => {
+                const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(id);
+                batch.update(deviceRef, { comment: newComment });
+            });
+            await batch.commit();
+            
+            alert(`A kiválasztott eszközök sikeresen ${actionText} lettek.`);
+            resetAndFetch(); // Refresh the list
+        } catch (error) {
+            console.error(`Hiba az eszközök ${actionText} során:`, error);
+            alert(`Hiba történt az eszközök ${actionText} során. Kérjük, próbálja újra.`);
+        }
+    }
+
     tableHeaders.forEach(header => {
         header.addEventListener('click', () => {
             const sortField = header.dataset.sort;
@@ -402,6 +463,21 @@ export function initPartnerWorkScreen(partnerId) {
             }
         });
     });
+
+    const handleDecommissionReactivate = () => {
+        const newComment = currentView === 'active' ? 'inactive' : 'active';
+        updateSelectedDevicesComment(newComment);
+    };
+
+    decommissionBtn.addEventListener('click', handleDecommissionReactivate);
+    decommissionBtnMobile.addEventListener('click', handleDecommissionReactivate);
+
+    const handleDelete = () => {
+        updateSelectedDevicesComment('deleted');
+    };
+
+    deleteBtn.addEventListener('click', handleDelete);
+    deleteBtnMobile.addEventListener('click', handleDelete);
 
     nextPageBtn.addEventListener('click', () => {
         if (!nextPageBtn.disabled) {
@@ -442,9 +518,19 @@ export function initPartnerWorkScreen(partnerId) {
         kovVizsgInput.value = '';
         searchTerm = '';
         filters = { vizsg_idopont: '', kov_vizsg: '' };
+        inactiveToggle.checked = false; // Kapcsoló visszaállítása
+        currentView = 'active'; // Nézet visszaállítása
+        updateUiForView(); // UI frissítése a visszaállított nézethez
         resetAndFetch();
     });
 
+    inactiveToggle.addEventListener('change', () => {
+        currentView = inactiveToggle.checked ? 'inactive' : 'active';
+        updateUiForView(); // UI frissítése a nézetnek megfelelően
+        resetAndFetch();
+    });
+
+    updateUiForView(); // Kezdeti UI beállítása
     fetchDevices();
     loadExperts();
 
@@ -836,7 +922,9 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                     <button class="btn btn-secondary">Adatbázis letöltés</button>
                     ${uploadButtonHtml.replace('w-full text-left', '')}
                     ${newInspectionButtonHtml}
-                    <button id="generate-protocol-btn" class="btn btn-secondary">Jegyzőkönyv generálás</button>
+                    <button id="delete-device-btn" class="btn btn-danger">Törlés</button>
+                    <button id="decommission-reactivate-btn" class="btn btn-warning">Leselejtezés</button>
+                    <button id="generate-protocol-btn" class="btn btn-secondary">Jegyzőkönyv</button>
                     <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
                 </nav>
             </div>
@@ -845,7 +933,9 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 <button class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
                 ${uploadButtonHtml}
                 ${newInspectionButtonHtmlMobile}
-                <button id="generate-protocol-btn-mobile" class="btn btn-secondary w-full text-left">Jegyzőkönyv generálás</button>
+                <button id="delete-device-btn-mobile" class="btn btn-danger w-full text-left">Törlés</button>
+                <button id="decommission-reactivate-btn-mobile" class="btn btn-warning w-full text-left">Leselejtezés</button>
+                <button id="generate-protocol-btn-mobile" class="btn btn-secondary w-full text-left">Jegyzőkönyv</button>
                 <button id="backToMainFromWorkScreenBtnMobile" class="btn btn-primary w-full text-left">Vissza</button>
             </nav>
         </header>
