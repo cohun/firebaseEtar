@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETAR Rendszer - Piszkozatok</title>
+    <link rel="icon" type="image/png" href="images/ETAR_H.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Common Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a, #000033);
+        }
+        .card {
+            background-color: rgba(3, 7, 18, 0.6); /* bg-blue-950/60 */
+            border: 1px solid #1e40af; /* border-blue-800 */
+            color: #d1d5db; /* text-gray-300 */
+        }
+        .btn-primary {
+            background-color: #2563eb; /* bg-blue-600 */
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* bg-blue-700 */
+        }
+        .btn-success {
+            background-color: #16a34a; /* bg-green-600 */
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #15803d; /* bg-green-700 */
+        }
+        .input-field {
+            background-color: white; color: black !important; font-weight: bold;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="container mx-auto max-w-7xl">
+        <header class="bg-blue-950 p-4 rounded-t-xl mb-1 shadow-lg border-b border-blue-800 flex items-center justify-between">
+            <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10">
+            <h2 class="text-xl font-bold text-white">Piszkozatok Áttekintése</h2>
+            <div class="w-10"></div>
+        </header>
+        <div class="card rounded-t-none p-6">
+            <div class="sm:flex sm:items-center sm:justify-between">
+                <div class="sm:flex-auto">
+                    <p class="mt-2 text-sm text-gray-300">Itt láthatók a rögzített, de még nem véglegesített vizsgálati piszkozatok.</p>
+                </div>
+                <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
+                    <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok generálása (ZIP)</button>
+                    <button id="finalizeDraftsButton" class="btn btn-success">Összes véglegesítése</button>
+                </div>
+            </div>
+
+            <!-- Piszkozatok Táblázata -->
+            <div class="mt-8 flex flex-col">
+                <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+                        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-700">
+                                <thead class="bg-gray-800">
+                                    <tr>
+                                        <th scope="col" class="relative px-6 py-3.5">
+                                            <input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        </th>
+                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Partner</th>
+                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Eszköz Gyári Szám</th>
+                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Eredmény</th>
+                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Szakértő</th>
+                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Létrehozva</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="drafts-table-body" class="divide-y divide-gray-800 bg-gray-900/50">
+                                    <!-- Tartalom JS-ből -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <div class="flex justify-start mt-6">
+                <button onclick="history.back()" class="btn btn-secondary">Vissza</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+
+    <!-- Docx Generation Libraries -->
+    <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.9/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <script type="module" src="js/firebase.js"></script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/drafts.js"></script>
+</body>
+</html>

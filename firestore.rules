@@ -40,11 +40,17 @@ service cloud.firestore {
 			allow write: if (isEjkUser() && canWriteInspection()) || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write';
     }
 
-    	// VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
+    // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
 		match /partners/{partnerId}/devices/{deviceId}/inspections/{inspectionId} {
   		allow create, update: if canWriteInspection() || request.auth.token.email == 'attila.hitb@gmail.com';
   		allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
 		}
+
+    // ÚJ SZABÁLY: Engedélyezi a 'collectionGroup' lekérdezést az 'inspections' kollekcióra.
+    // Ez szükséges a "Piszkozatok" oldal működéséhez.
+    match /{path=**}/inspections/{inspectionId} {
+      allow read: if isEjkUser();
+    }
     
       // ÚJ SZABÁLY: Szakértők kollekció olvasása
     match /experts/{expertId} {

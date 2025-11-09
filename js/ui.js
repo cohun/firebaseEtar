@@ -239,6 +239,9 @@ export async function showMainScreen(user, userData) {
     const isEnyUserWithSinglePartner = !isEjkUser && partnerIds.length === 1;
 
     let buttonsHtml = '';
+    if (isEjkUser) {
+        buttonsHtml += `<button onclick="window.location.href='drafts.html'" class="btn btn-secondary w-full">Piszkozatok áttekintése</button>`;
+    }
     if (canManagePermissions) {
         buttonsHtml += `<button id="managePermissionsBtn" class="btn btn-secondary w-full">Jogosultságok kezelése</button>`;
     }

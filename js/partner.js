@@ -1,4 +1,5 @@
 import { auth, db, storage } from './firebase.js';
+import { getTemplates, showTemplateSelector, generateAndDownloadZip } from './doc-generator.js';
 
 // ===================================================================================
 // ESZKÖZLISTA NÉZET
@@ -448,41 +449,21 @@ export function initPartnerWorkScreen(partnerId) {
     loadExperts();
 
     // --- PROTOCOL GENERATION LOGIC ---
+    // Az új munkafolyamat szerint ez a gomb a véglegesített PDF-eket fogja letölteni a Storage-ból.
+    // A jelenlegi DOCX generáló logika ideiglenesen ki van kapcsolva, hogy elkerüljük a félreértéseket.
     const generateProtocolBtn = document.getElementById('generate-protocol-btn');
     const generateProtocolBtnMobile = document.getElementById('generate-protocol-btn-mobile');
 
-    const handleGenerateProtocolClick = async () => {
-        const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
-        if (selectedCheckboxes.length === 0) {
-            alert('Kérjük, válasszon ki legalább egy eszközt a jegyzőkönyv generálásához!');
-            return;
-        }
-
-        const selectedDeviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
-
-        const devicesWithInspection = currentDevices.filter(device =>
-            selectedDeviceIds.includes(device.id) && device.vizsg_idopont && device.vizsg_idopont !== 'N/A'
-        );
-
-        if (devicesWithInspection.length === 0) {
-            alert('A kiválasztott eszközök közül egyiknek sincs rögzített vizsgálata. Jegyzőkönyvet csak vizsgált eszközökről lehet készíteni.');
-            return;
-        }
-
-        try {
-            const templates = await getTemplates();
-            showTemplateSelector(templates, devicesWithInspection, partnerId);
-        } catch (error) {
-            console.error("Hiba a sablonok betöltésekor:", error);
-            alert("Hiba történt a jegyzőkönyv sablonok betöltése közben. Kérjük, próbálja újra később.");
-        }
-    };
-
     if (generateProtocolBtn) {
-        generateProtocolBtn.addEventListener('click', handleGenerateProtocolClick);
+        generateProtocolBtn.disabled = true;
+        generateProtocolBtn.style.opacity = '0.6';
+        generateProtocolBtn.style.cursor = 'not-allowed';
+        generateProtocolBtn.title = "Jelenleg nem elérhető. A véglegesített PDF-ek letöltése itt lesz lehetséges.";
     }
     if (generateProtocolBtnMobile) {
-        generateProtocolBtnMobile.addEventListener('click', handleGenerateProtocolClick);
+        generateProtocolBtnMobile.disabled = true;
+        generateProtocolBtnMobile.style.opacity = '0.6';
+        generateProtocolBtnMobile.classList.add('cursor-not-allowed');
     }
 
     // --- NEW INSPECTION LOGIC ---
@@ -704,6 +685,7 @@ export function initPartnerWorkScreen(partnerId) {
                             felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]').value,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             createdBy: user.displayName || user.email,
+                            status: 'draft' // Piszkozat állapot beállítása
                         };
 
                         const dataToHash = `${inspectionData.deviceId}${inspectionData.szakerto}${inspectionData.vizsgalatIdopontja}`;
@@ -726,27 +708,23 @@ export function initPartnerWorkScreen(partnerId) {
                         }
 
                         try {
-                            console.log("Data to be saved:", inspectionData);
-                            // 1. Save the inspection record to the new subcollection
+                            console.log("Data to be saved as draft:", inspectionData);
+                            // 1. Csak a vizsgálati piszkozatot mentjük az 'inspections' alkollekcióba
                             const newInspectionRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id).collection('inspections');
                             await newInspectionRef.add(inspectionData);
 
-                            // 2. Update the device document
-                            const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id);
-                            await deviceRef.update({
-                                kov_vizsg: inspectionData.kovetkezoIdoszakosVizsgalat,
-                                // kov_terhelesi_proba: inspectionData.kovetkezoTerhelesiProba, // This field does not exist in the table
-                                status: inspectionData.vizsgalatEredmenye,
-                                vizsg_idopont: inspectionData.vizsgalatIdopontja // Update existing field
-                            });
+                            // 2. Az eszköz dokumentum azonnali frissítése eltávolítva.
+                            //    Ez majd a véglegesítéskor fog megtörténni.
 
-                            alert('Vizsgálat sikeresen mentve!');
-                            // Optionally, clear the form or give other feedback
-                            deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
+                            alert('Vizsgálati piszkozat sikeresen mentve!');
+                            // A felület ürítése és visszajelzés a felhasználónak
+                            deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálati piszkozat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
+                            serialNumberInput.value = ''; // Gyári szám mező ürítése
+                            serialNumberInput.focus(); // Fókusz vissza a gyári szám mezőre
 
                         } catch (error) {
-                            console.error("Hiba a vizsgálat mentésekor: ", error);
-                            alert('Hiba történt a vizsgálat mentésekor: ' + error.message);
+                            console.error("Hiba a vizsgálati piszkozat mentésekor: ", error);
+                            alert('Hiba történt a vizsgálati piszkozat mentésekor: ' + error.message);
                         }
                     });
                 }
@@ -885,247 +863,3 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     `;
 }
 
-// ===================================================================================
-// JEGYZŐKÖNYV GENERÁLÁS LOGIKA
-// ===================================================================================
-
-let expertCache = {}; // Egyszerű cache a szakértői adatoknak
-
-/**
- * Displays or updates a loading modal.
- * @param {string} message The message to display.
- */
-function showLoadingModal(message) {
-    let modal = document.getElementById('loading-modal');
-    // If modal doesn't exist, create it
-    if (!modal) {
-        const modalHtml = `
-            <div id="loading-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                <div class="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full text-center">
-                    <div class="loader mx-auto"></div>
-                    <p id="loading-modal-message" class="mt-4 text-blue-300">${message}</p>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    } else {
-        // If modal exists, just update its message
-        const messageEl = document.getElementById('loading-modal-message');
-        if (messageEl) {
-            messageEl.textContent = message;
-        }
-    }
-}
-
-/**
- * Hides the loading modal.
- */
-function hideLoadingModal() {
-    const modal = document.getElementById('loading-modal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-/**
- * Fetches the certificate number for a given expert, using a cache.
- * @param {string} expertName The name of the expert.
- * @returns {Promise<string>} The certificate number.
- */
-async function getExpertCertificateNumber(expertName) {
-    if (expertCache[expertName]) {
-        return expertCache[expertName];
-    }
-    try {
-        const querySnapshot = await db.collection('experts').where('name', '==', expertName).limit(1).get();
-        if (querySnapshot.empty) {
-            return 'N/A';
-        }
-        const expertData = querySnapshot.docs[0].data();
-        expertCache[expertName] = expertData.certificateNumber || 'N/A';
-        return expertCache[expertName];
-    } catch (error) {
-        console.error(`Hiba a(z) ${expertName} szakértő adatainak lekérésekor:`, error);
-        return 'Hiba';
-    }
-}
-
-/**
- * Generates a zip file with docx protocols for the selected devices.
- * @param {string} templateName The name of the docx template file.
- * @param {object[]} devices The array of selected device objects.
- * @param {string} partnerId The ID of the current partner.
- */
-async function generateAndDownloadZip(templateName, devices, partnerId) {
-    showLoadingModal('Jegyzőkönyvek generálása... Kérjük, várjon.');
-
-    try {
-        // Partner adatok lekérdezése
-        const partnerRef = db.collection('partners').doc(partnerId);
-        const partnerDoc = await partnerRef.get();
-        if (!partnerDoc.exists) {
-            throw new Error('Partner nem található!');
-        }
-        const partnerData = partnerDoc.data();
-
-        // 1. Sablon letöltése
-        const templateRef = storage.ref(`templates/${templateName}`);
-        const url = await templateRef.getDownloadURL();
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Hiba a sablon letöltésekor: ${response.statusText}`);
-        }
-        const templateArrayBuffer = await response.arrayBuffer();
-
-        const zip = new window.PizZip();
-
-        // 2. Ciklus a kiválasztott eszközökön
-        for (let i = 0; i < devices.length; i++) {
-            const device = devices[i];
-            showLoadingModal(`Feldolgozás: ${i + 1} / ${devices.length} (${device.serialNumber || 'N/A'})...`);
-
-            // 3. Legfrissebb vizsgálat lekérése
-            const inspectionSnapshot = await db.collection('partners').doc(partnerId)
-                .collection('devices').doc(device.id)
-                .collection('inspections')
-                .orderBy('createdAt', 'desc')
-                .limit(1)
-                .get();
-
-            if (inspectionSnapshot.empty) {
-                console.warn(`Nincs vizsgálat a(z) ${device.id} eszközhöz. Kihagyás.`);
-                continue; // Kihagyjuk ezt az eszközt
-            }
-            const inspectionData = inspectionSnapshot.docs[0].data();
-
-            // 4. Szakértő bizonyítványszámának lekérése
-            const certNumber = await getExpertCertificateNumber(inspectionData.szakerto);
-
-            // 5. Adatobjektum összeállítása a sablonhoz
-            const templateData = {
-                partner_nev: partnerData.name || '',
-                partner_cim: partnerData.address || '',
-                eszkoz_megnevezes: device.description || '',
-                sorszam: inspectionData.hash?.substring(0, 6).toUpperCase() || '',
-
-                eszkoz_hossz: device.effectiveLength || '',
-                eszkoz_teherbiras: device.loadCapacity || '',
-                eszkoz_gyarto: device.manufacturer || '',
-                eszkoz_azonosito: device.operatorId || '',
-                eszkoz_gyari_szam: device.serialNumber || '',
-                eszkoz_tipus: device.type || '',
-                eszkoz_gyartasi_ev: device.yearOfManufacture || '',
-
-                kelt_datum: inspectionData.createdAt?.toDate().toLocaleDateString('hu-HU') || '',
-                felhasznalt_anyagok: inspectionData.felhasznaltAnyagok || '',
-                feltart_hiba: inspectionData.feltartHiba || '',
-                kovetkezo_idoszakos: inspectionData.kovetkezoIdoszakosVizsgalat || '',
-                kovetkezo_terhelesi: inspectionData.kovetkezoTerhelesiProba || '',
-                szakerto_nev: inspectionData.szakerto || '',
-                vizsgalat_eredmenye: inspectionData.vizsgalatEredmenye || '',
-                vizsgalat_helye: inspectionData.vizsgalatHelye || '',
-                vizsgalat_idopontja: inspectionData.vizsgalatIdopontja || '',
-                vizsgalat_jellege: inspectionData.vizsgalatJellege || '',
-
-                szakerto_bizonyitvanyszam: certNumber,
-                generalas_idobelyeg: new Date().toLocaleString('hu-HU'),
-            };
-
-            // 6. Egyedi dokumentum generálása
-            const doc = new window.docxtemplater(new window.PizZip(templateArrayBuffer), {
-                paragraphLoop: true,
-                linebreaks: true,
-            });
-            doc.setData(templateData);
-            doc.render();
-
-            const generatedDocBuffer = doc.getZip().generate({ type: 'arraybuffer' });
-            
-            // 7. Hozzáadás a közös ZIP fájlhoz
-            const fileName = `jegyzokonyv_${templateData.eszkoz_gyari_szam || device.id}.docx`;
-            zip.file(fileName, generatedDocBuffer);
-        }
-
-        // 8. ZIP generálása és letöltése
-        const zipContent = zip.generate({ type: 'blob' });
-        window.saveAs(zipContent, 'jegyzokonyvek.zip');
-
-    } catch (error) {
-        console.error("Hiba a jegyzőkönyvek generálása során:", error);
-        alert(`Hiba történt a generálás közben: ${error.message}`);
-    } finally {
-        hideLoadingModal();
-        expertCache = {}; // Cache törlése a végén
-    }
-}
-
-
-/**
- * Fetches template names from Firebase Storage.
- * @returns {Promise<string[]>} A list of template names.
- */
-async function getTemplates() {
-    const templatesRef = storage.ref('templates');
-    const result = await templatesRef.listAll();
-    // Fájlok szűrése .docx kiterjesztésre és a placeholder fájl eltávolítása
-    const templates = result.items
-        .map(itemRef => itemRef.name)
-        .filter(name => name.toLowerCase().endsWith('.docx') && name !== 'placeholder.docx');
-    return templates;
-}
-
-/**
- * Displays a modal for template selection.
- * @param {string[]} templates - Array of template names.
- * @param {object[]} devices - Array of device objects to generate protocols for.
- * @param {string} partnerId - The ID of the current partner.
- */
-function showTemplateSelector(templates, devices, partnerId) {
-    // Remove existing modal if any
-    const existingModal = document.getElementById('template-selection-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    const modalHtml = `
-        <div id="template-selection-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div class="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full">
-                <h2 class="text-2xl font-bold text-white mb-6">Jegyzőkönyv sablon kiválasztása</h2>
-                <p class="text-gray-300 mb-4">
-                    A kiválasztott ${devices.length} db vizsgált eszközhöz a következő sablonok érhetők el. Válasszon egyet a generáláshoz.
-                </p>
-                <div class="mb-6">
-                    <label for="template-select" class="block text-sm font-medium text-gray-300 mb-2">Sablonok</label>
-                    <select id="template-select" class="input-field w-full">
-                        ${templates.length > 0 ? templates.map(template => `<option value="${template}">${template.replace('.docx', '')}</option>`).join('') : '<option value="" disabled>Nincsenek elérhető sablonok.</option>'}
-                    </select>
-                </div>
-                <div class="flex justify-end space-x-4">
-                    <button id="cancel-template-selection" class="btn btn-secondary">Mégse</button>
-                    <button id="confirm-template-selection" class="btn btn-primary" ${templates.length === 0 ? 'disabled' : ''}>Generálás</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-    const modal = document.getElementById('template-selection-modal');
-    const cancelButton = document.getElementById('cancel-template-selection');
-    const confirmButton = document.getElementById('confirm-template-selection');
-    const templateSelect = document.getElementById('template-select');
-
-    cancelButton.addEventListener('click', () => {
-        modal.remove();
-    });
-
-    confirmButton.addEventListener('click', () => {
-        const selectedTemplate = templateSelect.value;
-        if (!selectedTemplate) {
-            alert('Kérjük, válasszon egy sablont!');
-            return;
-        }
-        modal.remove(); // Távolítsuk el a modális ablakot a generálás előtt
-        generateAndDownloadZip(selectedTemplate, devices, partnerId);
-    });
-}
