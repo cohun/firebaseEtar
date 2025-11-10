@@ -17,6 +17,9 @@
     <!-- Common Styles -->
     <link rel="stylesheet" href="style.css">
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     <style>
         body {
             background: linear-gradient(135deg, #1e3a8a, #000033);
@@ -39,8 +42,28 @@
         .btn-success:hover {
             background-color: #15803d; /* bg-green-700 */
         }
+        .btn-danger {
+            background-color: #dc2626; /* bg-red-600 */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #b91c1c; /* bg-red-700 */
+        }
         .input-field {
             background-color: white; color: black !important; font-weight: bold;
+        }
+        .sortable {
+            cursor: pointer;
+        }
+        .sortable:hover {
+            background-color: #374151; /* gray-700 */
+        }
+        .sortable i {
+            margin-left: 8px;
+            color: #9ca3af; /* gray-400 */
+        }
+        .active-sort i {
+            color: white;
         }
     </style>
 </head>
@@ -58,6 +81,7 @@
                     <p class="mt-2 text-sm text-gray-300">Itt láthatók a rögzített, de még nem véglegesített vizsgálati piszkozatok.</p>
                 </div>
                 <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
+                    <button id="deleteDraftsButton" class="btn btn-danger">Kijelöltek törlése</button>
                     <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok generálása (ZIP)</button>
                     <button id="finalizeDraftsButton" class="btn btn-success">Összes véglegesítése</button>
                 </div>
@@ -74,11 +98,11 @@
                                         <th scope="col" class="relative px-6 py-3.5">
                                             <input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                         </th>
-                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Partner</th>
-                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Eszköz Gyári Szám</th>
-                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Eredmény</th>
-                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Szakértő</th>
-                                        <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Létrehozva</th>
+                                        <th scope="col" data-sort="partnerName" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Partner<i></i></th>
+                                        <th scope="col" data-sort="serialNumber" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eszköz Gyári Szám<i></i></th>
+                                        <th scope="col" data-sort="vizsgalatEredmenye" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eredmény<i></i></th>
+                                        <th scope="col" data-sort="szakerto" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Szakértő<i></i></th>
+                                        <th scope="col" data-sort="createdAt" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable active-sort">Létrehozva<i class="fas fa-sort-down"></i></th>
                                     </tr>
                                 </thead>
                                 <tbody id="drafts-table-body" class="divide-y divide-gray-800 bg-gray-900/50">

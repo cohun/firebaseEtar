@@ -81,20 +81,88 @@ export async function updateUserPartnerRole(userId, partnerId, newRole) {
     if (!userId || !partnerId || !newRole) {
         throw new Error("Hiányzó paraméterek a frissítéshez.");
     }
+
     const userRef = db.collection('users').doc(userId);
-    await userRef.update({
-        [`partnerRoles.${partnerId}`]: newRole
-    });
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) {
+                throw "A felhasználó nem található!";
+            }
+
+            const userData = userDoc.data();
+            const updates = {};
+
+            // 1. Update the partnerRoles map
+            updates[`partnerRoles.${partnerId}`] = newRole;
+
+            // 2. If the user is an EJK user, also update the main 'roles' array
+            if (userData.isEjkUser === true) {
+                const oldRole = userData.partnerRoles?.[partnerId];
+                const oldEjkRole = oldRole ? `EJK_${oldRole}` : null;
+                const newEjkRole = `EJK_${newRole}`;
+
+                let currentRoles = userData.roles || [];
+
+                // Remove the old role if it existed
+                if (oldEjkRole) {
+                    currentRoles = currentRoles.filter(role => role !== oldEjkRole);
+                }
+
+                // Add the new role if it's not already there
+                if (!currentRoles.includes(newEjkRole)) {
+                    currentRoles.push(newEjkRole);
+                }
+
+                updates['roles'] = currentRoles;
+            }
+
+            transaction.update(userRef, updates);
+        });
+        console.log("Felhasználói szerepkör sikeresen frissítve.");
+    } catch (error) {
+        console.error("Hiba a felhasználói szerepkör frissítése közben: ", error);
+        throw new Error("A felhasználói szerepkör frissítése sikertelen volt. " + error);
+    }
 }
 
 export async function removeUserPartnerAssociation(userId, partnerIdToRemove) {
     if (!userId || !partnerIdToRemove) {
         throw new Error("Hiányzó paraméterek a partnerkapcsolat törléséhez.");
     }
+
     const userRef = db.collection('users').doc(userId);
-    await userRef.update({
-        [`partnerRoles.${partnerIdToRemove}`]: firebase.firestore.FieldValue.delete()
-    });
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) {
+                throw "A felhasználó nem található!";
+            }
+
+            const userData = userDoc.data();
+            const updates = {};
+
+            // 1. Remove the partner association
+            updates[`partnerRoles.${partnerIdToRemove}`] = firebase.firestore.FieldValue.delete();
+
+            // 2. If the user is an EJK user, also update the main 'roles' array
+            if (userData.isEjkUser === true) {
+                const roleToRemove = userData.partnerRoles?.[partnerIdToRemove];
+                if (roleToRemove) {
+                    const ejkRoleToRemove = `EJK_${roleToRemove}`;
+                    updates['roles'] = firebase.firestore.FieldValue.arrayRemove(ejkRoleToRemove);
+                }
+            }
+
+            transaction.update(userRef, updates);
+        });
+        console.log("Partnerkapcsolat sikeresen eltávolítva.");
+    } catch (error) {
+        console.error("Hiba a partnerkapcsolat eltávolítása közben: ", error);
+        throw new Error("A partnerkapcsolat eltávolítása sikertelen volt. " + error);
+    }
 }
 
 export async function getPartnersForSelection(userData) {

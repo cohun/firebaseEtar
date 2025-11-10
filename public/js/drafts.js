@@ -2,6 +2,8 @@ import { auth, db } from './firebase.js';
 import { getTemplates, showTemplateSelector, generateZipFromDrafts } from './doc-generator.js';
 
 let allEnrichedDrafts = []; // Store all fetched drafts globally in this module
+let currentSortField = 'createdAt';
+let currentSortDirection = 'desc';
 
 document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.getElementById('drafts-table-body');
@@ -12,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">Piszkozatok betöltése...</td></tr>`;
 
             try {
+                // The initial query is already sorted by creation date
                 const snapshot = await db.collectionGroup('inspections')
                     .where('status', '==', 'draft')
                     .orderBy('createdAt', 'desc')
@@ -47,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return { ...draft, partnerName, serialNumber };
                 }));
 
-                renderTable(allEnrichedDrafts);
+                sortAndRender(); // Initial render with default sorting
 
             } catch (error) {
                 console.error("CATCH block: Hiba történt a piszkozatok lekérésekor!", error);
@@ -72,7 +75,62 @@ document.addEventListener('DOMContentLoaded', () => {
             checkbox.checked = isChecked;
         });
     });
+
+    // Add event listeners for sorting
+    const headers = document.querySelectorAll('th.sortable');
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const sortField = header.dataset.sort;
+            if (currentSortField === sortField) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortField = sortField;
+                currentSortDirection = 'asc';
+            }
+            sortAndRender();
+        });
+    });
 });
+
+function sortAndRender() {
+    const sortedDrafts = [...allEnrichedDrafts].sort((a, b) => {
+        const fieldA = a[currentSortField];
+        const fieldB = b[currentSortField];
+
+        let comparison = 0;
+        if (currentSortField === 'createdAt') {
+            const dateA = fieldA?.toDate() || 0;
+            const dateB = fieldB?.toDate() || 0;
+            comparison = dateA - dateB;
+        } else {
+            const valA = String(fieldA || '').toLowerCase();
+            const valB = String(fieldB || '').toLowerCase();
+            if (valA > valB) {
+                comparison = 1;
+            } else if (valA < valB) {
+                comparison = -1;
+            }
+        }
+        return currentSortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    renderTable(sortedDrafts);
+    updateHeaderIcons();
+}
+
+function updateHeaderIcons() {
+    const headers = document.querySelectorAll('th.sortable');
+    headers.forEach(header => {
+        const icon = header.querySelector('i');
+        header.classList.remove('active-sort');
+        icon.className = 'fas fa-sort'; // Reset icon
+
+        if (header.dataset.sort === currentSortField) {
+            header.classList.add('active-sort');
+            icon.className = currentSortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+        }
+    });
+}
 
 function renderTable(drafts) {
     const tableBody = document.getElementById('drafts-table-body');
@@ -121,4 +179,46 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
 
 document.getElementById('finalizeDraftsButton').addEventListener('click', () => {
     alert('Véglegesítés (Cloud Function) - implementálás alatt.');
+});
+
+document.getElementById('deleteDraftsButton').addEventListener('click', async () => {
+    const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        alert('Kérjük, válasszon ki legalább egy piszkozatot a törléshez!');
+        return;
+    }
+
+    if (!confirm(`Biztosan törölni szeretné a kiválasztott ${selectedCheckboxes.length} piszkozatot? A művelet nem vonható vissza.`)) {
+        return;
+    }
+
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+    const draftsToDelete = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
+
+    const batch = db.batch();
+
+    draftsToDelete.forEach(draft => {
+        if (draft.partnerId && draft.deviceId && draft.id) {
+            const docRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).collection('inspections').doc(draft.id);
+            batch.delete(docRef);
+        }
+    });
+
+    try {
+        await batch.commit();
+        
+        // Remove deleted drafts from the global array
+        allEnrichedDrafts = allEnrichedDrafts.filter(draft => !selectedIds.includes(draft.id));
+        
+        // Uncheck the "select all" checkbox
+        document.getElementById('select-all-checkbox').checked = false;
+
+        sortAndRender(); // Re-render the table
+        alert(`${draftsToDelete.length} piszkozat sikeresen törölve.`);
+
+    } catch (error) {
+        console.error("Hiba a piszkozatok törlésekor: ", error);
+        alert("Hiba történt a piszkozatok törlése közben. Lehetséges, hogy nincs jogosultsága a művelethez. " + error.message);
+    }
 });

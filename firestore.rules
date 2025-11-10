@@ -44,6 +44,7 @@ service cloud.firestore {
 		match /partners/{partnerId}/devices/{deviceId}/inspections/{inspectionId} {
   		allow create, update: if canWriteInspection() || request.auth.token.email == 'attila.hitb@gmail.com';
   		allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
+			allow delete: if canWriteInspection() && resource.data.status == 'draft';
 		}
 
     // ÚJ SZABÁLY: Engedélyezi a 'collectionGroup' lekérdezést az 'inspections' kollekcióra.
