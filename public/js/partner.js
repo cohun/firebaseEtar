@@ -420,6 +420,7 @@ export function initPartnerWorkScreen(partnerId) {
 
         const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
         const actionText = newComment === 'inactive' ? 'leselejtezni' : (newComment === 'active' ? 'újraaktiválni' : 'törölni');
+        const actionTextPast = newComment === 'inactive' ? 'leselejtezve' : (newComment === 'active' ? 'újraaktiválva' : 'törölve');
         
         if (!confirm(`Biztosan szeretné ${actionText} a kiválasztott ${deviceIds.length} eszközt?`)) {
             return;
@@ -433,7 +434,7 @@ export function initPartnerWorkScreen(partnerId) {
             });
             await batch.commit();
             
-            alert(`A kiválasztott eszközök sikeresen ${actionText} lettek.`);
+            alert(`A kiválasztott eszközök sikeresen ${actionTextPast} lettek.`);
             resetAndFetch(); // Refresh the list
         } catch (error) {
             console.error(`Hiba az eszközök ${actionText} során:`, error);
@@ -472,8 +473,37 @@ export function initPartnerWorkScreen(partnerId) {
     decommissionBtn.addEventListener('click', handleDecommissionReactivate);
     decommissionBtnMobile.addEventListener('click', handleDecommissionReactivate);
 
-    const handleDelete = () => {
-        updateSelectedDevicesComment('deleted');
+    const handleDelete = async () => {
+        const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy eszközt a törléshez!');
+            return;
+        }
+
+        const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+
+        try {
+            const checkPromises = deviceIds.map(id => 
+                db.collection('partners').doc(partnerId)
+                  .collection('devices').doc(id)
+                  .collection('inspections').where('status', '!=', 'draft')
+                  .limit(1).get().then(snap => !snap.empty)
+            );
+
+            const results = await Promise.all(checkPromises);
+            const hasFinalizedInspection = results.some(res => res === true);
+
+            if (hasFinalizedInspection) {
+                alert('A kiválasztott eszköz nem törölhető, mert már rendelkezik véglegesített vizsgálattal. Ilyen eszköz csak leselejtezhető.');
+                return;
+            }
+
+            updateSelectedDevicesComment('deleted');
+
+        } catch (error) {
+            console.error("Hiba a törlési ellenőrzés során:", error);
+            alert("Hiba történt a törlési feltételek ellenőrzése közben.");
+        }
     };
 
     deleteBtn.addEventListener('click', handleDelete);
