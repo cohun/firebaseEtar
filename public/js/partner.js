@@ -362,7 +362,7 @@ export function initPartnerWorkScreen(partnerId) {
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass}">${dev.status || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass}">${dev.kov_vizsg || 'N/A'}</td>
                 <td class="relative whitespace-nowrap py-2 px-3 text-center align-middle">
-                    <canvas class="qr-code-canvas" data-id="${dev.id}"></canvas>
+                    <canvas class="qr-code-canvas" data-serial-number="${dev.serialNumber || ''}"></canvas>
                 </td>
             </tr>
         `}).join('');
@@ -373,9 +373,9 @@ export function initPartnerWorkScreen(partnerId) {
     function generateQRCodes() {
         const canvases = tableBody.querySelectorAll('.qr-code-canvas');
         canvases.forEach(canvas => {
-            const deviceId = canvas.dataset.id;
-            if (deviceId) {
-                QRCode.toCanvas(canvas, deviceId, { 
+            const serialNumber = canvas.dataset.serialNumber;
+            if (serialNumber) {
+                QRCode.toCanvas(canvas, serialNumber, { 
                     width: 64, 
                     margin: 1,
                     errorCorrectionLevel: 'L',
@@ -563,6 +563,97 @@ export function initPartnerWorkScreen(partnerId) {
     updateUiForView(); // Kezdeti UI beállítása
     fetchDevices();
     loadExperts();
+
+    // --- DATABASE DOWNLOAD LOGIC ---
+    const downloadDbBtn = document.getElementById('download-db-btn');
+    const downloadDbBtnMobile = document.getElementById('download-db-btn-mobile');
+
+    async function fetchAllDevicesForExport() {
+        try {
+            const query = db.collection('partners').doc(partnerId).collection('devices');
+            const snapshot = await query.get();
+            const devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const inspectionPromises = devices.map(device => {
+                return db.collection('partners').doc(partnerId)
+                         .collection('devices').doc(device.id)
+                         .collection('inspections')
+                         .orderBy('createdAt', 'desc')
+                         .limit(1)
+                         .get()
+                         .then(inspectionSnapshot => {
+                             if (!inspectionSnapshot.empty) {
+                                 const latestInspection = inspectionSnapshot.docs[0].data();
+                                 // Add inspection data to the device object
+                                 device.latestInspection = latestInspection;
+                             }
+                         });
+            });
+
+            await Promise.all(inspectionPromises);
+            return devices;
+
+        } catch (error) {
+            console.error("Hiba az összes eszköz exportáláshoz való lekérésekor:", error);
+            alert("Hiba történt az adatok exportáláshoz való előkészítése közben.");
+            return [];
+        }
+    }
+
+    async function generateExcel() {
+        const button = this;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span>Generálás...</span><div class="loader-small"></div>';
+        button.disabled = true;
+
+        const devices = await fetchAllDevicesForExport();
+
+        if (devices.length === 0) {
+            alert('Nincsenek adatok az exportáláshoz.');
+            button.innerHTML = originalText;
+            button.disabled = false;
+            return;
+        }
+
+        const dataForSheet = devices.map(dev => ({
+            'Azonosító': dev.id,
+            'Megnevezés': dev.description,
+            'Típus': dev.type,
+            'Gyári szám': dev.serialNumber,
+            'Üzemeltetői azonosító': dev.operatorId,
+            'Gyártó': dev.manufacturer,
+            'Gyártás éve': dev.yearOfManufacture,
+            'Teherbírás (WLL)': dev.loadCapacity,
+            'Hasznos hossz': dev.effectiveLength,
+            'Állapot': dev.comment,
+            'Utolsó vizsgálat - Típus': dev.latestInspection?.vizsgalatJellege,
+            'Utolsó vizsgálat - Dátum': dev.latestInspection?.vizsgalatIdopontja,
+            'Utolsó vizsgálat - Eredmény': dev.latestInspection?.vizsgalatEredmenye,
+            'Utolsó vizsgálat - Köv. időszakos': dev.latestInspection?.kovetkezoIdoszakosVizsgalat,
+            'Utolsó vizsgálat - Köv. terhelési': dev.latestInspection?.kovetkezoTerhelesiProba,
+            'Utolsó vizsgálat - Szakértő': dev.latestInspection?.szakerto,
+            'Utolsó vizsgálat - Feltárt hiba': dev.latestInspection?.feltartHiba,
+            'Utolsó vizsgálat - Felhasznált anyagok': dev.latestInspection?.felhasznaltAnyagok,
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataForSheet);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Eszközök');
+
+        // Generate a file name
+        const partnerName = document.querySelector('#partner-work-screen-header h1').textContent.replace(/\s/g, '_');
+        const today = new Date().toISOString().slice(0, 10);
+        const fileName = `ETAR_DB_${partnerName}_${today}.xlsx`;
+
+        XLSX.writeFile(wb, fileName);
+
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+
+    downloadDbBtn.addEventListener('click', generateExcel);
+    downloadDbBtnMobile.addEventListener('click', generateExcel);
+
 
     // --- PROTOCOL GENERATION LOGIC ---
     // Az új munkafolyamat szerint ez a gomb a véglegesített PDF-eket fogja letölteni a Storage-ból.
@@ -949,7 +1040,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 </div>
                  <!-- Desktop Menu -->
                 <nav class="hidden xl:flex items-center space-x-2">
-                    <button class="btn btn-secondary">Adatbázis letöltés</button>
+                    <button id="download-db-btn" class="btn btn-secondary">Adatbázis letöltés</button>
                     ${uploadButtonHtml.replace('w-full text-left', '')}
                     ${newInspectionButtonHtml}
                     <button id="delete-device-btn" class="btn btn-danger">Törlés</button>
@@ -960,7 +1051,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             </div>
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
-                <button class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
+                <button id="download-db-btn-mobile" class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
                 ${uploadButtonHtml}
                 ${newInspectionButtonHtmlMobile}
                 <button id="delete-device-btn-mobile" class="btn btn-danger w-full text-left">Törlés</button>
