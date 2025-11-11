@@ -1,11 +1,19 @@
 
+console.log("--- DEBUG: adatbevitel.js LOADED ---");
 import { auth, db } from './firebase.js';
 
 document.addEventListener('DOMContentLoaded', function () {
+    const backButton = document.getElementById('backButton');
     const saveButton = document.getElementById('saveButton');
     const loadPreviousButton = document.getElementById('loadPreviousButton');
     const form = document.getElementById('dataEntryForm');
     const storageKey = 'previousDeviceData';
+
+    if (backButton) {
+        backButton.addEventListener('click', () => {
+            window.location.href = 'app.html';
+        });
+    }
 
     // Pre-fill serial number if available in sessionStorage
     const newDeviceSerialNumber = sessionStorage.getItem('newDeviceSerialNumber');
@@ -85,7 +93,8 @@ document.addEventListener('DOMContentLoaded', function () {
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: createdByName,
             partnerId: partnerId,
-            status: 'active'
+            comment: 'active',
+            status: ''
         };
 
         // Save data for "load previous" functionality (excluding specified fields)
@@ -95,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
         delete dataToStore.createdAt; // also remove server-generated fields
         localStorage.setItem(storageKey, JSON.stringify(dataToStore));
 
-        console.log("Attempting to save new device:", newDevice);
+        console.log("Data being sent to Firestore:", JSON.stringify(newDevice, null, 2));
 
         try {
             await db.collection('partners').doc(partnerId).collection('devices').add(newDevice);

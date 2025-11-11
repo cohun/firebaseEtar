@@ -999,7 +999,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     const role = userData.partnerRoles[partner.id];
     const userRoles = userData.roles || [];
 
-    const isReadOnly = role === 'read';
+    const isReadOnly = role === 'read' && !userData.isEjkUser;
     const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write');
 
     let uploadButtonHtml;
@@ -1017,6 +1017,19 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     let newInspectionButtonHtmlMobile = '';
     if (canInspect) {
         newInspectionButtonHtmlMobile = `<button id="showNewInspectionBtnMobile" class="btn btn-secondary w-full text-left">Új vizsgálat</button>`;
+    }
+
+    let actionButtonsHtml = '';
+    let actionButtonsHtmlMobile = '';
+    if (!isReadOnly) {
+        actionButtonsHtml = `
+            <button id="delete-device-btn" class="btn btn-danger">Törlés</button>
+            <button id="decommission-reactivate-btn" class="btn btn-warning">Leselejtezés</button>
+        `;
+        actionButtonsHtmlMobile = `
+            <button id="delete-device-btn-mobile" class="btn btn-danger w-full text-left">Törlés</button>
+            <button id="decommission-reactivate-btn-mobile" class="btn btn-warning w-full text-left">Leselejtezés</button>
+        `;
     }
 
     return `
@@ -1043,8 +1056,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                     <button id="download-db-btn" class="btn btn-secondary">Adatbázis letöltés</button>
                     ${uploadButtonHtml.replace('w-full text-left', '')}
                     ${newInspectionButtonHtml}
-                    <button id="delete-device-btn" class="btn btn-danger">Törlés</button>
-                    <button id="decommission-reactivate-btn" class="btn btn-warning">Leselejtezés</button>
+                    ${actionButtonsHtml}
                     <button id="generate-protocol-btn" class="btn btn-secondary">Jegyzőkönyv</button>
                     <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
                 </nav>
@@ -1054,8 +1066,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 <button id="download-db-btn-mobile" class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
                 ${uploadButtonHtml}
                 ${newInspectionButtonHtmlMobile}
-                <button id="delete-device-btn-mobile" class="btn btn-danger w-full text-left">Törlés</button>
-                <button id="decommission-reactivate-btn-mobile" class="btn btn-warning w-full text-left">Leselejtezés</button>
+                ${actionButtonsHtmlMobile}
                 <button id="generate-protocol-btn-mobile" class="btn btn-secondary w-full text-left">Jegyzőkönyv</button>
                 <button id="backToMainFromWorkScreenBtnMobile" class="btn btn-primary w-full text-left">Vissza</button>
             </nav>

@@ -37,7 +37,7 @@ service cloud.firestore {
 
     match /partners/{partnerId}/devices/{deviceId} {
       allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
-			allow write: if (isEjkUser() && canWriteInspection()) || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write';
+			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write';
     }
 
     // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
