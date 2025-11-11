@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (backButton) {
         backButton.addEventListener('click', () => {
-            window.location.href = 'app.html';
+            window.history.back();
         });
     }
 

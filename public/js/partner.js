@@ -42,8 +42,9 @@ function getEszkozListaHtml() {
                         </div>
                     </div>
                 </div>
-                <div>
+                <div class="flex items-center space-x-2">
                     <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
+                    <button id="refresh-list-btn" class="btn btn-primary w-full">Lista frissítése</button>
                 </div>
             </div>
 
@@ -188,6 +189,7 @@ export function initPartnerWorkScreen(partnerId) {
     const vizsgIdopontInput = document.getElementById('filter-vizsg-idopont');
     const kovVizsgInput = document.getElementById('filter-kov-vizsg');
     const resetFiltersBtn = document.getElementById('reset-filters-btn');
+    const refreshListBtn = document.getElementById('refresh-list-btn');
     const tableHeaders = document.querySelectorAll('th.sortable');
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
     const inactiveToggle = document.getElementById('inactive-toggle');
@@ -551,6 +553,10 @@ export function initPartnerWorkScreen(partnerId) {
         inactiveToggle.checked = false; // Kapcsoló visszaállítása
         currentView = 'active'; // Nézet visszaállítása
         updateUiForView(); // UI frissítése a visszaállított nézethez
+        resetAndFetch();
+    });
+
+    refreshListBtn.addEventListener('click', () => {
         resetAndFetch();
     });
 
