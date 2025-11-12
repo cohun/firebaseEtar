@@ -15,7 +15,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            line-height: 1.3;
+            line-height: 1.3; /* Csökkentett sorköz */
             box-sizing: border-box;
         }
 
@@ -82,16 +82,6 @@
             width: 100%;
         }
 
-        /* ÚJ: Sorszám doboz stílusa */
-        .serial-number-box {
-            border: 2px solid #333;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 1.2em;
-            white-space: nowrap;
-        }
-
         /* --- Szekciók stílusa --- */
         .section {
             margin-bottom: 20px;
@@ -106,27 +96,26 @@
             margin-bottom: 10px;
         }
 
-        /* ÚJ: Adatpárok megjelenítése Grid-del */
-        .data-grid {
-            display: grid;
-            grid-template-columns: 35% 65%;
-            gap: 6px 0; /* Sorok közötti rés */
-            padding-left: 15px;
+        .section table {
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        .data-label {
+        .section td {
+            padding: 6px 0;
+            vertical-align: top;
+        }
+
+        .section td:first-child {
+            width: 35%;
             font-weight: normal;
+            padding-left: 15px; /* Behúzás a címkéknél */
         }
 
-        .data-value {
+        .section td:last-child {
+            width: 65%;
             font-weight: bold;
             color: #222;
-        }
-
-        /* ÚJ: Adatrád üres sor */
-        .data-grid-spacer {
-            grid-column: 1 / -1; /* Átfedi mindkét oszlopot */
-            height: 20px; /* Kb. két sor magassága */
         }
 
         /* Kiemelt, középre igazított eredmény */
@@ -148,29 +137,24 @@
 
         /* --- Aláírás és Lábléc --- */
         .signature-section {
-            margin-top: 20px; /* Csökkentve 40px-ről 20px-re */
+            margin-top: 40px;
             padding-top: 20px;
         }
         
-        /* ÚJ: Konténer az aláírásnak és dátumnak */
-        .signature-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end; /* Alulra igazítja az elemeket */
-        }
-
         .kelt-datum {
-            /* Nem igényel módosítást */
+            margin-bottom: 30px;
         }
 
         .signature-block {
-            text-align: center;
-            /* Eltávolítjuk az auto margót, mert a flexbox rendezi */
+            text-align: center; /* Aláírás középre */
+            width: auto;
+            margin: 0 auto;
         }
         
         .signature-block .name {
             font-weight: bold;
             font-size: 1.1em;
+            /* border-top: 1px solid #555; */ /* Eltávolítva */
             padding-top: 5px;
         }
         
@@ -203,23 +187,36 @@
         }
 
 
-        /* --- Nyomtatási stílusok (Javított) --- */
+        /* --- Nyomtatási stílusok --- */
         @media print {
+            /* Oldal beállítása: A4, 2cm alap margó */
             @page {
                 size: A4;
-                margin: 2cm; /* Csak ez szabályozza a margót */
+                margin: 2cm; /* Egységes alap margó */
             }
 
             body {
                 font-family: 'Times New Roman', Times, serif;
                 background-color: #ffffff;
                 margin: 0;
-                padding: 0; /* A felesleges belső margó eltávolítása */
-                font-size: 10pt;
+                box-shadow: none;
+                border: none;
+                font-size: 10pt; /* NYOMTATÁSI alap betűméret */
                 line-height: 1.3;
                 color: #000;
+                
+                /* Extra belső margó (padding) a bal és jobb oldalon (2cm + 2cm = 4cm teljes margó) */
+                padding: 0 2cm;
+                
+                /* Függőleges kitöltés */
+                display: flex;
+                flex-direction: column;
+                min-height: 95vh; /* Biztonsági magasság a teljes lap kitöltéséhez */
+                justify-content: space-between; /* Egyenletes elosztás */
+                box-sizing: border-box; /* Fontos a padding miatt */
             }
 
+            /* Tároló és árnyékok eltüntetése */
             .container {
                 width: 100%;
                 max-width: none;
@@ -228,44 +225,41 @@
                 box-shadow: none;
                 border: none;
                 border-radius: 0;
-                /* A konténer legyen a flexbox, ami kitölti a lapot */
-                display: flex;
-                flex-direction: column;
-                min-height: calc(100vh - 4cm); /* A margók levonása a magasságból */
             }
 
+            /* Logók méretének fixálása nyomtatásban */
             .header {
                 border-bottom: 2px solid #000;
                 margin-bottom: 20px;
             }
             .header img {
-                max-height: 2cm;
+                max-height: 2cm; /* Fix méret nyomtatásban */
                 width: auto;
             }
             
-            /* ÚJ: Sorszám doboz nyomtatási stílusa */
-            .serial-number-box {
-                border-color: #000;
+            /* Sorszám doboz stílusa nyomtatásban */
+            .title-with-sorszam div {
+                border: 2px solid #000 !important;
             }
 
+            /* Szekciók és törések finomhangolása */
             .section {
-                margin-bottom: 15px;
-                page-break-inside: avoid;
+                margin-bottom: 15px; /* Kisebb margó nyomtatásban */
+                page-break-inside: avoid; /* Próbálja egyben tartani a szekciókat */
             }
 
             .section h2 {
-                page-break-after: avoid;
+                page-break-after: avoid; /* Ne legyen oldaltörés a cím után */
             }
             
             .result-text {
-                font-size: 1.3em;
+                font-size: 1.3em; /* Kicsit nagyobb kiemelés */
             }
 
-            /* ÚJ: Aláírás szekció feltolása az oldal aljára */
             .signature-section {
-                margin-top: auto; /* Ez a trükk */
-                padding-top: 10px; /* Csökkentve 30px-ről 10px-re */
+                page-break-before: auto; /* Csak akkor törjön, ha muszáj */
                 page-break-inside: avoid;
+                margin-top: 30px;
             }
 
             .footer {
@@ -275,7 +269,7 @@
             }
             
             .footer-note {
-                white-space: normal;
+                white-space: normal; /* Nyomtatásban törhet sorba, ha kell */
             }
         }
     </style>
@@ -297,7 +291,7 @@
             <div class="title-with-sorszam">
                 <h1>Teherfelvevő Eszköz Időszakos Vizsgálati Jegyzőkönyve</h1>
                 <!-- Sorszám doboz, megnövelve -->
-                <div class="serial-number-box">
+                <div style="border: 2px solid #333; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 1.2em; white-space: nowrap;">
                     Sorszám: {sorszam}
                 </div>
             </div>
@@ -318,48 +312,80 @@
         <!-- 3. Üzemeltető adatai -->
         <section class="section">
             <h2>Üzemeltető adatai:</h2>
-            <div class="data-grid">
-                <div class="data-label">Cégnév:</div>
-                <div class="data-value">{partner_nev}</div>
-                <div class="data-label">Cím:</div>
-                <div class="data-value">{partner_cim}</div>
-            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Cégnév:</td>
+                        <td>{partner_nev}</td>
+                    </tr>
+                    <tr>
+                        <td>Cím:</td>
+                        <td>{partner_cim}</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- 4. A vizsgált teherfelvevő eszköz adatai -->
         <section class="section">
             <h2>A vizsgált teherfelvevő eszköz adatai:</h2>
-            <div class="data-grid">
-                <div class="data-label">Megnevezés:</div>
-                <div class="data-value">{eszkoz_megnevezes}</div>
-                <div class="data-label">Üzemeltetői azonosító:</div>
-                <div class="data-value">{eszkoz_azonosito}</div>
-                <div class="data-label">Típus:</div>
-                <div class="data-value">{eszkoz_tipus}</div>
-                <div class="data-label">Hasznos hossz:</div>
-                <div class="data-value">{eszkoz_hossz}</div>
-                <div class="data-label">Teherbírás (WLL):</div>
-                <div class="data-value">{eszkoz_teherbiras}</div>
-                <div class="data-label">Gyártó:</div>
-                <div class="data-value">{eszkoz_gyarto}</div>
-                <div class="data-label">Gyári szám:</div>
-                <div class="data-value">{eszkoz_gyari_szam}</div>
-                <div class="data-label">Gyártás éve:</div>
-                <div class="data-value">{eszkoz_gyartasi_ev}</div>
-            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Megnevezés:</td>
+                        <td>{eszkoz_megnevezes}</td>
+                    </tr>
+                    <tr>
+                        <td>Üzemeltetői azonosító:</td>
+                        <td>{eszkoz_azonosito}</td>
+                    </tr>
+                    <tr>
+                        <td>Típus:</td>
+                        <td>{eszkoz_tipus}</td>
+                    </tr>
+                    <tr>
+                        <td>Hasznos hossz:</td>
+                        <td>{eszkoz_hossz}</td>
+                    </tr>
+                    <tr>
+                        <td>Teherbírás (WLL):</td>
+                        <td>{eszkoz_teherbiras}</td>
+                    </tr>
+                    <tr>
+                        <td>Gyártó:</td>
+                        <td>{eszkoz_gyarto}</td>
+                    </tr>
+                    <tr>
+                        <td>Gyári szám:</td>
+                        <td>{eszkoz_gyari_szam}</td>
+                    </tr>
+                    <tr>
+                        <td>Gyártás éve:</td>
+                        <td>{eszkoz_gyartasi_ev}</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- 5. A vizsgálat adatai -->
         <section class="section">
             <h2>A vizsgálat adatai:</h2>
-            <div class="data-grid">
-                <div class="data-label">Vizsgálat időpontja:</div>
-                <div class="data-value">{vizsgalat_idopontja}</div>
-                <div class="data-label">Vizsgálat helye:</div>
-                <div class="data-value">{vizsgalat_helye}</div>
-                <div class="data-label">Vizsgálat jellege:</div>
-                <div class="data-value">{vizsgalat_jellege}</div>
-            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Vizsgálat időpontja:</td>
+                        <td>{vizsgalat_idopontja}</td>
+                    </tr>
+                    <tr>
+                        <td>Vizsgálat helye:</td>
+                        <td>{vizsgalat_helye}</td>
+                    </tr>
+                    <tr>
+                        <td>Vizsgálat jellege:</td>
+                        <td>{vizsgalat_jellege}</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- 6. A vizsgálat eredménye és minősítés -->
@@ -371,39 +397,50 @@
                 {vizsgalat_eredmenye}
             </div>
 
-            <div class="data-grid">
-                <div class="data-label">Feltárt hiba:</div>
-                <div class="data-value">{feltart_hiba}</div>
-                <div class="data-grid-spacer"></div> <!-- Új üres sor -->
-                <div class="data-label">Felhasznált anyagok:</div>
-                <div class="data-value">{felhasznalt_anyagok}</div>
-                <div class="data-grid-spacer"></div> <!-- Új üres sor -->
-            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Feltárt hiba:</td>
+                        <td>{feltart_hiba}</td>
+                    </tr>
+                    <tr>
+                        <td>Felhasznált anyagok:</td>
+                        <td>{felhasznalt_anyagok}</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- 7. Következő vizsgálat esedékessége -->
         <section class="section">
             <h2>Következő vizsgálat esedékessége:</h2>
-            <div class="data-grid">
-                <div class="data-label">Következő időszakos vizsgálat:</div>
-                <div class="data-value">{kovetkezo_idoszakos}</div>
-                <div class="data-label">Következő terhelési próba:</div>
-                <div class="data-value">{kovetkezo_terhelesi}</div>
-            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Következő időszakos vizsgálat:</td>
+                        <td>{kovetkezo_idoszakos}</td>
+                    </tr>
+                    <tr>
+                        <td>Következő terhelési próba:</td>
+                        <td>{kovetkezo_terhelesi}</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- 8. Aláírás -->
         <section class="signature-section">
-            <div class="signature-container">
-                <div class="kelt-datum">
-                    Kelt: {kelt_datum}
-                </div>
-                <div class="signature-block">
-                    <div class="name">{szakerto_nev}</div>
-                    <div class="title">H-ITB emelőgép ügyintéző</div>
-                    <div class="id-number">({szakerto_bizonyitvanyszam})</div>
-                </div>
+            
+            <div class="kelt-datum">
+                Kelt: {kelt_datum}
             </div>
+
+            <div class="signature-block">
+                <div class="name">{szakerto_nev}</div>
+                <div class="title">H-ITB emelőgép ügyintéző</div>
+                <div class="id-number">({szakerto_bizonyitvanyszam})</div>
+            </div>
+
         </section>
 
         <!-- 9. Lábléc -->
