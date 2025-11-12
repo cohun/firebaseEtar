@@ -244,6 +244,86 @@ export async function generateAndDownloadZip(templateName, devices, partnerId) {
 
 
 /**
+ * Generates a single DOCX blob for a given draft and template.
+ * This function is intended to be used by the finalization process.
+ * @param {string} templateName The name of the docx template file.
+ * @param {object} draft The draft object.
+ * @param {ArrayBuffer} templateArrayBuffer The pre-loaded template content.
+ * @returns {Promise<Blob>} A promise that resolves with the generated DOCX blob.
+ */
+async function generateSingleDocxBlob(templateName, draft, templateArrayBuffer) {
+    // Get partner and device data for the template
+    const partnerDoc = await db.collection('partners').doc(draft.partnerId).get();
+    const deviceDoc = await db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).get();
+
+    if (!partnerDoc.exists || !deviceDoc.exists) {
+        throw new Error(`Partner vagy eszköz nem található a(z) ${draft.id} piszkozathoz.`);
+    }
+    const partnerData = partnerDoc.data();
+    const device = deviceDoc.data();
+
+    const certNumber = await getExpertCertificateNumber(draft.szakerto);
+
+    const templateData = {
+        partner_nev: partnerData.name || '',
+        partner_cim: partnerData.address || '',
+        eszkoz_megnevezes: device.description || '',
+        sorszam: draft.hash?.substring(0, 6).toUpperCase() || '',
+        eszkoz_hossz: device.effectiveLength || '',
+        eszkoz_teherbiras: device.loadCapacity || '',
+        eszkoz_gyarto: device.manufacturer || '',
+        eszkoz_azonosito: device.operatorId || '',
+        eszkoz_gyari_szam: device.serialNumber || '',
+        eszkoz_tipus: device.type || '',
+        eszkoz_gyartasi_ev: device.yearOfManufacture || '',
+        kelt_datum: draft.createdAt?.toDate().toLocaleDateString('hu-HU') || '',
+        felhasznalt_anyagok: draft.felhasznaltAnyagok || '',
+        feltart_hiba: draft.feltartHiba || '',
+        kovetkezo_idoszakos: draft.kovetkezoIdoszakosVizsgalat || '',
+        kovetkezo_terhelesi: draft.kovetkezoTerhelesiProba || '',
+        szakerto_nev: draft.szakerto || '',
+        vizsgalat_eredmenye: draft.vizsgalatEredmenye || '',
+        vizsgalat_helye: draft.vizsgalatHelye || '',
+        vizsgalat_idopontja: draft.vizsgalatIdopontja || '',
+        vizsgalat_jellege: draft.vizsgalatJellege || '',
+        szakerto_bizonyitvanyszam: certNumber,
+        generalas_idobelyeg: new Date().toLocaleString('hu-HU'),
+    };
+
+    const doc = new window.docxtemplater(new window.PizZip(templateArrayBuffer), {
+        paragraphLoop: true,
+        linebreaks: true,
+    });
+    doc.setData(templateData);
+    doc.render();
+
+    return doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+
+/**
+ * Generates a DOCX from a draft, uploads it to Firebase Storage, and returns the download URL.
+ * @param {string} templateName The name of the template file.
+ * @param {object} draft The draft object to be finalized.
+ * @param {ArrayBuffer} templateArrayBuffer Pre-loaded template content.
+ * @returns {Promise<string>} The download URL of the uploaded document.
+ */
+export async function generateAndUploadFinalizedDoc(templateName, draft, templateArrayBuffer) {
+    // 1. Generate the DOCX blob
+    const docxBlob = await generateSingleDocxBlob(templateName, draft, templateArrayBuffer);
+
+    // 2. Define storage path and upload
+    const storagePath = `generated-inspections/${draft.partnerId}/${draft.deviceId}/${draft.id}/jegyzokonyv_${draft.serialNumber || draft.id}.docx`;
+    const storageRef = storage.ref(storagePath);
+    const uploadTask = await storageRef.put(docxBlob);
+
+    // 3. Get and return the download URL
+    const downloadURL = await uploadTask.ref.getDownloadURL();
+    return downloadURL;
+}
+
+
+/**
  * Fetches template names from Firebase Storage.
  * @returns {Promise<string[]>} A list of template names.
  */

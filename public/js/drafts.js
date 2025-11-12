@@ -1,5 +1,5 @@
-import { auth, db } from './firebase.js';
-import { getTemplates, showTemplateSelector, generateZipFromDrafts } from './doc-generator.js';
+import { auth, db, storage } from './firebase.js';
+import { getTemplates, showTemplateSelector, generateZipFromDrafts, generateAndUploadFinalizedDoc, showLoadingModal, hideLoadingModal } from './doc-generator.js';
 
 let allEnrichedDrafts = []; // Store all fetched drafts globally in this module
 let currentSortField = 'createdAt';
@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 allEnrichedDrafts = await Promise.all(drafts.map(async (draft) => {
                     let partnerName = 'Ismeretlen';
                     let serialNumber = 'Ismeretlen';
+                    let description = 'Ismeretlen';
 
                     if (draft.partnerId) {
                         const partnerDoc = await db.collection('partners').doc(draft.partnerId).get();
@@ -43,11 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (draft.partnerId && draft.deviceId) {
                         const deviceDoc = await db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).get();
                         if (deviceDoc.exists) {
-                            serialNumber = deviceDoc.data().serialNumber;
+                            const deviceData = deviceDoc.data();
+                            serialNumber = deviceData.serialNumber || 'N/A';
+                            description = deviceData.description || 'N/A';
                         }
                     }
                     
-                    return { ...draft, partnerName, serialNumber };
+                    return { ...draft, partnerName, serialNumber, description };
                 }));
 
                 sortAndRender(); // Initial render with default sorting
@@ -157,28 +160,165 @@ function renderTable(drafts) {
 }
 
 document.getElementById('generateDraftsButton').addEventListener('click', async () => {
-    const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
-    
-    if (selectedCheckboxes.length === 0) {
-        alert('Kérjük, válasszon ki legalább egy piszkozatot a generáláshoz!');
+    const user = auth.currentUser;
+    if (!user) {
+        alert('A művelethez bejelentkezés szükséges.');
         return;
     }
 
-    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
-    const selectedDrafts = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
-
     try {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+            alert('Hiba: A felhasználói adatlap nem található.');
+            return;
+        }
+        
+        const userData = userDoc.data();
+        const userRoles = userData.roles || [];
+
+        if (!userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+            alert('Ehhez a művelethez nincs jogosultsága!');
+            return;
+        }
+
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy piszkozatot a generáláshoz!');
+            return;
+        }
+
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        const selectedDrafts = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
+
         const templates = await getTemplates();
         // A partnerId itt null, mert a generateZipFromDrafts nem használja, a sablonválasztó pedig általánosan kezeli.
         showTemplateSelector(templates, selectedDrafts, null, generateZipFromDrafts);
     } catch (error) {
-        console.error("Hiba a sablonok betöltésekor:", error);
-        alert("Hiba történt a jegyzőkönyv sablonok betöltése közben. Kérjük, próbálja újra később.");
+        console.error("Hiba a jogosultság-ellenőrzés vagy sablon betöltés közben:", error);
+        alert("Hiba történt a művelet közben. Kérjük, próbálja újra később.");
     }
 });
 
-document.getElementById('finalizeDraftsButton').addEventListener('click', () => {
-    alert('Véglegesítés (Cloud Function) - implementálás alatt.');
+/**
+ * Starts the finalization process for selected drafts.
+ * This function is called after a template has been selected.
+ * @param {string} templateName The selected template name.
+ * @param {object[]} draftsToFinalize The array of draft objects to finalize.
+ */
+async function startFinalizationProcess(templateName, draftsToFinalize) {
+    const total = draftsToFinalize.length;
+    showLoadingModal(`Véglegesítés előkészítése... 1 / ${total}`);
+
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(b => b.disabled = true);
+
+    try {
+        // Fetch template content once
+        const templateRef = storage.ref(`templates/${templateName}`);
+        const url = await templateRef.getDownloadURL();
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Hiba a sablon letöltésekor: ${response.statusText}`);
+        const templateArrayBuffer = await response.arrayBuffer();
+
+        const batch = db.batch();
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const finalizedIds = [];
+
+        for (let i = 0; i < draftsToFinalize.length; i++) {
+            const draft = draftsToFinalize[i];
+            showLoadingModal(`Folyamatban: ${i + 1} / ${total} (${draft.serialNumber || 'N/A'}) generálása és feltöltése...`);
+            
+            if (draft.partnerId && draft.deviceId && draft.id) {
+                // Generate, upload, and get URL
+                const downloadURL = await generateAndUploadFinalizedDoc(templateName, draft, templateArrayBuffer);
+
+                // Prepare the batch update
+                const docRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).collection('inspections').doc(draft.id);
+                batch.update(docRef, { 
+                    status: 'finalized',
+                    finalizedAt: now,
+                    fileUrl: downloadURL, // Save the generated file's URL
+                    deviceDetails: {
+                        serialNumber: draft.serialNumber || 'N/A',
+                        description: draft.description || 'N/A'
+                    }
+                });
+                finalizedIds.push(draft.id);
+            } else {
+                console.warn('Piszkozat kihagyva: hiányzó partnerId, deviceId, vagy id.', draft);
+            }
+        }
+
+        showLoadingModal('Véglegesítés mentése az adatbázisba...');
+        await batch.commit();
+        
+        // Remove finalized drafts from the global array and UI
+        allEnrichedDrafts = allEnrichedDrafts.filter(draft => !finalizedIds.includes(draft.id));
+        document.getElementById('select-all-checkbox').checked = false;
+        sortAndRender(); // Re-render the table
+
+        hideLoadingModal();
+        alert(`${finalizedIds.length} piszkozat sikeresen véglegesítve és feltöltve.`);
+
+    } catch (error) {
+        console.error("Hiba a piszkozatok véglegesítésekor: ", error);
+        hideLoadingModal();
+        alert("Hiba történt a véglegesítés közben. A folyamat leállt. " + error.message);
+    } finally {
+        buttons.forEach(b => b.disabled = false);
+    }
+}
+
+
+document.getElementById('finalizeDraftsButton').addEventListener('click', async () => {
+    const user = auth.currentUser;
+    if (!user) {
+        alert('A művelethez bejelentkezés szükséges.');
+        return;
+    }
+
+    try {
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+            alert('Hiba: A felhasználói adatlap nem található.');
+            return;
+        }
+        
+        const userData = userDoc.data();
+        const userRoles = userData.roles || [];
+
+        if (!userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+            alert('Ehhez a művelethez nincs jogosultsága!');
+            return;
+        }
+
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy piszkozatot a véglegesítéshez!');
+            return;
+        }
+
+        if (!confirm(`Biztosan véglegesíti a kiválasztott ${selectedCheckboxes.length} piszkozatot? A művelet generálja és feltölti a jegyzőkönyveket.`)) {
+            return;
+        }
+
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        const draftsToFinalize = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
+
+        const templates = await getTemplates();
+        if (templates.length === 0) {
+            alert('Nincsenek elérhető jegyzőkönyv sablonok a generáláshoz. Töltsön fel egyet a Storage "templates" mappájába.');
+            return;
+        }
+
+        // Use the template selector, and pass the new finalization function as the callback
+        showTemplateSelector(templates, draftsToFinalize, null, startFinalizationProcess);
+
+    } catch (error) {
+        console.error("Hiba a véglegesítés előkészítésekor: ", error);
+        alert("Hiba történt az előkészítés közben. " + error.message);
+    }
 });
 
 document.getElementById('deleteDraftsButton').addEventListener('click', async () => {

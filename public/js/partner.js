@@ -569,6 +569,54 @@ export function initPartnerWorkScreen(partnerId) {
     updateUiForView(); // Kezdeti UI beállítása
     fetchDevices();
     loadExperts();
+    loadFinalizedInspections(partnerId); // ÚJ: Véglegesített jegyzőkönyvek betöltése
+
+    // --- VÉGLEGESÍTETT JEGYZŐKÖNYVEK BETÖLTÉSE ---
+    async function loadFinalizedInspections(partnerId) {
+        const finalizedBody = document.getElementById('finalized-docs-body');
+        if (!finalizedBody) return;
+
+        try {
+            const snapshot = await db.collectionGroup('inspections')
+                .where('partnerId', '==', partnerId)
+                .where('status', '==', 'finalized')
+                .orderBy('finalizedAt', 'desc')
+                .get();
+
+            if (snapshot.empty) {
+                finalizedBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">Nincsenek véglegesített jegyzőkönyvek.</td></tr>`;
+                return;
+            }
+
+            const docsHtml = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // A draft-ból átemelt adatok, a biztonság kedvéért fallbackekkel
+                const serialNumber = data.deviceDetails?.serialNumber || 'N/A';
+                const description = data.deviceDetails?.description || 'N/A';
+
+                return `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${data.vizsgalatIdopontja || 'N/A'}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${serialNumber}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white">${description}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${data.szakerto || 'N/A'}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-center">
+                            <a href="viewer.html?doc=${encodeURIComponent(data.fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm ${!data.fileUrl ? 'disabled' : ''}">
+                                Megtekintés
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            finalizedBody.innerHTML = docsHtml;
+
+        } catch (error) {
+            console.error("Hiba a véglegesített jegyzőkönyvek lekérésekor:", error);
+            finalizedBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-400">Hiba történt a jegyzőkönyvek betöltése közben.</td></tr>`;
+        }
+    }
+
 
     // --- DATABASE DOWNLOAD LOGIC ---
     const downloadDbBtn = document.getElementById('download-db-btn');
@@ -1081,6 +1129,42 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             <div id="deviceListScreen" class="screen active">
                 ${getEszkozListaHtml()}
             </div>
+
+            <!-- Véglegesített Jegyzőkönyvek Szekció -->
+            <div id="finalizedDocsScreen" class="mt-12">
+                <div class="px-4 sm:px-6 lg:px-8">
+                    <div class="sm:flex sm:items-center">
+                        <div class="sm:flex-auto">
+                            <h1 class="text-2xl font-semibold text-white">Véglegesített Jegyzőkönyvek</h1>
+                            <p class="mt-2 text-sm text-gray-300">A partnerhez tartozó, véglegesített és archivált vizsgálati jegyzőkönyvek.</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-col">
+                        <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                            <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+                                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                                    <table class="min-w-full divide-y divide-gray-700">
+                                        <thead class="bg-gray-800">
+                                            <tr>
+                                                <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Vizsgálat Dátuma</th>
+                                                <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Eszköz Gyári Száma</th>
+                                                <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Eszköz Megnevezése</th>
+                                                <th scope="col" class="py-3.5 px-3 text-left text-sm font-semibold text-white">Szakértő</th>
+                                                <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">Megtekintés</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="finalized-docs-body" class="divide-y divide-gray-800 bg-gray-900/50">
+                                            <!-- Tartalom JS-ből -->
+                                            <tr><td colspan="5" class="text-center p-4 text-gray-400">Jegyzőkönyvek betöltése...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="newInspectionScreen" class="screen">
                 ${getNewInspectionScreenHtml()}
             </div>

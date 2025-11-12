@@ -5,5 +5,11 @@ service firebase.storage {
     match /templates/{allPaths=**} {
       allow read: if request.auth != null;
     }
+
+    // A generált jegyzőkönyvek írását és olvasását engedélyezzük a bejelentkezett felhasználóknak.
+    // A kliens oldali kód felelős a felhasználói szerepkör (admin/write) ellenőrzéséért a feltöltés előtt.
+    match /generated-inspections/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
