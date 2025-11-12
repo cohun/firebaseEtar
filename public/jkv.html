@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vizsgálati Jegyzőkönyv</title>
+    <style>
+        /* --- Alapstílusok (Képernyőre) --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 30px; /* Képernyős belső margó */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            line-height: 1.3; /* Csökkentett sorköz */
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #ffffff;
+            padding: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header img {
+            max-height: 70px;
+            width: auto;
+            /* Hibakezelő kép (ha az eredeti nem töltődik be) */
+            onerror: "this.onerror=null;this.src='https://placehold.co/150x70/EFEFEF/333333?text=Logo+Hiba';"
+        }
+
+        /* A fejléc (címek, jogszabályok) kisebb betűkkel */
+        .document-header-section {
+            font-size: 0.75em;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        .document-header-section h1 {
+            font-size: 1.6em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        
+        .document-header-section h2 {
+            font-size: 1.1em;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 3px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .document-header-section p {
+            margin-bottom: 10px;
+            margin-left: 15px;
+            line-height: 1.4;
+        }
+
+        .title-with-sorszam {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* --- Szekciók stílusa --- */
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #000;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .section table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .section td {
+            padding: 6px 0;
+            vertical-align: top;
+        }
+
+        .section td:first-child {
+            width: 35%;
+            font-weight: normal;
+            padding-left: 15px; /* Behúzás a címkéknél */
+        }
+
+        .section td:last-child {
+            width: 65%;
+            font-weight: bold;
+            color: #222;
+        }
+
+        /* Kiemelt, középre igazított eredmény */
+        .result-text {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            color: #000;
+            margin: 15px 0;
+        }
+        
+        .result-subtitle {
+            font-size: 0.8em;
+            color: #555;
+            text-align: center;
+            margin-top: -10px;
+            margin-bottom: 15px;
+        }
+
+        /* --- Aláírás és Lábléc --- */
+        .signature-section {
+            margin-top: 40px;
+            padding-top: 20px;
+        }
+        
+        .kelt-datum {
+            margin-bottom: 30px;
+        }
+
+        .signature-block {
+            text-align: center; /* Aláírás középre */
+            width: auto;
+            margin: 0 auto;
+        }
+        
+        .signature-block .name {
+            font-weight: bold;
+            font-size: 1.1em;
+            /* border-top: 1px solid #555; */ /* Eltávolítva */
+            padding-top: 5px;
+        }
+        
+        .signature-block .title {
+            font-size: 1em;
+            color: #333;
+        }
+        
+        .signature-block .id-number {
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 0.8em;
+            color: #777;
+        }
+        
+        .footer-note {
+            font-size: 0.9em; /* Kisebb, mint a timestamp */
+            color: #888;
+            margin-top: 8px;
+            white-space: nowrap; /* Egy sorban tartja */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+
+        /* --- Nyomtatási stílusok --- */
+        @media print {
+            /* Oldal beállítása: A4, 2cm alap margó */
+            @page {
+                size: A4;
+                margin: 2cm; /* Egységes alap margó */
+            }
+
+            body {
+                font-family: 'Times New Roman', Times, serif;
+                background-color: #ffffff;
+                margin: 0;
+                box-shadow: none;
+                border: none;
+                font-size: 22pt; /* NYOMTATÁSI alap betűméret */
+                line-height: 1.3;
+                color: #000;
+                
+                /* Extra belső margó (padding) a bal és jobb oldalon (2cm + 2cm = 4cm teljes margó) */
+                padding: 0 2cm;
+                
+                /* Függőleges kitöltés */
+                display: flex;
+                flex-direction: column;
+                min-height: 95vh; /* Biztonsági magasság a teljes lap kitöltéséhez */
+                justify-content: space-between; /* Egyenletes elosztás */
+                box-sizing: border-box; /* Fontos a padding miatt */
+            }
+
+            /* Tároló és árnyékok eltüntetése */
+            .container {
+                width: 100%;
+                max-width: none;
+                padding: 0;
+                margin: 0;
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+            }
+
+            /* Logók méretének fixálása nyomtatásban */
+            .header {
+                border-bottom: 2px solid #000;
+                margin-bottom: 20px;
+            }
+            .header img {
+                max-height: 2cm; /* Fix méret nyomtatásban */
+                width: auto;
+            }
+            
+            /* Sorszám doboz stílusa nyomtatásban */
+            .title-with-sorszam div {
+                border: 2px solid #000 !important;
+            }
+
+            /* Szekciók és törések finomhangolása */
+            .section {
+                margin-bottom: 15px; /* Kisebb margó nyomtatásban */
+                page-break-inside: avoid; /* Próbálja egyben tartani a szekciókat */
+            }
+
+            .section h2 {
+                page-break-after: avoid; /* Ne legyen oldaltörés a cím után */
+            }
+            
+            .result-text {
+                font-size: 1.3em; /* Kicsit nagyobb kiemelés */
+            }
+
+            .signature-section {
+                page-break-before: auto; /* Csak akkor törjön, ha muszáj */
+                page-break-inside: avoid;
+                margin-top: 30px;
+            }
+
+            .footer {
+                margin-top: 20px;
+                padding-top: 10px;
+                border-top: 1px solid #000;
+            }
+            
+            .footer-note {
+                white-space: normal; /* Nyomtatásban törhet sorba, ha kell */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- 1. Logók -->
+        <div class="header">
+            <img src="H-ITB_Logo.jpg" alt="H-ITB Logo">
+            <img src="logo.jpg" alt="ETAR Logo">
+        </div>
+
+        <!-- 2. Címsor, Jogszabályok, Szabványok (Kisebb betűkkel) -->
+        <section class="document-header-section">
+            
+            <!-- Cím és Sorszám egy sorban -->
+            <div class="title-with-sorszam">
+                <h1>Teherfelvevő Eszköz Időszakos Vizsgálati Jegyzőkönyve</h1>
+                <!-- Sorszám doboz, megnövelve -->
+                <div style="border: 2px solid #333; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 1.2em; white-space: nowrap;">
+                    Sorszám: {sorszam}
+                </div>
+            </div>
+
+            <h2>Vonatkozó Jogszabályok:</h2>
+            <p>
+                47/1999. (VIII. 4.) GM rendelet az Emelőgép Biztonsági Szabályzat (EBSZ) kiadásáról. &nbsp; <br>
+                1993 évi XCIII. törvény a munkavédelemről (Mvt.).
+            </p>
+
+            <h2>Vonatkozó Szabványok:</h2>
+            <p>
+                MSZ 9721-1:2020 Emelőgépek időszakos vizsgálata. Általános előírások.<br>
+                További eszközspecifikus szabványok
+            </p>
+        </section>
+
+        <!-- 3. Üzemeltető adatai -->
+        <section class="section">
+            <h2>Üzemeltető adatai:</h2>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Cégnév:</td>
+                        <td>{partner_nev}</td>
+                    </tr>
+                    <tr>
+                        <td>Cím:</td>
+                        <td>{partner_cim}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 4. A vizsgált teherfelvevő eszköz adatai -->
+        <section class="section">
+            <h2>A vizsgált teherfelvevő eszköz adatai:</h2>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Megnevezés:</td>
+                        <td>{eszkoz_megnevezes}</td>
+                    </tr>
+                    <tr>
+                        <td>Üzemeltetői azonosító:</td>
+                        <td>{eszkoz_azonosito}</td>
+                    </tr>
+                    <tr>
+                        <td>Típus:</td>
+                        <td>{eszkoz_tipus}</td>
+                    </tr>
+                    <tr>
+                        <td>Hasznos hossz:</td>
+                        <td>{eszkoz_hossz}</td>
+                    </tr>
+                    <tr>
+                        <td>Teherbírás (WLL):</td>
+                        <td>{eszkoz_teherbiras}</td>
+                    </tr>
+                    <tr>
+                        <td>Gyártó:</td>
+                        <td>{eszkoz_gyarto}</td>
+                    </tr>
+                    <tr>
+                        <td>Gyári szám:</td>
+                        <td>{eszkoz_gyari_szam}</td>
+                    </tr>
+                    <tr>
+                        <td>Gyártás éve:</td>
+                        <td>{eszkoz_gyartasi_ev}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 5. A vizsgálat adatai -->
+        <section class="section">
+            <h2>A vizsgálat adatai:</h2>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Vizsgálat időpontja:</td>
+                        <td>{vizsgalat_idopontja}</td>
+                    </tr>
+                    <tr>
+                        <td>Vizsgálat helye:</td>
+                        <td>{vizsgalat_helye}</td>
+                    </tr>
+                    <tr>
+                        <td>Vizsgálat jellege:</td>
+                        <td>{vizsgalat_jellege}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 6. A vizsgálat eredménye és minősítés -->
+        <section class="section">
+            <h2>A vizsgálat eredménye és minősítés:</h2>
+            <div class="result-subtitle">(a vizsgálat időpontjában a vonatkozó előírásoknak)</div>
+            
+            <div class="result-text">
+                {vizsgalat_eredmenye}
+            </div>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Feltárt hiba:</td>
+                        <td>{feltart_hiba}</td>
+                    </tr>
+                    <tr>
+                        <td>Felhasznált anyagok:</td>
+                        <td>{felhasznalt_anyagok}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 7. Következő vizsgálat esedékessége -->
+        <section class="section">
+            <h2>Következő vizsgálat esedékessége:</h2>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Következő időszakos vizsgálat:</td>
+                        <td>{kovetkezo_idoszakos}</td>
+                    </tr>
+                    <tr>
+                        <td>Következő terhelési próba:</td>
+                        <td>{kovetkezo_terhelesi}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 8. Aláírás -->
+        <section class="signature-section">
+            
+            <div class="kelt-datum">
+                Kelt: {kelt_datum}
+            </div>
+
+            <div class="signature-block">
+                <div class="name">{szakerto_nev}</div>
+                <div class="title">Emelőgép ügyintéző</div>
+                <div class="id-number">({szakerto_bizonyitvanyszam})</div>
+            </div>
+
+        </section>
+
+        <!-- 9. Lábléc -->
+        <footer class="footer">
+            Időbélyeg: {generalas_idobelyeg}
+            <div class="footer-note">A dokumentum hitelességét (eredetiségét) az időbélyeg szolgáltatás és a dokumentum sorszámhoz rendelt egyedi kriptográfiai hash biztosítja, aláírás hiányában is.</div>
+        </footer>
+
+    </div>
+
+</body>
+</html>
