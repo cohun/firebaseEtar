@@ -136,3 +136,12 @@ body.partner-mode-active {
     background-color: #16a34a; /* bg-green-600 */
     color: white;
 }
+
+/* Stílus a jegyzőkönyv meglétét jelző pöttyhöz */
+.protocol-indicator-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: #3b82f6; /* blue-500 */
+    border-radius: 50%;
+}

@@ -48,9 +48,10 @@ service cloud.firestore {
 		}
 
     // ÚJ SZABÁLY: Engedélyezi a 'collectionGroup' lekérdezést az 'inspections' kollekcióra.
-    // Ez szükséges a "Piszkozatok" oldal működéséhez.
+    // Ez szükséges a "Piszkozatok" oldal működéséhez (EJK userek),
+    // és a véglegesített jegyzőkönyvek olvasásához (minden partner user).
     match /{path=**}/inspections/{inspectionId} {
-      allow read: if isEjkUser();
+      allow read: if isEjkUser() || (resource.data.status == 'finalized' && getRoleForPartner(resource.data.partnerId) != null);
     }
     
       // ÚJ SZABÁLY: Szakértők kollekció olvasása

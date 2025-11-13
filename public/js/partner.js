@@ -20,7 +20,7 @@ function getEszkozListaHtml() {
             </div>
             <!-- Szűrő és Kereső Vezérlők -->
             <div id="filter-controls" class="mt-4 mb-3 grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                <div class="md:col-span-2">
+                <div>
                     <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
                     <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
                 </div>
@@ -32,6 +32,9 @@ function getEszkozListaHtml() {
                     <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
                     <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
                 </div>
+                <div class="flex items-end">
+                    <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
+                </div>
                 <div class="flex items-center justify-center pb-2">
                     <div class="relative flex items-start">
                         <div class="flex h-6 items-center">
@@ -42,8 +45,7 @@ function getEszkozListaHtml() {
                         </div>
                     </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
+                <div class="flex items-center">
                     <button id="refresh-list-btn" class="btn btn-primary w-full">Lista frissítése</button>
                 </div>
             </div>
@@ -62,9 +64,10 @@ function getEszkozListaHtml() {
                                         <th scope="col" data-sort="type" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Típus <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="effectiveLength" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Hossz <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="serialNumber" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Gyári szám <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="operatorId" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Üzemeltetői azonosító <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="operatorId" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Operátor ID <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="status" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Megállapítások <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="kov_vizsg" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Köv. Vizsg. <i class="fas fa-sort"></i></th>
+                                        <th scope="col" class="py-3.5 px-1 text-center"><span class="sr-only">Státusz</span></th>
                                         <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">QR</span></th>
                                     </tr>
                                 </thead>
@@ -112,6 +115,7 @@ export function initPartnerWorkScreen(partnerId) {
     // --- SCREEN MANAGEMENT ---
     const deviceListScreen = document.getElementById('deviceListScreen');
     const newInspectionScreen = document.getElementById('newInspectionScreen');
+    const finalizedDocsScreen = document.getElementById('finalizedDocsScreen');
     
     const showNewInspectionBtn = document.getElementById('showNewInspectionBtn');
     const showNewInspectionBtnMobile = document.getElementById('showNewInspectionBtnMobile');
@@ -125,8 +129,10 @@ export function initPartnerWorkScreen(partnerId) {
 
         if (screenToShow === newInspectionScreen) {
             partnerWorkScreenHeader.classList.add('hidden');
+            finalizedDocsScreen.classList.add('hidden');
         } else {
             partnerWorkScreenHeader.classList.remove('hidden');
+            finalizedDocsScreen.classList.remove('hidden');
         }
     }
 
@@ -262,26 +268,38 @@ export function initPartnerWorkScreen(partnerId) {
             const snapshot = await query.get();
             const devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // ÚJ RÉSZ: Minden eszközhöz lekérem a legfrissebb vizsgálatot
-            const inspectionPromises = devices.map(device => {
-                return db.collection('partners').doc(partnerId)
-                         .collection('devices').doc(device.id)
-                         .collection('inspections')
-                         .orderBy('createdAt', 'desc')
-                         .limit(1)
-                         .get()
-                         .then(inspectionSnapshot => {
-                             if (!inspectionSnapshot.empty) {
-                                 const latestInspection = inspectionSnapshot.docs[0].data();
-                                 // Felülírjuk az eszköz adatait a legfrissebb vizsgálat adataival
-                                 device.vizsg_idopont = latestInspection.vizsgalatIdopontja;
-                                 device.status = latestInspection.vizsgalatEredmenye;
-                                 device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
-                             }
-                         });
+            // ÚJ RÉSZ: Minden eszközhöz lekérem a legfrissebb vizsgálatot és a véglegesített jkv URL-t
+            const deviceDataPromises = devices.map(async (device) => {
+                // Legfrissebb vizsgálat (bármilyen státuszú)
+                const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
+                    .collection('devices').doc(device.id)
+                    .collection('inspections')
+                    .orderBy('createdAt', 'desc')
+                    .limit(1)
+                    .get();
+
+                if (!latestInspectionSnapshot.empty) {
+                    const latestInspection = latestInspectionSnapshot.docs[0].data();
+                    device.vizsg_idopont = latestInspection.vizsgalatIdopontja;
+                    device.status = latestInspection.vizsgalatEredmenye;
+                    device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                }
+
+                // Legfrissebb VÉGLEGESÍTETT vizsgálat URL-jének lekérése
+                const finalizedInspectionSnapshot = await db.collection('partners').doc(partnerId)
+                    .collection('devices').doc(device.id)
+                    .collection('inspections')
+                    .where('status', '==', 'finalized')
+                    .orderBy('finalizedAt', 'desc')
+                    .limit(1)
+                    .get();
+
+                if (!finalizedInspectionSnapshot.empty) {
+                    device.finalizedFileUrl = finalizedInspectionSnapshot.docs[0].data().fileUrl;
+                }
             });
 
-            await Promise.all(inspectionPromises);
+            await Promise.all(deviceDataPromises);
             
             if (direction === 'prev') devices.reverse();
 
@@ -344,7 +362,7 @@ export function initPartnerWorkScreen(partnerId) {
         currentDevices = devices; // Store the currently rendered devices
         if (!devices || devices.length === 0) {
             if (currentPage === 1) {
-                tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-400">Nincsenek a szűrési feltételeknek megfelelő eszközök.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-gray-400">Nincsenek a szűrési feltételeknek megfelelő eszközök.</td></tr>`;
             }
             return;
         }
@@ -352,6 +370,17 @@ export function initPartnerWorkScreen(partnerId) {
         tableBody.innerHTML = devices.map(dev => {
             const kovVizsgColorClass = getKovVizsgColorClass(dev.kov_vizsg);
             const statusColorClass = getStatusColorClass(dev.status);
+
+            const qrCanvas = `<canvas class="qr-code-canvas" data-serial-number="${dev.serialNumber || ''}"></canvas>`;
+            // The 'qr-link-active' class is removed from here
+            const qrCodeHtml = dev.finalizedFileUrl
+                ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése">${qrCanvas}</a>`
+                : qrCanvas;
+            
+            const indicatorDot = dev.finalizedFileUrl
+                ? '<div class="protocol-indicator-dot" title="Van véglegesített jegyzőkönyv"></div>'
+                : '';
+
             return `
             <tr class="hover:bg-gray-700/50">
                 <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
@@ -363,8 +392,9 @@ export function initPartnerWorkScreen(partnerId) {
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.operatorId || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass}">${dev.status || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass}">${dev.kov_vizsg || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-1 text-center align-middle">${indicatorDot}</td>
                 <td class="relative whitespace-nowrap py-2 px-3 text-center align-middle">
-                    <canvas class="qr-code-canvas" data-serial-number="${dev.serialNumber || ''}"></canvas>
+                    ${qrCodeHtml}
                 </td>
             </tr>
         `}).join('');
@@ -674,7 +704,7 @@ export function initPartnerWorkScreen(partnerId) {
             'Megnevezés': dev.description,
             'Típus': dev.type,
             'Gyári szám': dev.serialNumber,
-            'Üzemeltetői azonosító': dev.operatorId,
+            'Operátor ID': dev.operatorId,
             'Gyártó': dev.manufacturer,
             'Gyártás éve': dev.yearOfManufacture,
             'Teherbírás (WLL)': dev.loadCapacity,
@@ -709,23 +739,80 @@ export function initPartnerWorkScreen(partnerId) {
     downloadDbBtnMobile.addEventListener('click', generateExcel);
 
 
-    // --- PROTOCOL GENERATION LOGIC ---
-    // Az új munkafolyamat szerint ez a gomb a véglegesített PDF-eket fogja letölteni a Storage-ból.
-    // A jelenlegi DOCX generáló logika ideiglenesen ki van kapcsolva, hogy elkerüljük a félreértéseket.
+    // --- PROTOCOL PREVIEW LOGIC (NEW TAB) ---
     const generateProtocolBtn = document.getElementById('generate-protocol-btn');
     const generateProtocolBtnMobile = document.getElementById('generate-protocol-btn-mobile');
 
-    if (generateProtocolBtn) {
+    const handleProtocolGeneration = async () => {
+        const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy eszközt a jegyzőkönyvek megtekintéséhez!');
+            return;
+        }
+
+        const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        
+        const originalButtonText = generateProtocolBtn.textContent;
+        generateProtocolBtn.innerHTML = '<span>Keresés...</span><div class="loader-small"></div>';
         generateProtocolBtn.disabled = true;
-        generateProtocolBtn.style.opacity = '0.6';
-        generateProtocolBtn.style.cursor = 'not-allowed';
-        generateProtocolBtn.title = "Jelenleg nem elérhető. A véglegesített PDF-ek letöltése itt lesz lehetséges.";
-    }
-    if (generateProtocolBtnMobile) {
         generateProtocolBtnMobile.disabled = true;
-        generateProtocolBtnMobile.style.opacity = '0.6';
-        generateProtocolBtnMobile.classList.add('cursor-not-allowed');
-    }
+
+        try {
+            // 1. Get protocol URLs
+            const protocolUrls = [];
+            const urlPromises = deviceIds.map(async (deviceId) => {
+                const snapshot = await db.collection('partners').doc(partnerId)
+                    .collection('devices').doc(deviceId)
+                    .collection('inspections')
+                    .where('status', '==', 'finalized')
+                    .orderBy('finalizedAt', 'desc')
+                    .limit(1)
+                    .get();
+
+                if (!snapshot.empty) {
+                    const data = snapshot.docs[0].data();
+                    if (data.fileUrl) {
+                        protocolUrls.push(data.fileUrl);
+                    }
+                }
+            });
+            await Promise.all(urlPromises);
+
+            if (protocolUrls.length === 0) {
+                alert('A kiválasztott eszközök közül egyiknek sincs véglegesített jegyzőkönyve.');
+                return; // NOTE: The 'finally' block will still run to restore the button
+            }
+
+            // 2. Fetch HTML content from each URL
+            const fetchPromises = protocolUrls.map(url => fetch(url).then(res => {
+                if (!res.ok) {
+                    throw new Error(`Sikertelen letöltés: ${url} (${res.statusText})`);
+                }
+                return res.text();
+            }));
+            const htmlContents = await Promise.all(fetchPromises);
+
+            // 3. Combine HTML content with page breaks
+            const combinedHtml = htmlContents.join('<div style="page-break-after: always;"></div>');
+
+            // 4. Open in new tab and write content
+            const newTab = window.open();
+            newTab.document.open();
+            newTab.document.write(combinedHtml);
+            newTab.document.close();
+
+        } catch (error) {
+            console.error("Hiba a jegyzőkönyvek lekérésekor vagy megjelenítésekor:", error);
+            alert("Hiba történt a jegyzőkönyvek feldolgozása közben: " + error.message);
+        } finally {
+            generateProtocolBtn.innerHTML = originalButtonText;
+            generateProtocolBtn.disabled = false;
+            generateProtocolBtnMobile.disabled = false;
+        }
+    };
+
+    generateProtocolBtn.addEventListener('click', handleProtocolGeneration);
+    generateProtocolBtnMobile.addEventListener('click', handleProtocolGeneration);
 
     // --- NEW INSPECTION LOGIC ---
     const searchDeviceForm = document.getElementById('searchDeviceForm');
@@ -874,13 +961,37 @@ export function initPartnerWorkScreen(partnerId) {
                                 <textarea name="felhasznalt_anyagok" class="input-field" rows="2"></textarea>
                             </div>
                         </div>
-                        <div class="mt-6">
+                        <div class="mt-6 flex gap-4">
                             <button id="saveInspectionButton" class="btn btn-primary">Vizsgálat mentése</button>
+                            <button type="button" id="copyPreviousInspectionDataBtn" class="btn btn-info">Előző adatok másolása</button>
                         </div>
                     </div>
                 `;
 
                 deviceSearchResult.innerHTML = detailsHtml;
+
+                const copyButton = document.getElementById('copyPreviousInspectionDataBtn');
+                if (copyButton) {
+                    copyButton.addEventListener('click', () => {
+                        const fieldsToLoad = [
+                            'kov_idoszakos_vizsgalat_period',
+                            'kov_idoszakos_vizsgalat',
+                            'kov_terhelesi_proba_period',
+                            'kov_terhelesi_proba',
+                            'vizsgalat_eredmenye',
+                            'feltart_hiba',
+                            'felhasznalt_anyagok'
+                        ];
+                        fieldsToLoad.forEach(name => {
+                            const field = document.querySelector(`[name="${name}"]`);
+                            const savedValue = sessionStorage.getItem(`persist_${name}`);
+                            if (field && savedValue !== null) {
+                                field.value = savedValue;
+                                field.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        });
+                    });
+                }
 
                 const inspectionDateInputForCalc = document.getElementById('inspectionDateInput');
                 const kovIdoszakosVizsgalatPeriod = document.querySelector('[name="kov_idoszakos_vizsgalat_period"]');
@@ -931,6 +1042,22 @@ export function initPartnerWorkScreen(partnerId) {
                             alert('Hiba: Nincs bejelentkezett felhasználó vagy kiválasztott eszköz.');
                             return;
                         }
+
+                        const fieldsToSave = [
+                            'kov_idoszakos_vizsgalat_period',
+                            'kov_idoszakos_vizsgalat',
+                            'kov_terhelesi_proba_period',
+                            'kov_terhelesi_proba',
+                            'vizsgalat_eredmenye',
+                            'feltart_hiba',
+                            'felhasznalt_anyagok'
+                        ];
+                        fieldsToSave.forEach(name => {
+                            const field = document.querySelector(`[name="${name}"]`);
+                            if (field) {
+                                sessionStorage.setItem(`persist_${name}`, field.value);
+                            }
+                        });
 
                         const inspectionData = {
                             deviceId: currentInspectedDevice.id,
@@ -1111,7 +1238,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                     ${uploadButtonHtml.replace('w-full text-left', '')}
                     ${newInspectionButtonHtml}
                     ${actionButtonsHtml}
-                    <button id="generate-protocol-btn" class="btn btn-secondary">Jegyzőkönyv</button>
+                    <button id="generate-protocol-btn" class="btn btn-secondary">Jegyzőkönyvek</button>
                     <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
                 </nav>
             </div>
@@ -1121,7 +1248,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 ${uploadButtonHtml}
                 ${newInspectionButtonHtmlMobile}
                 ${actionButtonsHtmlMobile}
-                <button id="generate-protocol-btn-mobile" class="btn btn-secondary w-full text-left">Jegyzőkönyv</button>
+                <button id="generate-protocol-btn-mobile" class="btn btn-secondary w-full text-left">Jegyzőkönyvek</button>
                 <button id="backToMainFromWorkScreenBtnMobile" class="btn btn-primary w-full text-left">Vissza</button>
             </nav>
         </header>
