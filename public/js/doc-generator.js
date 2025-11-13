@@ -332,7 +332,7 @@ export async function getTemplates() {
     const result = await templatesRef.listAll();
     const templates = result.items
         .map(itemRef => itemRef.name)
-        .filter(name => name.toLowerCase().endsWith('.docx') && name !== 'placeholder.docx');
+        .filter(name => name.toLowerCase().endsWith('.html') && name !== 'placeholder.html');
     return templates;
 }
 
@@ -359,7 +359,7 @@ export function showTemplateSelector(templates, items, partnerId, generationFunc
                 <div class="mb-6">
                     <label for="template-select" class="block text-sm font-medium text-gray-300 mb-2">Sablonok</label>
                     <select id="template-select" class="input-field w-full">
-                        ${templates.length > 0 ? templates.map(template => `<option value="${template}">${template.replace('.docx', '')}</option>`).join('') : '<option value="" disabled>Nincsenek elérhető sablonok.</option>'}
+                        ${templates.length > 0 ? templates.map(template => `<option value="${template}">${template.replace('.html', '')}</option>`).join('') : '<option value="" disabled>Nincsenek elérhető sablonok.</option>'}
                     </select>
                 </div>
                 <div class="flex justify-end space-x-4">

@@ -1,5 +1,6 @@
 import { auth, db, storage } from './firebase.js';
-import { getTemplates, showTemplateSelector, generateZipFromDrafts, generateAndUploadFinalizedDoc, showLoadingModal, hideLoadingModal } from './doc-generator.js';
+import { getTemplates, showTemplateSelector, generateZipFromDrafts, showLoadingModal, hideLoadingModal } from './doc-generator.js';
+import { generateAndUploadFinalizedHtml, generateHtmlView } from './html-generator.js';
 
 let allEnrichedDrafts = []; // Store all fetched drafts globally in this module
 let currentSortField = 'createdAt';
@@ -191,9 +192,8 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
         const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
         const selectedDrafts = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
 
-        const templates = await getTemplates();
-        // A partnerId itt null, mert a generateZipFromDrafts nem használja, a sablonválasztó pedig általánosan kezeli.
-        showTemplateSelector(templates, selectedDrafts, null, generateZipFromDrafts);
+        // Use the new HTML preview function directly, no template selection needed.
+        await generateHtmlView(null, selectedDrafts);
     } catch (error) {
         console.error("Hiba a jogosultság-ellenőrzés vagy sablon betöltés közben:", error);
         alert("Hiba történt a művelet közben. Kérjük, próbálja újra később.");
@@ -205,21 +205,18 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
  * This function is called after a template has been selected.
  * @param {string} templateName The selected template name.
  * @param {object[]} draftsToFinalize The array of draft objects to finalize.
+ * @deprecated This function is for DOCX generation and is being replaced by the HTML flow.
  */
 async function startFinalizationProcess(templateName, draftsToFinalize) {
     const total = draftsToFinalize.length;
     showLoadingModal(`Véglegesítés előkészítése... 1 / ${total}`);
 
-    const buttons = document.querySelectorAll('button');
-    buttons.forEach(b => b.disabled = true);
-
     try {
-        // Fetch template content once
-        const templateRef = storage.ref(`templates/${templateName}`);
-        const url = await templateRef.getDownloadURL();
+        // Fetch HTML template content once
+        const url = 'jkv.html'; // The path to our new HTML template
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Hiba a sablon letöltésekor: ${response.statusText}`);
-        const templateArrayBuffer = await response.arrayBuffer();
+        if (!response.ok) throw new Error(`Hiba a jkv.html sablon betöltésekor: ${response.statusText}`);
+        const htmlTemplateString = await response.text();
 
         const batch = db.batch();
         const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -230,8 +227,8 @@ async function startFinalizationProcess(templateName, draftsToFinalize) {
             showLoadingModal(`Folyamatban: ${i + 1} / ${total} (${draft.serialNumber || 'N/A'}) generálása és feltöltése...`);
             
             if (draft.partnerId && draft.deviceId && draft.id) {
-                // Generate, upload, and get URL
-                const downloadURL = await generateAndUploadFinalizedDoc(templateName, draft, templateArrayBuffer);
+                // Generate HTML, upload, and get URL
+                const downloadURL = await generateAndUploadFinalizedHtml(htmlTemplateString, draft);
 
                 // Prepare the batch update
                 const docRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).collection('inspections').doc(draft.id);
@@ -262,11 +259,9 @@ async function startFinalizationProcess(templateName, draftsToFinalize) {
         alert(`${finalizedIds.length} piszkozat sikeresen véglegesítve és feltöltve.`);
 
     } catch (error) {
-        console.error("Hiba a piszkozatok véglegesítésekor: ", error);
+        console.error("Hiba a piszkozatok HTML alapú véglegesítésekor: ", error);
         hideLoadingModal();
         alert("Hiba történt a véglegesítés közben. A folyamat leállt. " + error.message);
-    } finally {
-        buttons.forEach(b => b.disabled = false);
     }
 }
 
@@ -306,14 +301,8 @@ document.getElementById('finalizeDraftsButton').addEventListener('click', async 
         const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
         const draftsToFinalize = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
 
-        const templates = await getTemplates();
-        if (templates.length === 0) {
-            alert('Nincsenek elérhető jegyzőkönyv sablonok a generáláshoz. Töltsön fel egyet a Storage "templates" mappájába.');
-            return;
-        }
-
-        // Use the template selector, and pass the new finalization function as the callback
-        showTemplateSelector(templates, draftsToFinalize, null, startFinalizationProcess);
+        // Directly call the finalization process. No template selection needed for HTML.
+        await startFinalizationProcess(null, draftsToFinalize);
 
     } catch (error) {
         console.error("Hiba a véglegesítés előkészítésekor: ", error);

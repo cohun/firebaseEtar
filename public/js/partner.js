@@ -601,7 +601,7 @@ export function initPartnerWorkScreen(partnerId) {
                         <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white">${description}</td>
                         <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${data.szakerto || 'N/A'}</td>
                         <td class="whitespace-nowrap py-4 px-3 text-sm text-center">
-                            <a href="viewer.html?doc=${encodeURIComponent(data.fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm ${!data.fileUrl ? 'disabled' : ''}">
+                            <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm ${!data.fileUrl ? 'disabled' : ''}">
                                 Megtekintés
                             </a>
                         </td>
@@ -1174,4 +1174,3 @@ export function getPartnerWorkScreenHtml(partner, userData) {
         </footer>
     `;
 }
-
