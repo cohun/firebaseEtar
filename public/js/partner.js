@@ -19,34 +19,37 @@ function getEszkozListaHtml() {
                 </div>
             </div>
             <!-- Szűrő és Kereső Vezérlők -->
-            <div id="filter-controls" class="mt-4 mb-3 grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                <div>
-                    <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
-                    <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
-                </div>
-                <div>
-                    <label for="filter-vizsg-idopont" class="block text-sm font-medium text-gray-300">Vizsgálat dátuma</label>
-                    <input type="date" id="filter-vizsg-idopont" class="input-field w-full mt-1">
-                </div>
-                <div>
-                    <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
-                    <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
-                </div>
-                <div class="flex items-end">
-                    <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
-                </div>
-                <div class="flex items-center justify-center pb-2">
-                    <div class="relative flex items-start">
-                        <div class="flex h-6 items-center">
-                            <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
-                        </div>
-                        <div class="ml-3 text-sm leading-6">
-                            <label for="inactive-toggle" class="font-medium text-gray-300">Inaktívak</label>
+            <div class="card mb-6">
+                <h2 class="text-xl font-semibold text-white mb-4">Szűrés és Keresés</h2>
+                <div id="filter-controls" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                    <div>
+                        <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
+                        <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
+                    </div>
+                    <div>
+                        <label for="filter-vizsg-idopont" class="block text-sm font-medium text-gray-300">Vizsgálat dátuma</label>
+                        <input type="date" id="filter-vizsg-idopont" class="input-field w-full mt-1">
+                    </div>
+                    <div>
+                        <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
+                        <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
+                    </div>
+                    <div class="flex items-center justify-center pb-2">
+                        <div class="relative flex items-start">
+                            <div class="flex h-6 items-center">
+                                <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                            </div>
+                            <div class="ml-3 text-sm leading-6">
+                                <label for="inactive-toggle" class="font-medium text-gray-300">Inaktívak</label>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="flex items-center">
-                    <button id="refresh-list-btn" class="btn btn-primary w-full">Lista frissítése</button>
+                    <div class="flex items-center">
+                        <button id="refresh-list-btn" class="btn btn-primary w-full">Lista frissítése</button>
+                    </div>
                 </div>
             </div>
 
@@ -1185,31 +1188,31 @@ export function getPartnerWorkScreenHtml(partner, userData) {
 
     let uploadButtonHtml;
     if (isReadOnly) {
-        uploadButtonHtml = `<button onclick="alert('Read jogosultsággal nem tölthet fel adatokat. Forduljon a jogosultság osztójához.')" class="btn btn-secondary opacity-50 cursor-not-allowed w-full text-left">Új eszköz feltöltés</button>`;
+        uploadButtonHtml = `<button onclick="alert('Read jogosultsággal nem tölthet fel adatokat. Forduljon a jogosultság osztójához.')" class="menu-btn menu-btn-primary opacity-50 cursor-not-allowed w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
     } else {
-        uploadButtonHtml = `<button onclick="window.location.href='adatbevitel.html'" class="btn btn-secondary w-full text-left">Új eszköz feltöltés</button>`;
+        uploadButtonHtml = `<button onclick="window.location.href='adatbevitel.html'" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
     }
 
     let newInspectionButtonHtml = '';
     if (canInspect) {
-        newInspectionButtonHtml = `<button id="showNewInspectionBtn" class="btn btn-secondary">Új vizsgálat</button>`;
+        newInspectionButtonHtml = `<button id="showNewInspectionBtn" class="menu-btn menu-btn-primary"><i class="fas fa-plus fa-fw"></i>Új vizsgálat</button>`;
     }
 
     let newInspectionButtonHtmlMobile = '';
     if (canInspect) {
-        newInspectionButtonHtmlMobile = `<button id="showNewInspectionBtnMobile" class="btn btn-secondary w-full text-left">Új vizsgálat</button>`;
+        newInspectionButtonHtmlMobile = `<button id="showNewInspectionBtnMobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-plus fa-fw"></i>Új vizsgálat</button>`;
     }
 
     let actionButtonsHtml = '';
     let actionButtonsHtmlMobile = '';
     if (!isReadOnly) {
         actionButtonsHtml = `
-            <button id="delete-device-btn" class="btn btn-danger">Törlés</button>
-            <button id="decommission-reactivate-btn" class="btn btn-warning">Leselejtezés</button>
+            <button id="delete-device-btn" class="menu-btn menu-btn-primary"><i class="fas fa-trash fa-fw"></i>Törlés</button>
+            <button id="decommission-reactivate-btn" class="menu-btn menu-btn-primary"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>
         `;
         actionButtonsHtmlMobile = `
-            <button id="delete-device-btn-mobile" class="btn btn-danger w-full text-left">Törlés</button>
-            <button id="decommission-reactivate-btn-mobile" class="btn btn-warning w-full text-left">Leselejtezés</button>
+            <button id="delete-device-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-trash fa-fw"></i>Törlés</button>
+            <button id="decommission-reactivate-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>
         `;
     }
 
@@ -1234,22 +1237,22 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 </div>
                  <!-- Desktop Menu -->
                 <nav class="hidden xl:flex items-center space-x-2">
-                    <button id="download-db-btn" class="btn btn-secondary">Adatbázis letöltés</button>
+                    <button id="download-db-btn" class="menu-btn menu-btn-primary"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
                     ${uploadButtonHtml.replace('w-full text-left', '')}
                     ${newInspectionButtonHtml}
                     ${actionButtonsHtml}
-                    <button id="generate-protocol-btn" class="btn btn-secondary">Jegyzőkönyvek</button>
-                    <button id="backToMainFromWorkScreenBtn" class="btn btn-primary">Vissza</button>
+                    <button id="generate-protocol-btn" class="menu-btn menu-btn-primary"><i class="fas fa-file-alt fa-fw"></i>Jegyzőkönyvek</button>
+                    <button id="backToMainFromWorkScreenBtn" class="menu-btn menu-btn-secondary"><i class="fas fa-arrow-left fa-fw"></i>Vissza</button>
                 </nav>
             </div>
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
-                <button id="download-db-btn-mobile" class="btn btn-secondary w-full text-left">Adatbázis letöltés</button>
+                <button id="download-db-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
                 ${uploadButtonHtml}
                 ${newInspectionButtonHtmlMobile}
                 ${actionButtonsHtmlMobile}
-                <button id="generate-protocol-btn-mobile" class="btn btn-secondary w-full text-left">Jegyzőkönyvek</button>
-                <button id="backToMainFromWorkScreenBtnMobile" class="btn btn-primary w-full text-left">Vissza</button>
+                <button id="generate-protocol-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-file-alt fa-fw"></i>Jegyzőkönyvek</button>
+                <button id="backToMainFromWorkScreenBtnMobile" class="menu-btn menu-btn-secondary w-full text-left"><i class="fas fa-arrow-left fa-fw"></i>Vissza</button>
             </nav>
         </header>
         <main class="p-4 sm:p-6 lg:p-8 flex-grow">

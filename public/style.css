@@ -145,3 +145,67 @@ body.partner-mode-active {
     background-color: #3b82f6; /* blue-500 */
     border-radius: 50%;
 }
+
+/* --- Partner Portál Menü Gombok --- */
+
+.menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem; /* Térköz az ikon és a szöveg között */
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    border: 2px solid transparent; /* Keret előkészítése */
+}
+
+/* Elsődleges gomb (Neumorfikus/Flat stílus) */
+.menu-btn-primary {
+    background-color: #EAF2F8;
+    color: #1e3a8a; /* Sötétkék szöveg */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2), 
+                -2px -2px 5px rgba(255,255,255,0.7);
+}
+
+.menu-btn-primary:hover {
+    background-color: #d4e6f1; /* Kicsit sötétebb háttér */
+    box-shadow: 3px 3px 7px rgba(0,0,0,0.25), 
+                -3px -3px 7px rgba(255,255,255,0.6);
+}
+
+.menu-btn-primary:active {
+    background-color: #EAF2F8;
+    box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2), 
+                inset -2px -2px 5px rgba(255,255,255,0.7); /* Benyomott hatás */
+    transform: translateY(1px);
+}
+
+/* Másodlagos gomb (Outline stílus) - pl. Vissza gomb */
+.menu-btn-secondary {
+    background-color: transparent;
+    color: #EAF2F8; /* Világos szöveg */
+    border: 2px solid #EAF2F8;
+}
+
+.menu-btn-secondary:hover {
+    background-color: rgba(234, 242, 248, 0.1); /* Halvány háttér hover-re */
+    color: white;
+    border-color: white;
+}
+
+.menu-btn-secondary:active {
+    background-color: rgba(234, 242, 248, 0.2); /* Erősebb háttér aktív állapotban */
+    transform: translateY(1px);
+}
+
+/* Responsive adjustments for filter buttons on small screens */
+@media (max-width: 640px) {
+    #reset-filters-btn,
+    #refresh-list-btn {
+        font-size: 0.875rem; /* 14px */
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+}
