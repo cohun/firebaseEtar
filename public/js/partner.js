@@ -1,4 +1,4 @@
-import { auth, db, storage } from './firebase.js';
+import { auth, db, storage, updateDeviceChipId } from './firebase.js';
 import { getTemplates, showTemplateSelector, generateAndDownloadZip } from './doc-generator.js';
 
 // ===================================================================================
@@ -21,34 +21,31 @@ function getEszkozListaHtml() {
             <!-- Szűrő és Kereső Vezérlők -->
             <div class="card mb-6">
                 <h2 class="text-xl font-semibold text-white mb-4">Szűrés és Keresés</h2>
-                <div id="filter-controls" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                    <div>
+                <div id="filter-controls" class="flex flex-wrap items-end gap-4">
+                    <div class="flex-1" style="min-width: 150px;">
                         <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
                         <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
                     </div>
-                    <div>
+                    <div class="flex-1" style="min-width: 150px;">
                         <label for="filter-vizsg-idopont" class="block text-sm font-medium text-gray-300">Vizsgálat dátuma</label>
                         <input type="date" id="filter-vizsg-idopont" class="input-field w-full mt-1">
                     </div>
-                    <div>
+                    <div class="flex-1" style="min-width: 150px;">
                         <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
                         <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
                     </div>
-                    <div class="flex items-end">
+                    <div class="flex-1" style="min-width: 120px;">
                         <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
                     </div>
-                    <div class="flex items-center justify-center pb-2">
-                        <div class="relative flex items-start">
-                            <div class="flex h-6 items-center">
-                                <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
-                            </div>
-                            <div class="ml-3 text-sm leading-6">
-                                <label for="inactive-toggle" class="font-medium text-gray-300">Inaktívak</label>
-                            </div>
-                        </div>
+                    <div class="flex-1 flex items-center justify-center pb-1" style="min-width: 100px;">
+                        <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                        <label for="inactive-toggle" class="font-medium text-gray-300 ml-2">Inaktívak</label>
                     </div>
-                    <div class="flex items-center">
+                    <div class="flex-1" style="min-width: 120px;">
                         <button id="refresh-list-btn" class="btn btn-primary w-full">Lista frissítése</button>
+                    </div>
+                    <div class="flex-1" style="min-width: 120px;">
+                        <button id="scan-chip-modal-btn" class="btn btn-primary w-full"><i class="fas fa-rss fa-fw"></i> Chip beolvasás</button>
                     </div>
                 </div>
             </div>
@@ -71,6 +68,7 @@ function getEszkozListaHtml() {
                                         <th scope="col" data-sort="status" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Megállapítások <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="kov_vizsg" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Köv. Vizsg. <i class="fas fa-sort"></i></th>
                                         <th scope="col" class="py-3.5 px-1 text-center"><span class="sr-only">Státusz</span></th>
+                                        <th scope="col" class="py-3.5 px-1 text-center text-sm font-semibold text-white">CHIP</th>
                                         <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">QR</span></th>
                                     </tr>
                                 </thead>
@@ -206,6 +204,21 @@ export function initPartnerWorkScreen(partnerId) {
     const deleteBtnMobile = document.getElementById('delete-device-btn-mobile');
     const decommissionBtn = document.getElementById('decommission-reactivate-btn');
     const decommissionBtnMobile = document.getElementById('decommission-reactivate-btn-mobile');
+    const scanChipModalBtn = document.getElementById('scan-chip-modal-btn');
+    const scanChipModal = document.getElementById('scan-chip-modal');
+    const scanChipModalCloseBtn = document.getElementById('scan-chip-modal-close-btn');
+
+    if(scanChipModalBtn) {
+        scanChipModalBtn.addEventListener('click', () => {
+            if(scanChipModal) scanChipModal.style.display = 'flex';
+        });
+    }
+
+    if(scanChipModalCloseBtn) {
+        scanChipModalCloseBtn.addEventListener('click', () => {
+            if(scanChipModal) scanChipModal.style.display = 'none';
+        });
+    }
 
     function debounce(func, delay) {
         let timeout;
@@ -380,9 +393,11 @@ export function initPartnerWorkScreen(partnerId) {
                 ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése">${qrCanvas}</a>`
                 : qrCanvas;
             
-            const indicatorDot = dev.finalizedFileUrl
-                ? '<div class="protocol-indicator-dot" title="Van véglegesített jegyzőkönyv"></div>'
-                : '';
+            let chipButton = '';
+            if (dev.finalizedFileUrl) {
+                const chipClass = dev.chip ? 'text-glow' : 'text-hollow';
+                chipButton = `<div class="${chipClass}" style="font-size: 1.0rem;" onclick="toggleChip(this, '${dev.id}')">CHIP</div>`;
+            }
 
             return `
             <tr class="hover:bg-gray-700/50">
@@ -395,7 +410,8 @@ export function initPartnerWorkScreen(partnerId) {
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.operatorId || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass}">${dev.status || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass}">${dev.kov_vizsg || 'N/A'}</td>
-                <td class="whitespace-nowrap py-4 px-1 text-center align-middle">${indicatorDot}</td>
+                <td class="whitespace-nowrap py-4 px-1 text-center align-middle"></td>
+                <td class="whitespace-nowrap py-4 px-1 text-center align-middle">${chipButton}</td>
                 <td class="relative whitespace-nowrap py-2 px-3 text-center align-middle">
                     ${qrCodeHtml}
                 </td>
@@ -403,6 +419,110 @@ export function initPartnerWorkScreen(partnerId) {
         `}).join('');
 
         generateQRCodes();
+    }
+
+    window.toggleChip = async function(element, deviceId) {
+        if (confirm('Chip betanítás?')) {
+            await startNFCReader(element, deviceId); // Átadjuk az elemet a vizuális frissítéshez
+        }
+    }
+
+    async function startNFCReader(element, deviceId) {
+        const modal = document.getElementById('nfc-modal');
+        const modalTitle = document.getElementById('nfc-modal-title');
+        const modalBody = document.getElementById('nfc-modal-body');
+        const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+
+        const showModal = (title, bodyHtml, buttonText = 'Mégse') => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalCloseBtn.textContent = buttonText;
+            modal.style.display = 'flex';
+        };
+        const hideModal = () => {
+            modal.style.display = 'none';
+        };
+
+        modalCloseBtn.onclick = hideModal;
+
+        if (!('NDEFReader' in window)) {
+            showModal('Hiba', '<p>A Web NFC API nem támogatott ezen a böngészőn, vagy a kapcsolat nem biztonságos (nem HTTPS).</p>', 'Bezárás');
+            return;
+        }
+
+        try {
+            const ndef = new NDEFReader();
+            let readingHandled = false;
+
+            const onReading = ({ message, serialNumber }) => {
+                if (readingHandled) return;
+                readingHandled = true;
+
+                console.log(`> NFC Tag olvasva, sorozatszám: ${serialNumber}`);
+
+                if (serialNumber && deviceId && partnerId) {
+                    // Show saving state in modal
+                    showModal('Mentés...', '<div class="loader-small"></div>', '');
+
+                    updateDeviceChipId(partnerId, deviceId, serialNumber)
+                        .then(() => {
+                            console.log('Chip ID successfully saved to Firestore.');
+                            const successHtml = `
+                                <p class="text-green-400 font-semibold">Sikeres beolvasás és mentés!</p>
+                                <p class="mt-1 text-sm">Hardveres sorozatszám: ${serialNumber || 'N/A'}</p>
+                            `;
+                            showModal('Sikeres Mentés', successHtml, 'OK');
+                            modalCloseBtn.onclick = () => {
+                                hideModal();
+                                if (element) {
+                                    element.classList.remove('text-hollow');
+                                    element.classList.add('text-glow');
+                                }
+                            };
+                        })
+                        .catch(err => {
+                            console.error('Failed to save Chip ID to Firestore.', err);
+                            const errorHtml = `
+                                <p class="text-red-400 font-semibold">Hiba a mentés során!</p>
+                                <p class="mt-1 text-sm">A chip beolvasása sikeres volt, de a mentés a szerverre nem sikerült. Kérjük, ellenőrizze a kapcsolatot és próbálja újra.</p>
+                                <p class="mt-2 text-xs text-gray-400">Hiba: ${err.message}</p>
+                            `;
+                            showModal('Mentési Hiba', errorHtml, 'Bezárás');
+                        });
+                } else {
+                    // Handle case where serialNumber, deviceId, or partnerId is missing
+                    const errorHtml = `<p class="text-red-400">Hiba: Hiányzó adatok a mentéshez (eszköz vagy partnerazonosító).</p>`;
+                    showModal('Hiba', errorHtml, 'Bezárás');
+                }
+            };
+
+            const onReadingError = (event) => {
+                if (readingHandled) return;
+                console.error("Hiba az NFC tag olvasása közben:", event);
+                showModal('Hiba', '<p>Hiba történt az NFC tag olvasása közben. Próbálja újra.</p>', 'Bezárás');
+            };
+
+            ndef.addEventListener("reading", onReading);
+            ndef.addEventListener("readingerror", onReadingError);
+
+            await ndef.scan();
+            
+            showModal(
+                'NFC Chip Olvasás',
+                '<p>Kérem, érintse a chipet a készülékhez.</p><div class="loader-small"></div>',
+                'Mégse'
+            );
+
+        } catch (error) {
+            console.error(`Hiba az NFC olvasó indításakor: ${error.name}`, error);
+            let userMessage = "Hiba az NFC olvasó indításakor.";
+            if (error.name === 'NotAllowedError') {
+                userMessage = 'Az NFC szkennelés nem lett engedélyezve a felhasználó által.';
+            } else if (error.name === 'NotFoundError') {
+                userMessage = 'Nem található NFC olvasó a készüléken.';
+            }
+            showModal('Hiba', `<p>${userMessage}</p>`, 'Bezárás');
+        }
     }
 
     function generateQRCodes() {
@@ -1299,6 +1419,25 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 ${getNewInspectionScreenHtml()}
             </div>
         </main>
+        <!-- NFC Modal -->
+        <div id="nfc-modal" class="nfc-modal-backdrop">
+            <div class="nfc-modal-content">
+                <h3 id="nfc-modal-title" class="text-xl font-semibold">NFC Chip Olvasás</h3>
+                <div id="nfc-modal-body" class="nfc-modal-body">
+                    <!-- Content will be set by JS -->
+                </div>
+                <button id="nfc-modal-close-btn" class="btn btn-secondary">Mégse</button>
+            </div>
+        </div>
+        <!-- Scan Chip Modal -->
+        <div id="scan-chip-modal" class="nfc-modal-backdrop" style="display: none;">
+            <div class="nfc-modal-content">
+                <h3 class="text-xl font-semibold">NFC Chip olvasás...</h3>
+                <div class="nfc-modal-body">
+                </div>
+                <button id="scan-chip-modal-close-btn" class="btn btn-secondary">Mégse</button>
+            </div>
+        </div>
         <footer class="p-4 bg-gray-800 text-white text-center text-sm">
             <p>&copy; ${new Date().getFullYear()} H-ITB Kft. | ETAR Rendszer</p>
         </footer>

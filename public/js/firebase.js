@@ -20,3 +20,16 @@ const app = firebase.initializeApp(firebaseConfig);
 export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const storage = firebase.storage();
+
+export async function updateDeviceChipId(partnerId, deviceId, chipId) {
+  const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(deviceId);
+  try {
+    await deviceRef.update({
+      chip: chipId
+    });
+    console.log(`Device ${deviceId} updated with chip ID ${chipId}`);
+  } catch (error) {
+    console.error("Error updating device with chip ID: ", error);
+    throw error;
+  }
+}

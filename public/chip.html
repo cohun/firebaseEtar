@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hollow & Glowing Text</title>
+    <!-- Loading Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Loading the Inter font family -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Apply the Inter font to the body */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* * Custom class for the "hollow" text effect.
+         * We make the text fill color transparent.
+         * Then, we add a "stroke" (outline) to the text.
+         * -webkit-text-stroke is the most widely supported property for this.
+         */
+        .text-hollow {
+            color: transparent; /* Make the text fill transparent */
+            -webkit-text-stroke-width: 2px;
+            -webkit-text-stroke-color: #e5e7eb; /* A light gray color */
+            /* Standard property (less support) */
+            text-stroke-width: 2px;
+            text-stroke-color: #e5e7eb;
+        }
+
+        /* * Custom class for the "glowing" text effect.
+         * We use multiple text-shadows layered on top of each other.
+         * The shadows have different blur radii (5px, 10px, 20px, 40px)
+         * to create a soft, diffused glow effect.
+         */
+        .text-glow {
+            color: 	#ff9ee3; /* A very light blue for the text itself */
+            text-shadow: 0 0 5px #3b82f6, /* Innermost glow */
+                         0 0 10px #3b82f6,
+                         0 0 20px #3b82f6,
+                         0 0 40px #3b82f6; /* Outermost glow */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- 
+      This container centers the text elements vertically and horizontally
+      and adds space between them.
+    -->
+    <div class="text-center space-y-16 md:space-y-24">
+
+        <!-- Hollow Text -->
+        <h1 class="text-7xl sm:text-8xl md:text-9xl font-black uppercase text-hollow transition-all duration-300 hover:scale-105">
+            CHIP
+        </h1>
+
+        <!-- Glowing Text -->
+        <h1 class="text-7xl sm:text-8xl md:text-9xl font-black uppercase text-glow transition-all duration-300 hover:scale-105">
+            CHIP
+        </h1>
+
+    </div>
+
+</body>
+</html>
