@@ -182,6 +182,26 @@ body.partner-mode-active {
     transform: translateY(1px);
 }
 
+.menu-btn-danger {
+    background-color: #EAF2F8;
+    color: #dc3545; /* Piros szöveg */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2), 
+                -2px -2px 5px rgba(255,255,255,0.7);
+}
+
+.menu-btn-danger:hover {
+    background-color: #d4e6f1; /* Kicsit sötétebb háttér */
+    box-shadow: 3px 3px 7px rgba(0,0,0,0.25), 
+                -3px -3px 7px rgba(255,255,255,0.6);
+}
+
+.menu-btn-danger:active {
+    background-color: #EAF2F8;
+    box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2), 
+                inset -2px -2px 5px rgba(255,255,255,0.7); /* Benyomott hatás */
+    transform: translateY(1px);
+}
+
 /* Másodlagos gomb (Outline stílus) - pl. Vissza gomb */
 .menu-btn-secondary {
     background-color: transparent;
@@ -200,23 +220,7 @@ body.partner-mode-active {
     transform: translateY(1px);
 }
 
-/* Responsive adjustments for filter buttons on small screens */
 
-@media (max-width: 640px) {
-
-    #reset-filters-btn,
-
-    #refresh-list-btn {
-
-        font-size: 0.875rem; /* 14px */
-
-        padding-top: 0.5rem;
-
-        padding-bottom: 0.5rem;
-
-    }
-
-}
 
 
 

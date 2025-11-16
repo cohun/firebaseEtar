@@ -35,17 +35,17 @@ function getEszkozListaHtml() {
                         <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
-                        <button id="reset-filters-btn" class="btn btn-secondary w-full">Szűrők törlése</button>
+                        <button id="reset-filters-btn" class="menu-btn menu-btn-danger w-full"><i class="fas fa-trash-alt fa-fw"></i> Szűrők törlése</button>
                     </div>
                     <div class="flex-1 flex items-center justify-center pb-1" style="min-width: 100px;">
                         <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                         <label for="inactive-toggle" class="font-medium text-gray-300 ml-2">Inaktívak</label>
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
-                        <button id="refresh-list-btn" class="btn btn-primary w-full">Lista frissítése</button>
+                        <button id="refresh-list-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-sync-alt fa-fw"></i> Lista frissítése</button>
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
-                        <button id="scan-chip-modal-btn" class="btn btn-primary w-full"><i class="fas fa-rss fa-fw"></i> Chip beolvasás</button>
+                        <button id="scan-chip-modal-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-rss fa-fw"></i> Chip beolvasás</button>
                     </div>
                 </div>
             </div>
