@@ -232,19 +232,9 @@ export function initPartnerWorkScreen(partnerId) {
     const decommissionBtn = document.getElementById('decommission-reactivate-btn');
     const decommissionBtnMobile = document.getElementById('decommission-reactivate-btn-mobile');
     const scanChipModalBtn = document.getElementById('scan-chip-modal-btn');
-    const scanChipModal = document.getElementById('scan-chip-modal');
-    const scanChipModalCloseBtn = document.getElementById('scan-chip-modal-close-btn');
 
     if(scanChipModalBtn) {
-        scanChipModalBtn.addEventListener('click', () => {
-            if(scanChipModal) scanChipModal.style.display = 'flex';
-        });
-    }
-
-    if(scanChipModalCloseBtn) {
-        scanChipModalCloseBtn.addEventListener('click', () => {
-            if(scanChipModal) scanChipModal.style.display = 'none';
-        });
+        scanChipModalBtn.addEventListener('click', scanChipAndSearchDevice);
     }
 
     function debounce(func, delay) {
@@ -536,6 +526,103 @@ export function initPartnerWorkScreen(partnerId) {
             
             showModal(
                 'NFC Chip Olvasás',
+                '<p>Kérem, érintse a chipet a készülékhez.</p><div class="loader-small"></div>',
+                'Mégse'
+            );
+
+        } catch (error) {
+            console.error(`Hiba az NFC olvasó indításakor: ${error.name}`, error);
+            let userMessage = "Hiba az NFC olvasó indításakor.";
+            if (error.name === 'NotAllowedError') {
+                userMessage = 'Az NFC szkennelés nem lett engedélyezve a felhasználó által.';
+            } else if (error.name === 'NotFoundError') {
+                userMessage = 'Nem található NFC olvasó a készüléken.';
+            }
+            showModal('Hiba', `<p>${userMessage}</p>`, 'Bezárás');
+        }
+    }
+
+    async function scanChipAndSearchDevice() {
+        const modal = document.getElementById('nfc-modal');
+        const modalTitle = document.getElementById('nfc-modal-title');
+        const modalBody = document.getElementById('nfc-modal-body');
+        const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+
+        const showModal = (title, bodyHtml, buttonText = 'Mégse') => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalCloseBtn.textContent = buttonText;
+            modal.style.display = 'flex';
+        };
+        const hideModal = () => {
+            modal.style.display = 'none';
+        };
+
+        modalCloseBtn.onclick = hideModal;
+
+        if (!('NDEFReader' in window)) {
+            showModal('Hiba', '<p>A Web NFC API nem támogatott ezen a böngészőn, vagy a kapcsolat nem biztonságos (nem HTTPS).</p>', 'Bezárás');
+            return;
+        }
+
+        try {
+            const ndef = new NDEFReader();
+            let readingHandled = false;
+
+            const onReading = async ({ serialNumber: chipSerialNumber }) => {
+                if (readingHandled) return;
+                readingHandled = true;
+
+                console.log(`> NFC Tag olvasva, chip sorozatszám: ${chipSerialNumber}`);
+                showModal('Keresés...', '<div class="loader-small"></div><p class="mt-2">Eszköz keresése a chip alapján...</p>', '');
+
+                try {
+                    const querySnapshot = await db.collection('partners').doc(partnerId).collection('devices')
+                        .where('chip', '==', chipSerialNumber).limit(1).get();
+
+                    if (querySnapshot.empty) {
+                        showModal('Nincs találat', `<p>Nem található eszköz a beolvasott chip (${chipSerialNumber}) alapján.</p>`, 'OK');
+                    } else {
+                        const device = querySnapshot.docs[0].data();
+                        const deviceSerialNumber = device.serialNumber;
+                        
+                        if (deviceSerialNumber) {
+                            showModal('Siker', `<p>Eszköz megtalálva. Gyári szám: ${deviceSerialNumber}. A lista szűrése folyamatban...</p>`, 'OK');
+                            searchInput.value = deviceSerialNumber;
+                            searchTerm = deviceSerialNumber; // A keresési kifejezés manuális beállítása
+                            // A modal bezárása után szűrünk, hogy a user lássa az üzenetet
+                            modalCloseBtn.onclick = () => {
+                                hideModal();
+                                resetAndFetch();
+                            };
+                            // Automatikus bezárás és szűrés 2 másodperc után
+                            setTimeout(() => {
+                                hideModal();
+                                resetAndFetch();
+                            }, 2000);
+                        } else {
+                            showModal('Hiba', '<p>Az eszközhöz tartozó gyári szám nem található az adatbázisban.</p>', 'OK');
+                        }
+                    }
+                } catch (error) {
+                    console.error("Hiba az eszköz keresésekor a chip alapján:", error);
+                    showModal('Keresési Hiba', `<p>Hiba történt az eszköz keresése közben. ${error.message}</p>`, 'Bezárás');
+                }
+            };
+
+            const onReadingError = (event) => {
+                if (readingHandled) return;
+                console.error("Hiba az NFC tag olvasása közben:", event);
+                showModal('Hiba', '<p>Hiba történt az NFC tag olvasása közben. Próbálja újra.</p>', 'Bezárás');
+            };
+
+            ndef.addEventListener("reading", onReading);
+            ndef.addEventListener("readingerror", onReadingError);
+
+            await ndef.scan();
+            
+            showModal(
+                'NFC Chip Olvasás...',
                 '<p>Kérem, érintse a chipet a készülékhez.</p><div class="loader-small"></div>',
                 'Mégse'
             );
@@ -1459,8 +1546,10 @@ export function getPartnerWorkScreenHtml(partner, userData) {
         <!-- Scan Chip Modal -->
         <div id="scan-chip-modal" class="nfc-modal-backdrop" style="display: none;">
             <div class="nfc-modal-content">
-                <h3 class="text-xl font-semibold">NFC Chip olvasás...</h3>
+                <h3 class="text-xl font-semibold">NFC Chip Olvasás</h3>
                 <div class="nfc-modal-body">
+                    <p>Kérem, érintse a chipet a készülékhez a kereséshez.</p>
+                    <div class="loader-small"></div>
                 </div>
                 <button id="scan-chip-modal-close-btn" class="btn btn-secondary">Mégse</button>
             </div>
