@@ -72,15 +72,15 @@
     <div class="container mx-auto max-w-7xl">
         <header class="bg-blue-950 p-4 rounded-t-xl mb-1 shadow-lg border-b border-blue-800 flex items-center justify-between">
             <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10">
-            <h2 class="text-xl font-bold text-white">Piszkozatok Áttekintése</h2>
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-white">Piszkozatok Áttekintése</h2>
+                <p class="mt-1 text-sm text-gray-300">Itt láthatók a rögzített, de még nem véglegesített vizsgálati piszkozatok.</p>
+            </div>
             <div class="w-10"></div>
         </header>
         <div class="card rounded-t-none p-6">
-            <div class="sm:flex sm:items-center sm:justify-between">
-                <div class="sm:flex-auto">
-                    <p class="mt-2 text-sm text-gray-300">Itt láthatók a rögzített, de még nem véglegesített vizsgálati piszkozatok.</p>
-                </div>
-                <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
+            <div class="sm:flex sm:items-center sm:justify-end">
+                <div class="mt-4 sm:mt-0 space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
                     <button id="deleteDraftsButton" class="btn btn-danger">Kijelöltek törlése</button>
                     <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok előnézete (HTML)</button>
                     <button id="finalizeDraftsButton" class="btn btn-success">Kijelöltek véglegesítése</button>
@@ -89,27 +89,25 @@
 
             <!-- Piszkozatok Táblázata -->
             <div class="mt-8 flex flex-col">
-                <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                    <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                            <table class="min-w-full divide-y divide-gray-700">
-                                <thead class="bg-gray-800">
-                                    <tr>
-                                        <th scope="col" class="relative px-6 py-3.5">
-                                            <input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                        </th>
-                                        <th scope="col" data-sort="partnerName" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Partner<i></i></th>
-                                        <th scope="col" data-sort="serialNumber" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eszköz Gyári Szám<i></i></th>
-                                        <th scope="col" data-sort="vizsgalatEredmenye" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eredmény<i></i></th>
-                                        <th scope="col" data-sort="szakerto" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Szakértő<i></i></th>
-                                        <th scope="col" data-sort="createdAt" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable active-sort">Létrehozva<i class="fas fa-sort-down"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="drafts-table-body" class="divide-y divide-gray-800 bg-gray-900/50">
-                                    <!-- Tartalom JS-ből -->
-                                </tbody>
-                            </table>
-                        </div>
+                <div class="overflow-x-auto">
+                    <div class="shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-800">
+                                <tr>
+                                    <th scope="col" class="relative px-6 py-3.5">
+                                        <input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    </th>
+                                    <th scope="col" data-sort="partnerName" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Partner<i></i></th>
+                                    <th scope="col" data-sort="serialNumber" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eszköz Gyári Szám<i></i></th>
+                                    <th scope="col" data-sort="vizsgalatEredmenye" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eredmény<i></i></th>
+                                    <th scope="col" data-sort="szakerto" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Szakértő<i></i></th>
+                                    <th scope="col" data-sort="createdAt" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable active-sort">Létrehozva<i class="fas fa-sort-down"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="drafts-table-body" class="divide-y divide-gray-800 bg-gray-900/50">
+                                <!-- Tartalom JS-ből -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

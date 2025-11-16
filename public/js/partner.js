@@ -56,20 +56,47 @@ function getEszkozListaHtml() {
                     <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
                         <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                             <table class="min-w-full divide-y divide-gray-700">
+                                <thead class="bg-gray-800" style="display: none;">
+                                    <tr>
+                                        <th scope="col" class="relative px-6 py-3.5"></th>
+                                        <th scope="col" data-sort="vizsg_idopont" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Vizsg. Időp. <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="description" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable active-sort">Megnevezés <i class="fas fa-sort-down"></i></th>
+                                        <th scope="col" data-sort="type" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Típus <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="effectiveLength" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Hossz <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="serialNumber" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Gyári szám <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="operatorId" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Operátor ID <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="status" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Megállapítások <i class="fas fa-sort"></i></th>
+                                        <th scope="col" data-sort="kov_vizsg" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Köv. Vizsg. <i class="fas fa-sort"></i></th>
+                                        <th scope="col" class="py-3.5 px-1 text-center"><span class="sr-only">Státusz</span></th>
+                                        <th scope="col" class="whitespace-nowrap py-3.5 px-1 text-center text-sm font-semibold text-white">CHIP</th>
+                                        <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">QR</span></th>
+                                    </tr>
+                                </thead>
                                 <thead class="bg-gray-800">
                                     <tr>
-                                        <th scope="col" class="relative px-6 py-3.5"><input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
-                                        <th scope="col" data-sort="vizsg_idopont" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Vizsg. Időp. <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="description" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable active-sort">Megnevezés <i class="fas fa-sort-down"></i></th>
-                                        <th scope="col" data-sort="type" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Típus <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="effectiveLength" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Hossz <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="serialNumber" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Gyári szám <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="operatorId" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Operátor ID <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="status" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Megállapítások <i class="fas fa-sort"></i></th>
-                                        <th scope="col" data-sort="kov_vizsg" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Köv. Vizsg. <i class="fas fa-sort"></i></th>
-                                        <th scope="col" class="py-3.5 px-1 text-center"><span class="sr-only">Státusz</span></th>
-                                        <th scope="col" class="py-3.5 px-1 text-center text-sm font-semibold text-white">CHIP</th>
-                                        <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">QR</span></th>
+                                        <th rowspan="2" class="p-3 relative"><input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Vizsg. Időp.</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megnevezés</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Típus</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Hossz</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Gyári szám</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Operátor ID</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megállapítások</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Köv. Vizsg.</th>
+                                        <th rowspan="2" class="p-3"></th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">CHIP</th>
+                                        <th rowspan="2" class="p-3"></th>
+                                    </tr>
+                                    <tr>
+                                        <th data-sort="vizsg_idopont" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th data-sort="description" class="py-1 px-3 text-center text-sm font-semibold text-white sortable active-sort cursor-pointer"><i class="fas fa-sort-down"></i></th>
+                                        <th data-sort="type" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th data-sort="effectiveLength" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th data-sort="serialNumber" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th data-sort="operatorId" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th data-sort="status" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th data-sort="kov_vizsg" class="py-1 px-3 text-center text-sm font-semibold text-white sortable cursor-pointer"><i class="fas fa-sort"></i></th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody id="eszköz-lista-body" class="divide-y divide-gray-800 bg-gray-900/50">
@@ -402,14 +429,14 @@ export function initPartnerWorkScreen(partnerId) {
             return `
             <tr class="hover:bg-gray-700/50">
                 <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.vizsg_idopont || 'N/A'}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white">${dev.description || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.type || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.effectiveLength || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.serialNumber || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${dev.operatorId || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass}">${dev.status || 'N/A'}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass}">${dev.kov_vizsg || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.vizsg_idopont || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle">${dev.description || ''}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.type || ''}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.effectiveLength || ''}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.serialNumber || ''}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.operatorId || ''}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass} text-center align-middle">${dev.status || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass} text-center align-middle">${dev.kov_vizsg || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-1 text-center align-middle"></td>
                 <td class="whitespace-nowrap py-4 px-1 text-center align-middle">${chipButton}</td>
                 <td class="relative whitespace-nowrap py-2 px-3 text-center align-middle">
@@ -749,10 +776,10 @@ export function initPartnerWorkScreen(partnerId) {
 
                 return `
                     <tr class="hover:bg-gray-700/50">
-                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${data.vizsgalatIdopontja || 'N/A'}</td>
-                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${serialNumber}</td>
-                        <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white">${description}</td>
-                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300">${data.szakerto || 'N/A'}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${data.vizsgalatIdopontja || 'N/A'}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${serialNumber}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle">${description}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${data.szakerto || 'N/A'}</td>
                         <td class="whitespace-nowrap py-4 px-3 text-sm text-center">
                             <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm ${!data.fileUrl ? 'disabled' : ''}">
                                 Megtekintés

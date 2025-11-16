@@ -360,6 +360,62 @@ body.partner-mode-active {
 
 .text-glow:hover {
 
+
+
     transform: scale(1.05);
 
+
+
 }
+
+
+
+
+
+
+
+.sort-arrows-container {
+
+
+
+    display: flex;
+
+
+
+    justify-content: center;
+
+
+
+    align-items: center;
+
+
+
+}
+
+
+
+
+
+
+
+.sort-arrows {
+
+
+
+    display: flex;
+
+
+
+    flex-direction: column;
+
+
+
+    cursor: pointer;
+
+
+
+}
+
+
+
+
