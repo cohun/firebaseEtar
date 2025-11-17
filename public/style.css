@@ -182,20 +182,20 @@ body.partner-mode-active {
     transform: translateY(1px);
 }
 
-.menu-btn-danger {
+.menu-btn-clear-filters {
     background-color: #EAF2F8;
-    color: #dc3545; /* Piros szöveg */
+    color: #5cb85c; /* Halvány zöld szöveg */
     box-shadow: 2px 2px 5px rgba(0,0,0,0.2), 
                 -2px -2px 5px rgba(255,255,255,0.7);
 }
 
-.menu-btn-danger:hover {
+.menu-btn-clear-filters:hover {
     background-color: #d4e6f1; /* Kicsit sötétebb háttér */
     box-shadow: 3px 3px 7px rgba(0,0,0,0.25), 
                 -3px -3px 7px rgba(255,255,255,0.6);
 }
 
-.menu-btn-danger:active {
+.menu-btn-clear-filters:active {
     background-color: #EAF2F8;
     box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2), 
                 inset -2px -2px 5px rgba(255,255,255,0.7); /* Benyomott hatás */

@@ -35,7 +35,7 @@ function getEszkozListaHtml() {
                         <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
-                        <button id="reset-filters-btn" class="menu-btn menu-btn-danger w-full"><i class="fas fa-trash-alt fa-fw"></i> Szűrők törlése</button>
+                        <button id="reset-filters-btn" class="menu-btn menu-btn-clear-filters w-full"><i class="fas fa-trash-alt fa-fw"></i> Szűrők törlése</button>
                     </div>
                     <div class="flex-1 flex items-center justify-center pb-1" style="min-width: 100px;">
                         <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
@@ -140,6 +140,13 @@ async function generateHash(data) {
  * @param {string} partnerId The ID of the partner whose devices to display.
  */
 export function initPartnerWorkScreen(partnerId) {
+    window.editDevice = function(deviceId) {
+        console.log(`Redirecting to edit device: ${deviceId} for partner: ${partnerId}`);
+        sessionStorage.setItem('editDeviceId', deviceId);
+        sessionStorage.setItem('partnerIdForEdit', partnerId);
+        window.location.href = 'adatbevitel.html';
+    };
+
     // --- SCREEN MANAGEMENT ---
     const deviceListScreen = document.getElementById('deviceListScreen');
     const newInspectionScreen = document.getElementById('newInspectionScreen');
@@ -420,11 +427,11 @@ export function initPartnerWorkScreen(partnerId) {
             <tr class="hover:bg-gray-700/50">
                 <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.vizsg_idopont || 'N/A'}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle">${dev.description || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.type || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.effectiveLength || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.serialNumber || ''}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.operatorId || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-white'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-white'); this.classList.remove('text-blue-300');">${dev.description || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.type || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.effectiveLength || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.serialNumber || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.operatorId || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass} text-center align-middle">${dev.status || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass} text-center align-middle">${dev.kov_vizsg || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-1 text-center align-middle"></td>

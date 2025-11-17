@@ -15,14 +15,66 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Pre-fill serial number if available in sessionStorage
-    const newDeviceSerialNumber = sessionStorage.getItem('newDeviceSerialNumber');
-    if (newDeviceSerialNumber) {
-        const serialNumberField = form.querySelector('[name="eszkoz_gyariszam"]');
-        if (serialNumberField) {
-            serialNumberField.value = newDeviceSerialNumber;
+    const editDeviceId = sessionStorage.getItem('editDeviceId');
+    const partnerIdForEdit = sessionStorage.getItem('partnerIdForEdit');
+
+    if (editDeviceId && partnerIdForEdit) {
+        // =================================
+        // MÓDOSÍTÁS ÜZEMMÓD
+        // =================================
+        console.log(`--- DEBUG: EDIT MODE --- Device: ${editDeviceId}, Partner: ${partnerIdForEdit}`);
+        
+        // UI elemek módosítása
+        document.querySelector('h2').textContent = 'Eszköz adatainak módosítása';
+        saveButton.textContent = 'Módosítások mentése';
+        
+        if(loadPreviousButton) {
+            loadPreviousButton.style.display = 'none';
         }
-        sessionStorage.removeItem('newDeviceSerialNumber');
+
+        // Adatok lekérése a Firestore-ból
+        db.collection('partners').doc(partnerIdForEdit).collection('devices').doc(editDeviceId).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const deviceData = doc.data();
+                    console.log("DEBUG: Fetched device data:", deviceData); // Adatok logolása
+                    
+                    // Form kitöltése a kapott adatokkal
+                    form.querySelector('[name="eszkoz_megnevezes"]').value = deviceData.description || '';
+                    form.querySelector('[name="eszkoz_tipus"]').value = deviceData.type || '';
+                    form.querySelector('[name="eszkoz_gyarto"]').value = deviceData.manufacturer || '';
+                    form.querySelector('[name="eszkoz_hossz"]').value = deviceData.effectiveLength || '';
+                    form.querySelector('[name="gyartas_eve"]').value = deviceData.yearOfManufacture || '';
+                    form.querySelector('[name="eszkoz_teherbiras"]').value = deviceData.loadCapacity || '';
+                    form.querySelector('[name="eszkoz_gyariszam"]').value = deviceData.serialNumber || '';
+                    form.querySelector('[name="eszkoz_uzemeltetoi_azonosito"]').value = deviceData.operatorId || '';
+
+                } else {
+                    console.error("Hiba: A szerkesztendő eszköz nem található!");
+                    alert("A szerkesztendő eszköz nem található. Lehet, hogy időközben törölték.");
+                    window.history.back();
+                }
+            })
+            .catch(error => {
+                console.error("Hiba az eszköz adatainak lekérésekor:", error);
+                alert("Hiba történt az eszköz adatainak lekérése közben.");
+                window.history.back();
+            });
+
+    } else {
+        // =================================
+        // ÚJ ESZKÖZ ÜZEMMÓD
+        // =================================
+        document.querySelector('h2').textContent = 'Adatbevitel'; // Explicitly set title for new entry
+        // Gyári szám előtöltése, ha új eszközt hozunk létre a partneri felületről
+        const newDeviceSerialNumber = sessionStorage.getItem('newDeviceSerialNumber');
+        if (newDeviceSerialNumber) {
+            const serialNumberField = form.querySelector('[name="eszkoz_gyariszam"]');
+            if (serialNumberField) {
+                serialNumberField.value = newDeviceSerialNumber;
+            }
+            sessionStorage.removeItem('newDeviceSerialNumber');
+        }
     }
 
 
@@ -54,12 +106,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const partnerId = sessionStorage.getItem('lastPartnerId');
-        if (!partnerId) {
-            alert('Nincs kiválasztott partner. Kérjük, válasszon partnert!');
-            return;
-        }
-
         const description = form.querySelector('[name="eszkoz_megnevezes"]').value;
         const serialNumber = form.querySelector('[name="eszkoz_gyariszam"]').value;
         const loadCapacity = form.querySelector('[name="eszkoz_teherbiras"]').value;
@@ -69,19 +115,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const yearOfManufacture = form.querySelector('[name="gyartas_eve"]').value;
-
         let createdByName = user.displayName;
         if (!createdByName) {
             const userDoc = await db.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                createdByName = userDoc.data().name || user.email;
-            } else {
-                createdByName = user.email;
-            }
+            createdByName = userDoc.exists ? userDoc.data().name || user.email : user.email;
         }
 
-        const newDevice = {
+        const deviceData = {
             description: description,
             operatorId: form.querySelector('[name="eszkoz_uzemeltetoi_azonosito"]').value,
             type: form.querySelector('[name="eszkoz_tipus"]').value,
@@ -89,30 +129,66 @@ document.addEventListener('DOMContentLoaded', function () {
             loadCapacity: loadCapacity,
             manufacturer: form.querySelector('[name="eszkoz_gyarto"]').value,
             serialNumber: serialNumber,
-            yearOfManufacture: yearOfManufacture ? parseInt(yearOfManufacture) : null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: createdByName,
-            partnerId: partnerId,
+            yearOfManufacture: form.querySelector('[name="gyartas_eve"]').value ? parseInt(form.querySelector('[name="gyartas_eve"]').value) : null,
             comment: 'active',
             status: ''
         };
 
-        // Save data for "load previous" functionality (excluding specified fields)
-        const dataToStore = { ...newDevice };
-        delete dataToStore.serialNumber;
-        delete dataToStore.operatorId;
-        delete dataToStore.createdAt; // also remove server-generated fields
-        localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+        // Check if we are in edit mode
+        const editDeviceId = sessionStorage.getItem('editDeviceId');
+        const partnerIdForEdit = sessionStorage.getItem('partnerIdForEdit');
 
-        console.log("Data being sent to Firestore:", JSON.stringify(newDevice, null, 2));
+        if (editDeviceId && partnerIdForEdit) {
+            // UPDATE existing device
+            deviceData.lastModifiedAt = firebase.firestore.FieldValue.serverTimestamp();
+            deviceData.lastModifiedBy = createdByName;
 
-        try {
-            await db.collection('partners').doc(partnerId).collection('devices').add(newDevice);
-            alert('Eszköz sikeresen mentve!');
-            form.reset(); // Clear the form after successful save
-        } catch (error) {
-            console.error("Hiba az eszköz mentésekor:", error);
-            alert('Hiba történt az eszköz mentésekor: ' + error.message);
+            console.log("Updating device in Firestore:", JSON.stringify(deviceData, null, 2));
+
+            try {
+                await db.collection('partners').doc(partnerIdForEdit).collection('devices').doc(editDeviceId).update(deviceData);
+                alert('Eszköz sikeresen frissítve!');
+                
+                // Clean up session storage and redirect
+                sessionStorage.removeItem('editDeviceId');
+                sessionStorage.removeItem('partnerIdForEdit');
+                window.location.href = 'app.html'; // Redirect to partner page
+
+            } catch (error) {
+                console.error("Hiba az eszköz frissítésekor:", error);
+                alert('Hiba történt az eszköz frissítésekor: ' + error.message);
+            }
+
+        } else {
+            // ADD new device
+            const partnerId = sessionStorage.getItem('lastPartnerId');
+            if (!partnerId) {
+                alert('Nincs kiválasztott partner. Kérjük, válasszon partnert!');
+                return;
+            }
+
+            deviceData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            deviceData.createdBy = createdByName;
+            deviceData.partnerId = partnerId;
+
+            // Save data for "load previous" functionality
+            const dataToStore = { ...deviceData };
+            delete dataToStore.serialNumber;
+            delete dataToStore.operatorId;
+            delete dataToStore.createdAt;
+            localStorage.setItem(storageKey, JSON.stringify(dataToStore));
+
+            console.log("Adding new device to Firestore:", JSON.stringify(deviceData, null, 2));
+
+            try {
+                await db.collection('partners').doc(partnerId).collection('devices').add(deviceData);
+                alert('Eszköz sikeresen mentve!');
+                form.reset();
+                // window.location.href = 'app.html'; // Redirect to partner page for consistency
+            } catch (error) {
+                console.error("Hiba az eszköz mentésekor:", error);
+                alert('Hiba történt az eszköz mentésekor: ' + error.message);
+            }
         }
     });
 });
