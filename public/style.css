@@ -132,6 +132,14 @@ body.partner-mode-active {
     background-color: #374151; /* bg-gray-700 */
 }
 
+.btn-info {
+    background-color: #f59e0b; /* bg-amber-500 */
+    color: white;
+}
+.btn-info:hover {
+    background-color: #d97706; /* bg-amber-600 */
+}
+
 .btn-success {
     background-color: #16a34a; /* bg-green-600 */
     color: white;

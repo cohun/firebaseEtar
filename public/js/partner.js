@@ -1069,6 +1069,7 @@ export function initPartnerWorkScreen(partnerId) {
         if (serialNumber) {
             sessionStorage.setItem('newDeviceSerialNumber', serialNumber);
         }
+        sessionStorage.removeItem('editDeviceId');
         window.location.href = 'adatbevitel.html';
     }
 
@@ -1431,7 +1432,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     if (isReadOnly) {
         uploadButtonHtml = `<button onclick="alert('Read jogosultsággal nem tölthet fel adatokat. Forduljon a jogosultság osztójához.')" class="menu-btn menu-btn-primary opacity-50 cursor-not-allowed w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
     } else {
-        uploadButtonHtml = `<button onclick="window.location.href='adatbevitel.html'" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
+        uploadButtonHtml = `<button onclick="sessionStorage.removeItem('editDeviceId'); window.location.href='adatbevitel.html'" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
     }
 
     let newInspectionButtonHtml = '';
