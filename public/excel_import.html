@@ -17,6 +17,9 @@
     <!-- Common Styles -->
     <link rel="stylesheet" href="style.css">
 
+    <!-- SheetJS/xlsx library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         body {
             background: linear-gradient(135deg, #1e3a8a, #000033);
@@ -26,11 +29,19 @@
             border: 1px solid #1e40af; /* border-blue-800 */
             color: #d1d5db; /* text-gray-300 */
         }
+        #excelDataTable th, #excelDataTable td {
+            border: 1px solid #4b5563;
+            padding: 8px;
+            text-align: left;
+        }
+        #excelDataTable th {
+            background-color: #1f2937;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="container mx-auto max-w-5xl">
+    <div class="container mx-auto max-w-7xl">
         <div class="text-center mb-4">
             <img src="images/logo.jpg" alt="Logo" class="mx-auto h-16 rounded-lg">
         </div>
@@ -39,14 +50,82 @@
             <h2 class="text-xl font-bold text-white">Excel Adatolvasás</h2>
             <div class="w-10"></div>
         </header>
-        <div class="card rounded-t-none p-8 text-center">
-            <h3 class="text-2xl font-semibold mb-6">Excel adatolvasás funkció</h3>
-            <p class="text-lg mb-8">Ez a funkció fejlesztés alatt áll.</p>
+        <div class="card rounded-t-none p-8">
+            <h3 class="text-2xl font-semibold mb-6 text-center">Excel fájl beolvasása és megjelenítése</h3>
             
-            <div class="flex justify-center mt-6">
-                <button onclick="window.location.href='adatbevitel.html'" class="btn btn-secondary">Vissza az adatbevitelhez</button>
+            <div class="flex flex-col items-center justify-center space-y-4 mb-8">
+                <input type="file" id="excelFile" accept=".xlsx, .xls" class="file-input file-input-bordered file-input-primary w-full max-w-xs bg-gray-800 text-white" />
+                <button id="uploadButton" class="btn btn-primary">Feldolgozás</button>
+            </div>
+
+            <div id="excelData" class="overflow-x-auto">
+                <!-- Az Excel adatok itt jelennek meg táblázatként -->
+            </div>
+            
+            <div class="flex justify-center mt-8">
+                <button onclick="history.back()" class="btn btn-secondary">Vissza</button>
             </div>
         </div>
     </div>
+
+    <script>
+        document.getElementById('uploadButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+            const excelDataContainer = document.getElementById('excelData');
+
+            if (!file) {
+                alert("Kérjük, válasszon ki egy Excel fájlt!");
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                const json_data = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+                if (json_data.length > 0) {
+                    let table = '<table id="excelDataTable" class="w-full text-sm text-left text-gray-400">';
+                    
+                    // Fejléc
+                    table += '<thead class="text-xs text-gray-300 uppercase bg-gray-700">';
+                    table += '<tr>';
+                    json_data[0].forEach(header => {
+                        table += `<th scope="col" class="px-6 py-3">${header}</th>`;
+                    });
+                    table += '</tr></thead>';
+                    
+                    // Adatsorok
+                    table += '<tbody>';
+                    for(let i = 1; i < json_data.length; i++) {
+                        table += '<tr class="border-b bg-gray-800 border-gray-700">';
+                        json_data[i].forEach(cell => {
+                            table += `<td class="px-6 py-4">${cell}</td>`;
+                        });
+                        table += '</tr>';
+                    }
+                    table += '</tbody></table>';
+
+                    excelDataContainer.innerHTML = table;
+                } else {
+                    excelDataContainer.innerHTML = '<p class="text-center text-red-500">Az Excel fájl üres vagy nem sikerült feldolgozni.</p>';
+                }
+            };
+
+            reader.onerror = function(ex) {
+                console.log(ex);
+                alert("Hiba történt a fájl olvasása közben.");
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+
 </body>
 </html>
