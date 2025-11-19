@@ -20,8 +20,15 @@ function getEszkozListaHtml() {
             </div>
             <!-- Szűrő és Kereső Vezérlők -->
             <div class="card mb-6">
-                <h2 class="text-xl font-semibold text-white mb-4">Szűrés és Keresés</h2>
-                <div id="filter-controls" class="flex flex-wrap items-end gap-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-white">Szűrés és Keresés</h2>
+                    <button id="filter-hamburger-btn" class="text-white focus:outline-none xl:hidden">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="filter-menu" class="hidden xl:flex xl:flex-wrap xl:items-end xl:gap-4 space-y-4 xl:space-y-0">
                     <div class="flex-1" style="min-width: 150px;">
                         <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
                         <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
@@ -242,6 +249,15 @@ export function initPartnerWorkScreen(partnerId) {
 
     if(scanChipModalBtn) {
         scanChipModalBtn.addEventListener('click', scanChipAndSearchDevice);
+    }
+
+    const filterHamburgerBtn = document.getElementById('filter-hamburger-btn');
+    const filterMenu = document.getElementById('filter-menu');
+
+    if (filterHamburgerBtn && filterMenu) {
+        filterHamburgerBtn.addEventListener('click', () => {
+            filterMenu.classList.toggle('hidden');
+        });
     }
 
     function debounce(func, delay) {
