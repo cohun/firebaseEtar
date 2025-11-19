@@ -25,11 +25,16 @@ export function onAuthStateChanged() {
 
                 const lastPartnerId = sessionStorage.getItem('lastPartnerId');
 
-                if (lastPartnerId && userData.partnerRoles && userData.partnerRoles[lastPartnerId]) {
-                    const partnerDoc = await db.collection('partners').doc(lastPartnerId).get();
-                    if (partnerDoc.exists) {
-                        showPartnerWorkScreen({ id: partnerDoc.id, ...partnerDoc.data() }, userData);
-                        return;
+                if (lastPartnerId) {
+                    const hasRole = userData.partnerRoles && userData.partnerRoles[lastPartnerId];
+                    const isEjkUser = userData.isEjkUser === true;
+
+                    if (hasRole || isEjkUser) {
+                        const partnerDoc = await db.collection('partners').doc(lastPartnerId).get();
+                        if (partnerDoc.exists) {
+                            showPartnerWorkScreen({ id: partnerDoc.id, ...partnerDoc.data() }, userData);
+                            return;
+                        }
                     }
                 }
 

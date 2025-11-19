@@ -255,15 +255,15 @@ export function initPartnerWorkScreen(partnerId) {
 
     function updateUiForView() {
         if (currentView === 'inactive') {
-            decommissionBtn.textContent = 'Újraaktiválás';
-            decommissionBtnMobile.textContent = 'Újraaktiválás';
-            deleteBtn.style.display = 'none';
-            deleteBtnMobile.style.display = 'none';
+            if (decommissionBtn) decommissionBtn.textContent = 'Újraaktiválás';
+            if (decommissionBtnMobile) decommissionBtnMobile.textContent = 'Újraaktiválás';
+            if (deleteBtn) deleteBtn.style.display = 'none';
+            if (deleteBtnMobile) deleteBtnMobile.style.display = 'none';
         } else {
-            decommissionBtn.textContent = 'Leselejtezés';
-            decommissionBtnMobile.textContent = 'Leselejtezés';
-            deleteBtn.style.display = '';
-            deleteBtnMobile.style.display = '';
+            if (decommissionBtn) decommissionBtn.textContent = 'Leselejtezés';
+            if (decommissionBtnMobile) decommissionBtnMobile.textContent = 'Leselejtezés';
+            if (deleteBtn) deleteBtn.style.display = '';
+            if (deleteBtnMobile) deleteBtnMobile.style.display = '';
         }
     }
 
@@ -746,8 +746,12 @@ export function initPartnerWorkScreen(partnerId) {
         updateSelectedDevicesComment(newComment);
     };
 
-    decommissionBtn.addEventListener('click', handleDecommissionReactivate);
-    decommissionBtnMobile.addEventListener('click', handleDecommissionReactivate);
+    if (decommissionBtn) {
+        decommissionBtn.addEventListener('click', handleDecommissionReactivate);
+    }
+    if (decommissionBtnMobile) {
+        decommissionBtnMobile.addEventListener('click', handleDecommissionReactivate);
+    }
 
     const handleDelete = async () => {
         const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
@@ -782,8 +786,12 @@ export function initPartnerWorkScreen(partnerId) {
         }
     };
 
-    deleteBtn.addEventListener('click', handleDelete);
-    deleteBtnMobile.addEventListener('click', handleDelete);
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', handleDelete);
+    }
+    if (deleteBtnMobile) {
+        deleteBtnMobile.addEventListener('click', handleDelete);
+    }
 
     nextPageBtn.addEventListener('click', () => {
         if (!nextPageBtn.disabled) {
@@ -1057,6 +1065,35 @@ export function initPartnerWorkScreen(partnerId) {
 
     generateProtocolBtn.addEventListener('click', handleProtocolGeneration);
     generateProtocolBtnMobile.addEventListener('click', handleProtocolGeneration);
+
+    // --- NEW/EDIT DEVICE NAVIGATION LOGIC ---
+    const handleUploadDeviceClick = () => {
+        const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
+        
+        if (selectedCheckboxes.length === 1) {
+            // Edit mode
+            const deviceId = selectedCheckboxes[0].dataset.id;
+            window.editDevice(deviceId);
+        } else if (selectedCheckboxes.length > 1) {
+            // Multiple selected
+            alert('Kérjük, csak egy eszközt válasszon ki a módosításhoz, vagy egyet se az új eszköz felviteléhez!');
+        } else {
+            // New device mode
+            sessionStorage.removeItem('editDeviceId');
+            sessionStorage.removeItem('partnerIdForEdit');
+            window.location.href = 'adatbevitel.html';
+        }
+    };
+
+    const uploadDeviceBtn = document.getElementById('uploadDeviceBtn');
+    const uploadDeviceBtnMobile = document.getElementById('uploadDeviceBtnMobile');
+
+    if (uploadDeviceBtn) {
+        uploadDeviceBtn.addEventListener('click', handleUploadDeviceClick);
+    }
+    if (uploadDeviceBtnMobile) {
+        uploadDeviceBtnMobile.addEventListener('click', handleUploadDeviceClick);
+    }
 
     // --- NEW INSPECTION LOGIC ---
     const searchDeviceForm = document.getElementById('searchDeviceForm');
@@ -1432,7 +1469,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     if (isReadOnly) {
         uploadButtonHtml = `<button onclick="alert('Read jogosultsággal nem tölthet fel adatokat. Forduljon a jogosultság osztójához.')" class="menu-btn menu-btn-primary opacity-50 cursor-not-allowed w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
     } else {
-        uploadButtonHtml = `<button onclick="sessionStorage.removeItem('editDeviceId'); window.location.href='adatbevitel.html'" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
+        uploadButtonHtml = `<button id="uploadDeviceBtn" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-upload fa-fw"></i>Új eszköz feltöltés</button>`;
     }
 
     let newInspectionButtonHtml = '';
@@ -1490,7 +1527,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
                 <button id="download-db-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
-                ${uploadButtonHtml}
+                ${uploadButtonHtml.replace('id="uploadDeviceBtn"', 'id="uploadDeviceBtnMobile"')}
                 ${newInspectionButtonHtmlMobile}
                 ${actionButtonsHtmlMobile}
                 <button id="generate-protocol-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-file-alt fa-fw"></i>Jegyzőkönyvek</button>
