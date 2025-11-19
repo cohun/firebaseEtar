@@ -35,11 +35,11 @@ function getEszkozListaHtml() {
                     </div>
                     <div class="flex-1" style="min-width: 150px;">
                         <label for="filter-vizsg-idopont" class="block text-sm font-medium text-gray-300">Vizsgálat dátuma</label>
-                        <input type="date" id="filter-vizsg-idopont" class="input-field w-full mt-1">
+                        <input type="text" id="filter-vizsg-idopont" class="input-field w-full mt-1" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
                     </div>
                     <div class="flex-1" style="min-width: 150px;">
                         <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
-                        <input type="date" id="filter-kov-vizsg" class="input-field w-full mt-1">
+                        <input type="text" id="filter-kov-vizsg" class="input-field w-full mt-1" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
                         <button id="reset-filters-btn" class="menu-btn menu-btn-clear-filters w-full"><i class="fas fa-trash-alt fa-fw"></i> Szűrők törlése</button>
@@ -319,29 +319,41 @@ export function initPartnerWorkScreen(partnerId, userData) {
             if (searchTerm) {
                 query = query.where('serialNumber', '==', searchTerm);
             }
-            if (filters.vizsg_idopont) {
-                query = query.where('vizsg_idopont', '==', filters.vizsg_idopont);
-            }
-            if (filters.kov_vizsg) {
-                query = query.where('kov_vizsg', '==', filters.kov_vizsg);
+            
+            // NOTE: Date filters are handled client-side below because the data is in a subcollection
+
+            // Determine if we need client-side handling (filtering OR sorting by date)
+            const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
+            const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
+            const useClientSideLogic = isDateFiltering || isDateSorting;
+
+            if (!useClientSideLogic) {
+                query = query.orderBy(currentSortField, currentSortDirection);
             }
 
-            query = query.orderBy(currentSortField, currentSortDirection);
+            let snapshot;
+            let devices = [];
 
-            if (direction === 'next' && lastVisibleDoc) {
-                query = query.startAfter(lastVisibleDoc);
-            } else if (direction === 'prev' && firstVisibleDoc) {
-                query = query.endBefore(firstVisibleDoc).limitToLast(itemsPerPage);
+            if (useClientSideLogic) {
+                // FETCH ALL for client-side filtering/sorting
+                snapshot = await query.get();
             } else {
-                query = query.limit(itemsPerPage);
+                // Standard Server-Side Pagination
+                if (direction === 'next' && lastVisibleDoc) {
+                    query = query.startAfter(lastVisibleDoc);
+                } else if (direction === 'prev' && firstVisibleDoc) {
+                    query = query.endBefore(firstVisibleDoc).limitToLast(itemsPerPage);
+                } else {
+                    query = query.limit(itemsPerPage);
+                }
+                snapshot = await query.get();
             }
 
-            const snapshot = await query.get();
-            const devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            let rawDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // ÚJ RÉSZ: Minden eszközhöz lekérem a legfrissebb vizsgálatot és a véglegesített jkv URL-t
-            const deviceDataPromises = devices.map(async (device) => {
-                // Legfrissebb vizsgálat (bármilyen státuszú)
+            // Fetch inspection data for ALL fetched devices
+            const deviceDataPromises = rawDevices.map(async (device) => {
+                // Latest inspection
                 const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
                     .collection('devices').doc(device.id)
                     .collection('inspections')
@@ -356,7 +368,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
                 }
 
-                // Legfrissebb VÉGLEGESÍTETT vizsgálat URL-jének lekérése
+                // Finalized inspection URL
                 const finalizedInspectionSnapshot = await db.collection('partners').doc(partnerId)
                     .collection('devices').doc(device.id)
                     .collection('inspections')
@@ -368,28 +380,70 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 if (!finalizedInspectionSnapshot.empty) {
                     device.finalizedFileUrl = finalizedInspectionSnapshot.docs[0].data().fileUrl;
                 }
+                return device;
             });
 
-            await Promise.all(deviceDataPromises);
-            
-            if (direction === 'prev') devices.reverse();
+            devices = await Promise.all(deviceDataPromises);
 
-            if (snapshot.docs.length > 0) {
-                firstVisibleDoc = snapshot.docs[0];
-                lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            // Client-Side Logic (Filtering & Sorting)
+            if (useClientSideLogic) {
+                // 1. Filtering
+                if (filters.vizsg_idopont) {
+                    devices = devices.filter(d => d.vizsg_idopont === filters.vizsg_idopont);
+                }
+                if (filters.kov_vizsg) {
+                    devices = devices.filter(d => d.kov_vizsg === filters.kov_vizsg);
+                }
+
+                // 2. Sorting
+                devices.sort((a, b) => {
+                    let valA = a[currentSortField] || '';
+                    let valB = b[currentSortField] || '';
+                    
+                    // Handle dates specifically if needed, but string comparison works for YYYY.MM.DD
+                    if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // 3. Pagination
+                const totalFiltered = devices.length;
+                
+                const maxPage = Math.ceil(totalFiltered / itemsPerPage) || 1;
+                if (currentPage > maxPage) currentPage = 1;
+
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                
+                const pagedDevices = devices.slice(startIndex, endIndex);
+                
+                renderTable(pagedDevices);
+                
+                paginationInfo.textContent = `Eredmények: ${totalFiltered > 0 ? startIndex + 1 : 0} - ${Math.min(endIndex, totalFiltered)} (Összesen: ${totalFiltered})`;
+                prevPageBtn.disabled = currentPage === 1;
+                nextPageBtn.disabled = endIndex >= totalFiltered;
+                
             } else {
-                if (direction === 'next') lastVisibleDoc = null;
-                if (direction === 'prev') firstVisibleDoc = null;
-            }
+                // Standard Server-Side Handling
+                if (direction === 'prev') devices.reverse();
 
-            renderTable(devices);
-            updatePagination(snapshot.size);
+                if (snapshot.docs.length > 0) {
+                    firstVisibleDoc = snapshot.docs[0];
+                    lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+                } else {
+                    if (direction === 'next') lastVisibleDoc = null;
+                    if (direction === 'prev') firstVisibleDoc = null;
+                }
+
+                renderTable(devices);
+                updatePagination(snapshot.size);
+            }
 
         } catch (error) {
             console.error("Hiba az eszközök lekérésekor:", error);
-            tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-red-400">Hiba történt az adatok betöltése közben.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-red-400">Hiba történt az adatok betöltése közben.</td></tr>`;
             if (error.code === 'failed-precondition') {
-                tableBody.innerHTML += `<tr><td colspan="8" class="text-center p-2 text-yellow-400 text-sm">Tipp: Hiányzó Firestore index. Kérjük, ellenőrizze a böngésző konzolját a létrehozási linkért.</td></tr>`;
+                tableBody.innerHTML += `<tr><td colspan="10" class="text-center p-2 text-yellow-400 text-sm">Tipp: Hiányzó Firestore index. Kérjük, ellenőrizze a böngésző konzolját a létrehozási linkért.</td></tr>`;
             }
         }
     }
@@ -847,15 +901,36 @@ export function initPartnerWorkScreen(partnerId, userData) {
         debouncedSearch(e.target.value.trim());
     });
 
-    vizsgIdopontInput.addEventListener('change', (e) => {
-        filters.vizsg_idopont = e.target.value;
-        resetAndFetch();
-    });
+    // Date formatting helper
+    const handleDateInput = (e, filterKey) => {
+        let input = e.target.value.replace(/\D/g, '').substring(0, 8); // Only numbers, max 8 digits
+        let formatted = '';
+        
+        if (input.length > 4) {
+            formatted += input.substring(0, 4) + '.';
+            if (input.length > 6) {
+                formatted += input.substring(4, 6) + '.' + input.substring(6);
+            } else {
+                formatted += input.substring(4);
+            }
+        } else {
+            formatted = input;
+        }
+        
+        e.target.value = formatted;
 
-    kovVizsgInput.addEventListener('change', (e) => {
-        filters.kov_vizsg = e.target.value;
-        resetAndFetch();
-    });
+        // Direct filtering with the formatted value (YYYY.MM.DD)
+        if (formatted.length === 10) {
+            filters[filterKey] = formatted;
+            resetAndFetch();
+        } else if (formatted.length === 0) {
+            filters[filterKey] = '';
+            resetAndFetch();
+        }
+    };
+
+    vizsgIdopontInput.addEventListener('input', (e) => handleDateInput(e, 'vizsg_idopont'));
+    kovVizsgInput.addEventListener('input', (e) => handleDateInput(e, 'kov_vizsg'));
 
     resetFiltersBtn.addEventListener('click', () => {
         searchInput.value = '';
