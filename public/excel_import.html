@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
@@ -62,70 +62,21 @@
                 <!-- Az Excel adatok itt jelennek meg táblázatként -->
             </div>
             
-            <div class="flex justify-center mt-8">
+            <div class="flex justify-center mt-8 space-x-4">
                 <button onclick="history.back()" class="btn btn-secondary">Vissza</button>
+                <button id="saveButton" class="btn btn-success hidden">Mentés az adatbázisba</button>
             </div>
         </div>
     </div>
 
-    <script>
-        document.getElementById('uploadButton').addEventListener('click', function() {
-            const fileInput = document.getElementById('excelFile');
-            const file = fileInput.files[0];
-            const excelDataContainer = document.getElementById('excelData');
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 
-            if (!file) {
-                alert("Kérjük, válasszon ki egy Excel fájlt!");
-                return;
-            }
-
-            const reader = new FileReader();
-
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-
-                const json_data = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-
-                if (json_data.length > 0) {
-                    let table = '<table id="excelDataTable" class="w-full text-sm text-left text-gray-400">';
-                    
-                    // Fejléc
-                    table += '<thead class="text-xs text-gray-300 uppercase bg-gray-700">';
-                    table += '<tr>';
-                    json_data[0].forEach(header => {
-                        table += `<th scope="col" class="px-6 py-3">${header}</th>`;
-                    });
-                    table += '</tr></thead>';
-                    
-                    // Adatsorok
-                    table += '<tbody>';
-                    for(let i = 1; i < json_data.length; i++) {
-                        table += '<tr class="border-b bg-gray-800 border-gray-700">';
-                        json_data[i].forEach(cell => {
-                            table += `<td class="px-6 py-4">${cell}</td>`;
-                        });
-                        table += '</tr>';
-                    }
-                    table += '</tbody></table>';
-
-                    excelDataContainer.innerHTML = table;
-                } else {
-                    excelDataContainer.innerHTML = '<p class="text-center text-red-500">Az Excel fájl üres vagy nem sikerült feldolgozni.</p>';
-                }
-            };
-
-            reader.onerror = function(ex) {
-                console.log(ex);
-                alert("Hiba történt a fájl olvasása közben.");
-            };
-
-            reader.readAsArrayBuffer(file);
-        });
-    </script>
+    <!-- App Scripts -->
+    <script type="module" src="js/excel_import.js"></script>
 
 </body>
 </html>
