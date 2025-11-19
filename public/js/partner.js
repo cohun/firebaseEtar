@@ -146,8 +146,23 @@ async function generateHash(data) {
  * Initializes the device list logic (state, event listeners, initial fetch).
  * @param {string} partnerId The ID of the partner whose devices to display.
  */
-export function initPartnerWorkScreen(partnerId) {
+export function initPartnerWorkScreen(partnerId, userData) {
+    console.log("initPartnerWorkScreen called", { partnerId, userData });
+    
+    // Robust handling for missing userData
+    const partnerRoles = (userData && userData.partnerRoles) ? userData.partnerRoles : {};
+    const role = partnerRoles[partnerId] || null;
+    const isEjkUser = (userData && userData.isEjkUser) || false;
+    
+    // Only restrict if explicitly read-only. Default to allowing edit to prevent locking out admins.
+    const isReadOnly = (role === 'read' && !isEjkUser);
+    
+    console.log("Permissions:", { role, isEjkUser, isReadOnly, userDataPresent: !!userData });
     window.editDevice = function(deviceId) {
+        if (isReadOnly) {
+            alert('Olvasási jogosultság esetén nem lehetséges adatot módosítani. Kérjük, forduljon a jogosultság osztójához.');
+            return;
+        }
         console.log(`Redirecting to edit device: ${deviceId} for partner: ${partnerId}`);
         sessionStorage.setItem('editDeviceId', deviceId);
         sessionStorage.setItem('partnerIdForEdit', partnerId);
@@ -1519,6 +1534,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                     <div>
                         <h1 class="text-lg xl:text-xl font-bold text-blue-300">${partner.name}</h1>
                         <p class="text-xs xl:text-sm text-gray-400">${partner.address}</p>
+                        ${(userData.isEjkUser === true || role === 'admin' || (userRoles && (userRoles.includes('admin') || userRoles.includes('EJK_admin')))) ? `<p class="text-xs xl:text-sm text-gray-400">ETAR kód: <span class="text-red-500 font-bold">${partner.etarCode || '-'}</span></p>` : ''}
                         <p class="text-xs xl:text-sm text-gray-400 mt-1">Bejelentkezve: ${userData.name || user.displayName || user.email} (${role || 'N/A'})</p>
                     </div>
                 </div>

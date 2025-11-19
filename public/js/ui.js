@@ -617,7 +617,7 @@ export function showPartnerSelectionScreen(partners, userData) {
     const partnerWorkScreen = document.getElementById('partnerWorkScreen');
     partnerWorkScreen.innerHTML = getPartnerWorkScreenHtml(partner, userData);
     showScreen('partnerWork');
-    initPartnerWorkScreen(partner.id); // ESZKÖZLISTA INICIALIZÁLÁSA
+    initPartnerWorkScreen(partner.id, userData); // ESZKÖZLISTA INICIALIZÁLÁSA
 
     const backToMain = () => {
         sessionStorage.removeItem('lastPartnerId');
