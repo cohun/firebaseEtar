@@ -2,14 +2,17 @@ import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
 import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection } from './admin.js';
 import { getPartnerWorkScreenHtml, initPartnerWorkScreen } from './partner.js';
+import { showStatisticsScreen } from './statistics.js';
 
-const screens = {
+export const screens = {
     loading: document.getElementById('loadingScreen'),
     login: document.getElementById('loginScreen'),
     main: document.getElementById('mainScreen'),
     permissionManagement: document.getElementById('permissionManagementScreen'),
     partnerSelection: document.getElementById('partnerSelectionScreen'),
+    partnerSelection: document.getElementById('partnerSelectionScreen'),
     partnerWork: document.getElementById('partnerWorkScreen'),
+    statistics: document.getElementById('statisticsScreen'),
 };
 
 export function showScreen(screenId) {
@@ -251,6 +254,9 @@ export async function showMainScreen(user, userData) {
         buttonsHtml += `<button id="partnerPortalBtn" class="btn btn-primary w-full">Partner portál</button>`;
     }
 
+    // Statistics button for everyone (functionality differs)
+    buttonsHtml += `<button id="statisticsBtn" class="btn btn-secondary w-full mt-2">Statisztikák</button>`;
+
     // "Add new company" buttons are always available for non-EJK users
     if (!isEjkUser) {
         buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Új céget regisztrálok</button>`;
@@ -331,6 +337,10 @@ export async function showMainScreen(user, userData) {
             }
         });
     }
+
+    document.getElementById('statisticsBtn').addEventListener('click', () => {
+        showStatisticsScreen(user, userData);
+    });
 
     if (!isEjkUser) {
         document.getElementById('registerAnotherCompanyBtn').addEventListener('click', () => {
