@@ -386,6 +386,21 @@ body.partner-mode-active {
 
 
 
+
+/* Custom class for the "yellow" text effect. */
+.text-yellow {
+    color: #facc15; /* Yellow-400 */
+    text-shadow: 0 0 5px #eab308;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.text-yellow:hover {
+    transform: scale(1.05);
+}
+
 .sort-arrows-container {
 
 

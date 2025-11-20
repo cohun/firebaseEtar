@@ -52,7 +52,7 @@ function getEszkozListaHtml() {
                         <button id="refresh-list-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-sync-alt fa-fw"></i> Lista frissítése</button>
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
-                        <button id="scan-chip-modal-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-expand fa-fw"></i> Digitális beolvasás</button>
+                        <button id="scan-chip-modal-btn" class="menu-btn text-glow w-full" style="background-color: #1f2937; border: 1px solid #3b82f6;"><i class="fas fa-expand fa-fw"></i> Digitális beolvasás</button>
                     </div>
                 </div>
             </div>
@@ -510,11 +510,20 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése">${qrCanvas}</a>`
                 : qrCanvas;
             
-            let chipButton = '';
-            if (dev.finalizedFileUrl) {
-                const chipClass = dev.chip ? 'text-glow' : 'text-hollow';
-                chipButton = `<div class="${chipClass}" style="font-size: 1.0rem;" onclick="toggleChip(this, '${dev.id}')">CHIP</div>`;
+            let chipClass = '';
+            let confirmMessage = '';
+            if (!dev.finalizedFileUrl) {
+                chipClass = 'text-hollow';
+                confirmMessage = 'Jegyzőkönyv még nem készült, Chip betanítás?';
+            } else if (!dev.chip) {
+                chipClass = 'text-yellow';
+                confirmMessage = 'Jegyzőkönyv kész, Chip betanítás?';
+            } else {
+                chipClass = 'text-glow';
+                confirmMessage = 'Már van hozzárendelt Chip, új betanítás?';
             }
+            
+            const chipButton = `<div class="${chipClass}" style="font-size: 1.0rem;" onclick="toggleChip(this, '${dev.id}', '${confirmMessage}')">CHIP</div>`;
 
             return `
             <tr class="hover:bg-gray-700/50">
@@ -538,8 +547,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
         generateQRCodes();
     }
 
-    window.toggleChip = async function(element, deviceId) {
-        if (confirm('Chip betanítás?')) {
+    window.toggleChip = async function(element, deviceId, confirmMessage) {
+        if (confirm(confirmMessage)) {
             await startNFCReader(element, deviceId); // Átadjuk az elemet a vizuális frissítéshez
         }
     }
@@ -592,7 +601,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             modalCloseBtn.onclick = () => {
                                 hideModal();
                                 if (element) {
-                                    element.classList.remove('text-hollow');
+                                    element.classList.remove('text-hollow', 'text-yellow');
                                     element.classList.add('text-glow');
                                 }
                             };
