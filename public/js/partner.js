@@ -387,12 +387,20 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
             // Client-Side Logic (Filtering & Sorting)
             if (useClientSideLogic) {
+                // Helper function to normalize dates (replace / and - with .)
+                const normalizeDate = (dateStr) => {
+                    if (!dateStr) return '';
+                    return dateStr.replace(/[\/\-]/g, '.');
+                };
+
                 // 1. Filtering
                 if (filters.vizsg_idopont) {
-                    devices = devices.filter(d => d.vizsg_idopont === filters.vizsg_idopont);
+                    const filterDate = normalizeDate(filters.vizsg_idopont);
+                    devices = devices.filter(d => normalizeDate(d.vizsg_idopont).includes(filterDate));
                 }
                 if (filters.kov_vizsg) {
-                    devices = devices.filter(d => d.kov_vizsg === filters.kov_vizsg);
+                    const filterDate = normalizeDate(filters.kov_vizsg);
+                    devices = devices.filter(d => normalizeDate(d.kov_vizsg).includes(filterDate));
                 }
 
                 // 2. Sorting
