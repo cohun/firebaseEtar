@@ -52,7 +52,7 @@ function getEszkozListaHtml() {
                         <button id="refresh-list-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-sync-alt fa-fw"></i> Lista frissítése</button>
                     </div>
                     <div class="flex-1" style="min-width: 120px;">
-                        <button id="scan-chip-modal-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-rss fa-fw"></i> Chip beolvasás</button>
+                        <button id="scan-chip-modal-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-expand fa-fw"></i> Digitális beolvasás</button>
                     </div>
                 </div>
             </div>
@@ -263,7 +263,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
     const scanChipModalBtn = document.getElementById('scan-chip-modal-btn');
 
     if(scanChipModalBtn) {
-        scanChipModalBtn.addEventListener('click', scanChipAndSearchDevice);
+        scanChipModalBtn.addEventListener('click', showDigitalScanSelectionModal);
     }
 
     const filterHamburgerBtn = document.getElementById('filter-hamburger-btn');
@@ -634,6 +634,169 @@ export function initPartnerWorkScreen(partnerId, userData) {
         }
     }
 
+    function showDigitalScanSelectionModal() {
+        const modal = document.getElementById('nfc-modal');
+        const modalTitle = document.getElementById('nfc-modal-title');
+        const modalBody = document.getElementById('nfc-modal-body');
+        const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+
+        const showModal = (title, bodyHtml, buttonText = 'Mégse') => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalCloseBtn.textContent = buttonText;
+            modal.style.display = 'flex';
+        };
+        const hideModal = () => {
+            modal.style.display = 'none';
+            // Stop QR scanner if running
+            if (window.html5QrCode) {
+                window.html5QrCode.stop().then(() => {
+                    window.html5QrCode.clear();
+                    delete window.html5QrCode;
+                }).catch(err => console.error("Failed to stop QR scanner", err));
+            }
+        };
+
+        modalCloseBtn.onclick = hideModal;
+
+        const selectionHtml = `
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <button id="start-nfc-scan-btn" class="flex flex-col items-center justify-center p-6 bg-gray-700 hover:bg-gray-600 rounded-lg border border-gray-600 transition-colors">
+                    <i class="fas fa-rss text-4xl text-blue-400 mb-3"></i>
+                    <span class="text-lg font-semibold text-white">Chip beolvasás</span>
+                    <span class="text-sm text-gray-400 text-center mt-1">NFC chip olvasása</span>
+                </button>
+                <button id="start-qr-scan-btn" class="flex flex-col items-center justify-center p-6 bg-gray-700 hover:bg-gray-600 rounded-lg border border-gray-600 transition-colors">
+                    <i class="fas fa-qrcode text-4xl text-green-400 mb-3"></i>
+                    <span class="text-lg font-semibold text-white">QR-kód beolvasás</span>
+                    <span class="text-sm text-gray-400 text-center mt-1">Kamera használata</span>
+                </button>
+            </div>
+        `;
+
+        showModal('Válasszon beolvasási módot', selectionHtml, 'Mégse');
+
+        // Attach listeners to the new buttons
+        setTimeout(() => {
+            const nfcBtn = document.getElementById('start-nfc-scan-btn');
+            const qrBtn = document.getElementById('start-qr-scan-btn');
+
+            if (nfcBtn) nfcBtn.onclick = scanChipAndSearchDevice;
+            if (qrBtn) qrBtn.onclick = startQRScanner;
+        }, 0);
+    }
+
+    async function handleScanResult(serialNumber, source = 'NFC') {
+        const modal = document.getElementById('nfc-modal');
+        const modalTitle = document.getElementById('nfc-modal-title');
+        const modalBody = document.getElementById('nfc-modal-body');
+        const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+
+        const showModal = (title, bodyHtml, buttonText = 'Mégse') => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalCloseBtn.textContent = buttonText;
+            modal.style.display = 'flex';
+        };
+        const hideModal = () => {
+            modal.style.display = 'none';
+        };
+
+        console.log(`> ${source} találat, sorozatszám: ${serialNumber}`);
+        
+        // If coming from QR, we might need to show the modal again as it might have been closed or repurposed
+        if (source === 'QR') {
+             showModal('Keresés...', '<div class="loader-small"></div><p class="mt-2">Eszköz keresése...</p>', '');
+        } else {
+             // Update existing modal content
+             modalTitle.textContent = 'Keresés...';
+             modalBody.innerHTML = '<div class="loader-small"></div><p class="mt-2">Eszköz keresése...</p>';
+        }
+
+        try {
+            let query = db.collection('partners').doc(partnerId).collection('devices');
+            
+            if (source === 'NFC') {
+                query = query.where('chip', '==', serialNumber);
+            } else {
+                query = query.where('serialNumber', '==', serialNumber);
+            }
+
+            const querySnapshot = await query.limit(1).get();
+
+            if (querySnapshot.empty) {
+                showModal('Nincs találat', `<p>Nem található eszköz a beolvasott adat (${serialNumber}) alapján.</p>`, 'OK');
+            } else {
+                const device = querySnapshot.docs[0].data();
+                const deviceSerialNumber = device.serialNumber;
+                
+                if (deviceSerialNumber) {
+                    showModal('Siker', `<p>Eszköz megtalálva. Gyári szám: ${deviceSerialNumber}. A lista szűrése folyamatban...</p>`, 'OK');
+                    searchInput.value = deviceSerialNumber;
+                    searchTerm = deviceSerialNumber;
+                    
+                    modalCloseBtn.onclick = () => {
+                        hideModal();
+                        resetAndFetch();
+                    };
+                    
+                    setTimeout(() => {
+                        hideModal();
+                        resetAndFetch();
+                    }, 2000);
+                } else {
+                    showModal('Hiba', '<p>Az eszközhöz tartozó gyári szám nem található az adatbázisban.</p>', 'OK');
+                }
+            }
+        } catch (error) {
+            console.error("Hiba az eszköz keresésekor:", error);
+            showModal('Keresési Hiba', `<p>Hiba történt az eszköz keresése közben. ${error.message}</p>`, 'Bezárás');
+        }
+    }
+
+    async function startQRScanner() {
+        const modalBody = document.getElementById('nfc-modal-body');
+        const modalTitle = document.getElementById('nfc-modal-title');
+        
+        modalTitle.textContent = 'QR-kód beolvasás';
+        modalBody.innerHTML = `
+            <div id="qr-reader" style="width: 100%;"></div>
+            <p class="text-sm text-gray-400 mt-2 text-center">Mutassa a QR-kódot a kamerának.</p>
+        `;
+
+        try {
+            const html5QrCode = new Html5Qrcode("qr-reader");
+            window.html5QrCode = html5QrCode; // Store globally to stop it later
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            await html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText, decodedResult) => {
+                    // Handle on success condition with the decoded message.
+                    console.log(`QR Code scanned: ${decodedText}`, decodedResult);
+                    
+                    // Stop scanning
+                    html5QrCode.stop().then(() => {
+                        window.html5QrCode.clear();
+                        delete window.html5QrCode;
+                        handleScanResult(decodedText, 'QR');
+                    }).catch(err => {
+                        console.error("Failed to stop QR scanner", err);
+                        handleScanResult(decodedText, 'QR');
+                    });
+                },
+                (errorMessage) => {
+                    // parse error, ignore it.
+                }
+            );
+        } catch (err) {
+            console.error("Error starting QR scanner", err);
+            modalBody.innerHTML = `<p class="text-red-400">Nem sikerült elindítani a kamerát. ${err}</p>`;
+        }
+    }
+
     async function scanChipAndSearchDevice() {
         const modal = document.getElementById('nfc-modal');
         const modalTitle = document.getElementById('nfc-modal-title');
@@ -664,42 +827,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
             const onReading = async ({ serialNumber: chipSerialNumber }) => {
                 if (readingHandled) return;
                 readingHandled = true;
-
-                console.log(`> NFC Tag olvasva, chip sorozatszám: ${chipSerialNumber}`);
-                showModal('Keresés...', '<div class="loader-small"></div><p class="mt-2">Eszköz keresése a chip alapján...</p>', '');
-
-                try {
-                    const querySnapshot = await db.collection('partners').doc(partnerId).collection('devices')
-                        .where('chip', '==', chipSerialNumber).limit(1).get();
-
-                    if (querySnapshot.empty) {
-                        showModal('Nincs találat', `<p>Nem található eszköz a beolvasott chip (${chipSerialNumber}) alapján.</p>`, 'OK');
-                    } else {
-                        const device = querySnapshot.docs[0].data();
-                        const deviceSerialNumber = device.serialNumber;
-                        
-                        if (deviceSerialNumber) {
-                            showModal('Siker', `<p>Eszköz megtalálva. Gyári szám: ${deviceSerialNumber}. A lista szűrése folyamatban...</p>`, 'OK');
-                            searchInput.value = deviceSerialNumber;
-                            searchTerm = deviceSerialNumber; // A keresési kifejezés manuális beállítása
-                            // A modal bezárása után szűrünk, hogy a user lássa az üzenetet
-                            modalCloseBtn.onclick = () => {
-                                hideModal();
-                                resetAndFetch();
-                            };
-                            // Automatikus bezárás és szűrés 2 másodperc után
-                            setTimeout(() => {
-                                hideModal();
-                                resetAndFetch();
-                            }, 2000);
-                        } else {
-                            showModal('Hiba', '<p>Az eszközhöz tartozó gyári szám nem található az adatbázisban.</p>', 'OK');
-                        }
-                    }
-                } catch (error) {
-                    console.error("Hiba az eszköz keresésekor a chip alapján:", error);
-                    showModal('Keresési Hiba', `<p>Hiba történt az eszköz keresése közben. ${error.message}</p>`, 'Bezárás');
-                }
+                handleScanResult(chipSerialNumber, 'NFC');
             };
 
             const onReadingError = (event) => {
