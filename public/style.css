@@ -446,3 +446,9 @@ body.partner-mode-active {
 
 
 
+
+/* Neon yellow highlight for draft rows */
+.row-highlight-yellow {
+    background-color: rgba(255, 255, 0, 0.5) !important; /* Stronger lemon yellow */
+    box-shadow: inset 0 0 15px rgba(255, 255, 0, 0.8);
+}

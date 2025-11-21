@@ -1480,10 +1480,16 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             </div>
                             <div>
                                 <label class="block text-sm">Vizsgálat eredménye</label>
-                                <select name="vizsgalat_eredmenye" class="input-field">
-                                    <option>Megfelelt</option>
-                                    <option>Nem felelt meg</option>
-                                </select>
+                                <div class="flex items-center gap-2">
+                                    <select name="vizsgalat_eredmenye" class="input-field flex-grow">
+                                        <option>Megfelelt</option>
+                                        <option>Nem felelt meg</option>
+                                    </select>
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="ajanlatKeresCheckbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        <label for="ajanlatKeresCheckbox" class="ml-2 text-sm text-gray-300 whitespace-nowrap">Ajánlat menjen?</label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm">Feltárt hiba</label>
@@ -1604,6 +1610,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             vizsgalatEredmenye: document.querySelector('[name="vizsgalat_eredmenye"]').value,
                             feltartHiba: document.querySelector('[name="feltart_hiba"]').value,
                             felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]').value,
+                            ajanlatKeres: document.getElementById('ajanlatKeresCheckbox').checked,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             createdBy: user.displayName || user.email,
                             status: 'draft' // Piszkozat állapot beállítása

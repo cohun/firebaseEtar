@@ -12,6 +12,26 @@ document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             console.log("User is signed in:", user.email);
+            
+            // Check user roles to adjust UI
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    const userRoles = userData.roles || [];
+                    
+                    // If user has EJK_read but NOT admin or write, hide dangerous buttons
+                    if (userRoles.includes('EJK_read') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+                        const deleteBtn = document.getElementById('deleteDraftsButton');
+                        const finalizeBtn = document.getElementById('finalizeDraftsButton');
+                        if (deleteBtn) deleteBtn.style.display = 'none';
+                        if (finalizeBtn) finalizeBtn.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching user roles:", error);
+            }
+
             tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">Piszkozatok betöltése...</td></tr>`;
 
             try {
@@ -146,7 +166,7 @@ function renderTable(drafts) {
     tableBody.innerHTML = drafts.map(draft => {
         const createdAt = draft.createdAt?.toDate().toLocaleString('hu-HU') || 'N/A';
         return `
-            <tr class="hover:bg-gray-700/50">
+            <tr class="hover:bg-gray-700/50 ${draft.ajanlatKeres ? 'row-highlight-yellow' : ''}">
                 <td class="relative px-6 py-4">
                     <input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${draft.id}">
                 </td>
@@ -177,7 +197,7 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
         const userData = userDoc.data();
         const userRoles = userData.roles || [];
 
-        if (!userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+        if (!userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
             alert('Ehhez a művelethez nincs jogosultsága!');
             return;
         }
