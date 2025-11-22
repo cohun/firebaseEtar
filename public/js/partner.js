@@ -1253,6 +1253,36 @@ export function initPartnerWorkScreen(partnerId, userData) {
             return;
         }
 
+        // 1. Open new tab immediately to avoid popup blockers (iPad fix)
+        const newTab = window.open('', '_blank');
+        if (!newTab) {
+            alert('A böngésző letiltotta a felugró ablakot. Kérjük, engedélyezze a felugró ablakokat az oldal számára.');
+            return;
+        }
+
+        // Initial loading state in the new tab
+        newTab.document.write(`
+            <!DOCTYPE html>
+            <html lang="hu">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Jegyzőkönyvek betöltése...</title>
+                <style>
+                    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f3f4f6; }
+                    .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    .message { margin-left: 15px; color: #374151; font-size: 1.1rem; }
+                </style>
+            </head>
+            <body>
+                <div class="loader"></div>
+                <div class="message">Jegyzőkönyvek előkészítése...</div>
+            </body>
+            </html>
+        `);
+        newTab.document.close();
+
         const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
         
         const originalButtonText = generateProtocolBtn.textContent;
@@ -1261,7 +1291,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         generateProtocolBtnMobile.disabled = true;
 
         try {
-            // 1. Get protocol URLs
+            // 2. Get protocol URLs
             const protocolUrls = [];
             const urlPromises = deviceIds.map(async (deviceId) => {
                 const snapshot = await db.collection('partners').doc(partnerId)
@@ -1283,10 +1313,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
             if (protocolUrls.length === 0) {
                 alert('A kiválasztott eszközök közül egyiknek sincs véglegesített jegyzőkönyve.');
-                return; // NOTE: The 'finally' block will still run to restore the button
+                newTab.close(); // Close the empty tab
+                return; 
             }
 
-            // 2. Fetch HTML content from each URL
+            // 3. Fetch HTML content from each URL
             const fetchPromises = protocolUrls.map(url => fetch(url).then(res => {
                 if (!res.ok) {
                     throw new Error(`Sikertelen letöltés: ${url} (${res.statusText})`);
@@ -1295,18 +1326,83 @@ export function initPartnerWorkScreen(partnerId, userData) {
             }));
             const htmlContents = await Promise.all(fetchPromises);
 
-            // 3. Combine HTML content with page breaks
-            const combinedHtml = htmlContents.join('<div style="page-break-after: always;"></div>');
+            // 4. Process content: Extract styles and body
+            let collectedStyles = '';
+            const cleanedContents = htmlContents.map(html => {
+                // Extract style tags
+                const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+                if (styleMatches) {
+                    collectedStyles += styleMatches.join('\n');
+                }
 
-            // 4. Open in new tab and write content
-            const newTab = window.open();
+                // Extract link tags (stylesheets) - though mostly we rely on Tailwind CDN now
+                const linkMatches = html.match(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi);
+                if (linkMatches) {
+                    // We might want to include these if they are not the main tailwind one, 
+                    // but for now let's rely on the injected Tailwind and collected inline styles.
+                    // collectedStyles += linkMatches.join('\n'); 
+                }
+
+                // Extract body content
+                const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+                return bodyMatch ? bodyMatch[1] : html;
+            });
+
+            const combinedHtml = cleanedContents.join('<div style="page-break-after: always; height: 20px;"></div>');
+
+            // 5. Write final content to the tab
             newTab.document.open();
-            newTab.document.write(combinedHtml);
+            newTab.document.write(`
+                <!DOCTYPE html>
+                <html lang="hu">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Jegyzőkönyvek</title>
+                    
+                    <!-- Tailwind CSS (Injected) -->
+                    <script src="https://cdn.tailwindcss.com"></script>
+                    <script>
+                        tailwind.config = {
+                            // Optional config if needed
+                        }
+                    </script>
+
+                    <!-- Collected Styles from Reports -->
+                    <style>
+                        ${collectedStyles}
+                    </style>
+
+                    <style>
+                        /* Basic reset and print styles */
+                        body { margin: 0; padding: 0; background: white; }
+                        @media print {
+                            @page { margin: 0; }
+                            body { margin: 1.6cm; }
+                        }
+                        /* Ensure images and content fit within viewport on mobile */
+                        img { max-width: 100%; height: auto; }
+                        table { max-width: 100%; }
+                        .page-content { 
+                            padding: 10px; 
+                            max-width: 900px; 
+                            margin: 0 auto; 
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="page-content">
+                        ${combinedHtml}
+                    </div>
+                </body>
+                </html>
+            `);
             newTab.document.close();
 
         } catch (error) {
             console.error("Hiba a jegyzőkönyvek lekérésekor vagy megjelenítésekor:", error);
             alert("Hiba történt a jegyzőkönyvek feldolgozása közben: " + error.message);
+            newTab.close(); // Close the tab on error
         } finally {
             generateProtocolBtn.innerHTML = originalButtonText;
             generateProtocolBtn.disabled = false;
