@@ -1,5 +1,5 @@
 import { auth, db } from './firebase.js';
-import { registerUser, registerNewCompany, joinCompanyWithCode } from './auth.js';
+import { registerUser, registerNewCompany, joinCompanyWithCode, sendPasswordReset } from './auth.js';
 import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection } from './admin.js';
 import { getPartnerWorkScreenHtml, initPartnerWorkScreen } from './partner.js';
 import { showStatisticsScreen } from './statistics.js';
@@ -51,6 +51,7 @@ export function showLoginScreen() {
             </form>
             <div class="mt-6 text-center">
                 <p class="text-gray-400">Nincs még fiókja? <button id="showRegistrationBtn" class="text-blue-400 hover:underline">Regisztráljon itt!</button></p>
+                <p class="mt-2"><button id="showForgotPasswordBtn" class="text-sm text-gray-500 hover:text-blue-300 transition-colors">Elfelejtette a jelszavát?</button></p>
             </div>
         </div>
     `;
@@ -74,6 +75,66 @@ export function showLoginScreen() {
 
     document.getElementById('showRegistrationBtn').addEventListener('click', () => {
         showRegistrationScreen();
+    });
+
+    document.getElementById('showForgotPasswordBtn').addEventListener('click', () => {
+        showForgotPasswordScreen();
+    });
+}
+
+export function showForgotPasswordScreen() {
+    const forgotPasswordHtml = `
+        <div class="card max-w-md mx-auto">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-6">Jelszó emlékeztető</h1>
+            <p class="mb-6 text-blue-300">Adja meg a regisztrált e-mail címét, és küldünk egy linket az új jelszó beállításához.</p>
+            <form id="forgotPasswordForm">
+                <div class="space-y-4">
+                    <input type="email" id="resetEmailInput" placeholder="E-mail cím" class="input-field" required>
+                </div>
+                <p id="resetError" class="text-red-400 text-sm mt-4 h-5"></p>
+                <p id="resetSuccess" class="text-green-400 text-sm mt-4 h-5"></p>
+                <button type="submit" class="btn btn-primary text-lg w-full mt-6">Küldés</button>
+            </form>
+            <div class="mt-6 text-center">
+                <button id="backToLoginFromResetBtn" class="text-blue-400 hover:underline">Vissza a bejelentkezéshez</button>
+            </div>
+        </div>
+    `;
+    screens.login.innerHTML = forgotPasswordHtml;
+
+    document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('resetEmailInput').value;
+        const errorP = document.getElementById('resetError');
+        const successP = document.getElementById('resetSuccess');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+
+        try {
+            errorP.textContent = '';
+            successP.textContent = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Küldés...';
+            
+            await sendPasswordReset(email);
+            
+            successP.textContent = "A jelszó-visszaállító emailt elküldtük!";
+            submitBtn.textContent = 'Elküldve';
+        } catch (error) {
+            console.error("Jelszó visszaállítási hiba:", error);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Küldés';
+            if (error.code === 'auth/user-not-found') {
+                errorP.textContent = "Nincs ilyen e-mail címmel regisztrált felhasználó.";
+            } else if (error.code === 'auth/invalid-email') {
+                errorP.textContent = "Érvénytelen e-mail cím formátum.";
+            } else {
+                errorP.textContent = "Hiba történt. Próbálja újra később.";
+            }
+        }
+    });
+
+    document.getElementById('backToLoginFromResetBtn').addEventListener('click', () => {
+        showLoginScreen();
     });
 }
 

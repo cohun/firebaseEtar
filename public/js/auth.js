@@ -148,6 +148,16 @@ export async function joinCompanyWithCode(etarCode) {
 }
 
 
+
+/**
+ * Sends a password reset email to the user.
+ * @param {string} email 
+ * @returns {Promise<void>}
+ */
+export async function sendPasswordReset(email) {
+    await auth.sendPasswordResetEmail(email);
+}
+
 /**
  * Kijelentkezteti a felhasználót.
  */
