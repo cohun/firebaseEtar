@@ -572,7 +572,50 @@ export function initPartnerWorkScreen(partnerId, userData) {
         modalCloseBtn.onclick = hideModal;
 
         if (!('NDEFReader' in window)) {
-            showModal('Hiba', '<p>A Web NFC API nem támogatott ezen a böngészőn, vagy a kapcsolat nem biztonságos (nem HTTPS).</p>', 'Bezárás');
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            let title = 'NFC Nem Támogatott';
+            let message = '';
+
+            if (isIOS) {
+                message = '<p class="text-gray-300">Az Apple biztonsági korlátozásai miatt az NFC chipek olvasása nem támogatott iPhone és iPad készülékeken böngészőn keresztül.</p>';
+            } else {
+                message = '<p class="text-gray-300">A Web NFC API nem támogatott ezen a böngészőn, vagy az oldal nem biztonságos kapcsolaton (HTTPS) keresztül töltődött be.</p>';
+            }
+
+            message += `
+                <div class="mt-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
+                    <p class="text-white font-medium mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Megoldás:</p>
+                    <p class="text-sm text-gray-300">Használja a <strong>QR-kód beolvasás</strong> funkciót, amely minden mobilkészüléken működik.</p>
+                </div>
+                <div class="mt-6 flex justify-center">
+                    <button id="error-switch-to-qr-btn" class="btn btn-primary w-full sm:w-auto">
+                        <i class="fas fa-qrcode mr-2"></i> Átváltás QR-kód olvasóra
+                    </button>
+                </div>
+            `;
+
+            showModal(title, message, 'Bezárás');
+
+            // Add event listener to the switch button
+            setTimeout(() => {
+                const switchBtn = document.getElementById('error-switch-to-qr-btn');
+                if (switchBtn) {
+                    switchBtn.onclick = () => {
+                        // Rebind close button to handle QR stop
+                        modalCloseBtn.onclick = () => {
+                            document.getElementById('nfc-modal').style.display = 'none';
+                            if (window.html5QrCode) {
+                                window.html5QrCode.stop().then(() => {
+                                    window.html5QrCode.clear();
+                                    delete window.html5QrCode;
+                                }).catch(err => console.error("Failed to stop QR scanner", err));
+                            }
+                        };
+                        startQRScanner();
+                    };
+                }
+            }, 50);
+
             return;
         }
 
