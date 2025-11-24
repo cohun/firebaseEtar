@@ -131,9 +131,10 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
  * @param {string} _templateName - The template name (unused, for compatibility).
  * @param {object[]} drafts - The array of selected draft objects.
  */
-export async function generateHtmlView(_templateName, drafts) {
+export async function generateHtmlView(targetWindow, drafts) {
     if (!drafts || drafts.length === 0) {
         alert("Nincsenek kiválasztott piszkozatok a megjelenítéshez.");
+        if (targetWindow) targetWindow.close();
         return;
     }
 
@@ -194,12 +195,26 @@ export async function generateHtmlView(_templateName, drafts) {
             allGeneratedHtml += finalHtml + '<div style="page-break-after: always;"></div>';
         }
 
-        const newWindow = window.open('', '_blank');
-        newWindow.document.write(allGeneratedHtml);
-        newWindow.document.close();
+        if (targetWindow) {
+            targetWindow.document.open();
+            targetWindow.document.write(allGeneratedHtml);
+            targetWindow.document.close();
+        } else {
+             // Fallback if no window provided (should not happen with new logic, but good for safety)
+            const newWindow = window.open('', '_blank');
+            if (newWindow) {
+                newWindow.document.write(allGeneratedHtml);
+                newWindow.document.close();
+            } else {
+                 alert("A böngésző letiltotta a felugró ablakot.");
+            }
+        }
 
     } catch (error) {
         console.error("Hiba a HTML előnézet generálása közben:", error);
+        if (targetWindow) {
+             targetWindow.document.body.innerHTML = `<div style="color:red; padding: 20px;">Hiba történt: ${error.message}</div>`;
+        }
         alert(`Hiba történt a HTML előnézet generálása közben: ${error.message}`);
     }
 }

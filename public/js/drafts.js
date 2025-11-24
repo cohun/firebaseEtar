@@ -212,8 +212,38 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
         const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
         const selectedDrafts = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
 
-        // Use the new HTML preview function directly, no template selection needed.
-        await generateHtmlView(null, selectedDrafts);
+        // 1. Open new tab immediately to avoid popup blockers (iPad fix)
+        const newTab = window.open('', '_blank');
+        if (!newTab) {
+            alert('A böngésző letiltotta a felugró ablakot. Kérjük, engedélyezze a felugró ablakokat az oldal számára.');
+            return;
+        }
+
+        // Initial loading state in the new tab
+        newTab.document.write(`
+            <!DOCTYPE html>
+            <html lang="hu">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Előnézet betöltése...</title>
+                <style>
+                    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f3f4f6; }
+                    .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    .message { margin-left: 15px; color: #374151; font-size: 1.1rem; }
+                </style>
+            </head>
+            <body>
+                <div class="loader"></div>
+                <div class="message">Előnézet generálása...</div>
+            </body>
+            </html>
+        `);
+        newTab.document.close();
+
+        // Use the new HTML preview function directly, passing the pre-opened window
+        await generateHtmlView(newTab, selectedDrafts);
     } catch (error) {
         console.error("Hiba a jogosultság-ellenőrzés vagy sablon betöltés közben:", error);
         alert("Hiba történt a művelet közben. Kérjük, próbálja újra később.");
