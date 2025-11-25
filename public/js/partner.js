@@ -571,126 +571,110 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
         modalCloseBtn.onclick = hideModal;
 
-        if (!('NDEFReader' in window)) {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            let title = 'NFC Nem Támogatott';
-            let message = '';
+        // --- HYBRID NFC LOGIC (Web NFC + Keyboard/USB Reader) ---
+        
+        // 1. Setup UI with hidden input for USB Reader
+        const modalContent = `
+            <p>Kérem, érintse a chipet a készülékhez (Android) vagy az USB olvasóhoz.</p>
+            <div class="loader-small my-4"></div>
+            <input type="text" id="nfc-usb-input" style="opacity: 0; position: absolute; pointer-events: none;" autocomplete="off">
+            <p class="text-xs text-gray-400 mt-2">USB olvasó esetén kattintson ide, ha nem aktív a beolvasás.</p>
+        `;
+        
+        showModal('Chip Betanítás...', modalContent, 'Mégse');
 
-            if (isIOS) {
-                message = '<p class="text-gray-300">Az Apple biztonsági korlátozásai miatt az NFC chipek olvasása nem támogatott iPhone és iPad készülékeken böngészőn keresztül.</p>';
-            } else {
-                message = '<p class="text-gray-300">A Web NFC API nem támogatott ezen a böngészőn, vagy az oldal nem biztonságos kapcsolaton (HTTPS) keresztül töltődött be.</p>';
-            }
-
-            message += `
-                <div class="mt-4 bg-gray-700 p-3 rounded-lg border border-gray-600">
-                    <p class="text-white font-medium mb-2"><i class="fas fa-lightbulb text-yellow-400 mr-2"></i>Megoldás:</p>
-                    <p class="text-sm text-gray-300">Használja a <strong>QR-kód beolvasás</strong> funkciót, amely minden mobilkészüléken működik.</p>
-                </div>
-                <div class="mt-6 flex justify-center">
-                    <button id="error-switch-to-qr-btn" class="btn btn-primary w-full sm:w-auto">
-                        <i class="fas fa-qrcode mr-2"></i> Átváltás QR-kód olvasóra
-                    </button>
-                </div>
-            `;
-
-            showModal(title, message, 'Bezárás');
-
-            // Add event listener to the switch button
-            setTimeout(() => {
-                const switchBtn = document.getElementById('error-switch-to-qr-btn');
-                if (switchBtn) {
-                    switchBtn.onclick = () => {
-                        // Rebind close button to handle QR stop
-                        modalCloseBtn.onclick = () => {
-                            document.getElementById('nfc-modal').style.display = 'none';
-                            if (window.html5QrCode) {
-                                window.html5QrCode.stop().then(() => {
-                                    window.html5QrCode.clear();
-                                    delete window.html5QrCode;
-                                }).catch(err => console.error("Failed to stop QR scanner", err));
-                            }
-                        };
-                        startQRScanner();
-                    };
+        const usbInput = document.getElementById('nfc-usb-input');
+        if (usbInput) {
+            usbInput.focus();
+            // Keep focus on the input
+            usbInput.addEventListener('blur', () => {
+                setTimeout(() => usbInput.focus(), 100);
+            });
+            
+            // Listen for Enter key (standard for USB readers)
+            usbInput.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    const chipId = usbInput.value.trim();
+                    if (chipId) {
+                        console.log(`> USB Reader Input: ${chipId}`);
+                        await processChipId(chipId);
+                    }
+                    usbInput.value = ''; // Clear for next scan if needed
                 }
-            }, 50);
-
-            return;
+            });
         }
 
-        try {
-            const ndef = new NDEFReader();
-            let readingHandled = false;
+        // Common function to process the ID (from either source)
+        const processChipId = async (serialNumber) => {
+             if (serialNumber && deviceId && partnerId) {
+                // Show saving state in modal
+                showModal('Mentés...', '<div class="loader-small"></div>', '');
 
-            const onReading = ({ message, serialNumber }) => {
-                if (readingHandled) return;
-                readingHandled = true;
-
-                console.log(`> NFC Tag olvasva, sorozatszám: ${serialNumber}`);
-
-                if (serialNumber && deviceId && partnerId) {
-                    // Show saving state in modal
-                    showModal('Mentés...', '<div class="loader-small"></div>', '');
-
-                    updateDeviceChipId(partnerId, deviceId, serialNumber)
-                        .then(() => {
-                            console.log('Chip ID successfully saved to Firestore.');
-                            const successHtml = `
-                                <p class="text-green-400 font-semibold">Sikeres beolvasás és mentés!</p>
-                                <p class="mt-1 text-sm">Hardveres sorozatszám: ${serialNumber || 'N/A'}</p>
-                            `;
-                            showModal('Sikeres Mentés', successHtml, 'OK');
-                            modalCloseBtn.onclick = () => {
-                                hideModal();
-                                if (element) {
-                                    element.classList.remove('text-hollow', 'text-yellow');
-                                    element.classList.add('text-glow');
-                                }
-                            };
-                        })
-                        .catch(err => {
-                            console.error('Failed to save Chip ID to Firestore.', err);
-                            const errorHtml = `
-                                <p class="text-red-400 font-semibold">Hiba a mentés során!</p>
-                                <p class="mt-1 text-sm">A chip beolvasása sikeres volt, de a mentés a szerverre nem sikerült. Kérjük, ellenőrizze a kapcsolatot és próbálja újra.</p>
-                                <p class="mt-2 text-xs text-gray-400">Hiba: ${err.message}</p>
-                            `;
-                            showModal('Mentési Hiba', errorHtml, 'Bezárás');
-                        });
-                } else {
-                    // Handle case where serialNumber, deviceId, or partnerId is missing
-                    const errorHtml = `<p class="text-red-400">Hiba: Hiányzó adatok a mentéshez (eszköz vagy partnerazonosító).</p>`;
-                    showModal('Hiba', errorHtml, 'Bezárás');
-                }
-            };
-
-            const onReadingError = (event) => {
-                if (readingHandled) return;
-                console.error("Hiba az NFC tag olvasása közben:", event);
-                showModal('Hiba', '<p>Hiba történt az NFC tag olvasása közben. Próbálja újra.</p>', 'Bezárás');
-            };
-
-            ndef.addEventListener("reading", onReading);
-            ndef.addEventListener("readingerror", onReadingError);
-
-            await ndef.scan();
-            
-            showModal(
-                'NFC Chip Olvasás',
-                '<p>Kérem, érintse a chipet a készülékhez.</p><div class="loader-small"></div>',
-                'Mégse'
-            );
-
-        } catch (error) {
-            console.error(`Hiba az NFC olvasó indításakor: ${error.name}`, error);
-            let userMessage = "Hiba az NFC olvasó indításakor.";
-            if (error.name === 'NotAllowedError') {
-                userMessage = 'Az NFC szkennelés nem lett engedélyezve a felhasználó által.';
-            } else if (error.name === 'NotFoundError') {
-                userMessage = 'Nem található NFC olvasó a készüléken.';
+                updateDeviceChipId(partnerId, deviceId, serialNumber)
+                    .then(() => {
+                        console.log('Chip ID successfully saved to Firestore.');
+                        const successHtml = `
+                            <p class="text-green-400 font-semibold">Sikeres beolvasás és mentés!</p>
+                            <p class="mt-1 text-sm">Chip ID: ${serialNumber || 'N/A'}</p>
+                        `;
+                        showModal('Sikeres Mentés', successHtml, 'OK');
+                        modalCloseBtn.onclick = () => {
+                            hideModal();
+                            if (element) {
+                                element.classList.remove('text-hollow', 'text-yellow');
+                                element.classList.add('text-glow');
+                                // Update the onclick handler to reflect the new state
+                                element.setAttribute('onclick', `toggleChip(this, '${deviceId}', 'Már van hozzárendelt Chip, új betanítás?')`);
+                            }
+                        };
+                    })
+                    .catch(err => {
+                        console.error('Failed to save Chip ID to Firestore.', err);
+                        const errorHtml = `
+                            <p class="text-red-400 font-semibold">Hiba a mentés során!</p>
+                            <p class="mt-1 text-sm">A chip beolvasása sikeres volt, de a mentés a szerverre nem sikerült. Kérjük, ellenőrizze a kapcsolatot és próbálja újra.</p>
+                            <p class="mt-2 text-xs text-gray-400">Hiba: ${err.message}</p>
+                        `;
+                        showModal('Mentési Hiba', errorHtml, 'Bezárás');
+                    });
+            } else {
+                // Handle case where serialNumber, deviceId, or partnerId is missing
+                const errorHtml = `<p class="text-red-400">Hiba: Hiányzó adatok a mentéshez (eszköz vagy partnerazonosító).</p>`;
+                showModal('Hiba', errorHtml, 'Bezárás');
             }
-            showModal('Hiba', `<p>${userMessage}</p>`, 'Bezárás');
+        };
+
+        // 2. Try Web NFC (Android)
+        if ('NDEFReader' in window) {
+            try {
+                const ndef = new NDEFReader();
+                let readingHandled = false;
+
+                const onReading = ({ serialNumber }) => {
+                    if (readingHandled) return;
+                    readingHandled = true;
+                    console.log(`> Web NFC Tag read: ${serialNumber}`);
+                    processChipId(serialNumber);
+                };
+
+                const onReadingError = (event) => {
+                    if (readingHandled) return;
+                    console.error("Hiba az NFC tag olvasása közben:", event);
+                    // Don't block the UI, just log it, as USB might still work
+                };
+
+                ndef.addEventListener("reading", onReading);
+                ndef.addEventListener("readingerror", onReadingError);
+
+                await ndef.scan();
+                console.log("> Web NFC scan started");
+
+            } catch (error) {
+                console.warn(`Web NFC init failed (falling back to USB only): ${error.name}`, error);
+                // We don't show an error modal here because we want to allow USB reading
+            }
+        } else {
+             console.log("Web NFC API not supported. Waiting for USB Reader input...");
         }
     }
 
@@ -828,7 +812,13 @@ export function initPartnerWorkScreen(partnerId, userData) {
             const html5QrCode = new Html5Qrcode("qr-reader");
             window.html5QrCode = html5QrCode; // Store globally to stop it later
 
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            const config = { 
+                fps: 15, 
+                qrbox: { width: 250, height: 250 },
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            };
             
             await html5QrCode.start(
                 { facingMode: "environment" },
@@ -875,47 +865,68 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
         modalCloseBtn.onclick = hideModal;
 
-        if (!('NDEFReader' in window)) {
-            showModal('Hiba', '<p>A Web NFC API nem támogatott ezen a böngészőn, vagy a kapcsolat nem biztonságos (nem HTTPS).</p>', 'Bezárás');
-            return;
+        // --- HYBRID NFC SEARCH LOGIC (Web NFC + Keyboard/USB Reader) ---
+
+        // 1. Setup UI with hidden input for USB Reader
+        const modalContent = `
+            <p>Kérem, érintse a chipet a készülékhez (Android) vagy az USB olvasóhoz.</p>
+            <div class="loader-small my-4"></div>
+            <input type="text" id="nfc-search-input" style="opacity: 0; position: absolute; pointer-events: none;" autocomplete="off">
+            <p class="text-xs text-gray-400 mt-2">USB olvasó esetén kattintson ide, ha nem aktív a beolvasás.</p>
+        `;
+
+        showModal('Chip Keresés...', modalContent, 'Mégse');
+
+        const searchInput = document.getElementById('nfc-search-input');
+        if (searchInput) {
+            searchInput.focus();
+            // Keep focus
+            searchInput.addEventListener('blur', () => {
+                setTimeout(() => searchInput.focus(), 100);
+            });
+
+            // Listen for Enter key
+            searchInput.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    const chipId = searchInput.value.trim();
+                    if (chipId) {
+                        console.log(`> USB Reader Search Input: ${chipId}`);
+                        handleScanResult(chipId, 'NFC');
+                    }
+                    searchInput.value = '';
+                }
+            });
         }
 
-        try {
-            const ndef = new NDEFReader();
-            let readingHandled = false;
+        // 2. Try Web NFC (Android)
+        if ('NDEFReader' in window) {
+            try {
+                const ndef = new NDEFReader();
+                let readingHandled = false;
 
-            const onReading = async ({ serialNumber: chipSerialNumber }) => {
-                if (readingHandled) return;
-                readingHandled = true;
-                handleScanResult(chipSerialNumber, 'NFC');
-            };
+                const onReading = async ({ serialNumber: chipSerialNumber }) => {
+                    if (readingHandled) return;
+                    readingHandled = true;
+                    console.log(`> Web NFC Search Tag: ${chipSerialNumber}`);
+                    handleScanResult(chipSerialNumber, 'NFC');
+                };
 
-            const onReadingError = (event) => {
-                if (readingHandled) return;
-                console.error("Hiba az NFC tag olvasása közben:", event);
-                showModal('Hiba', '<p>Hiba történt az NFC tag olvasása közben. Próbálja újra.</p>', 'Bezárás');
-            };
+                const onReadingError = (event) => {
+                    if (readingHandled) return;
+                    console.error("Hiba az NFC tag olvasása közben:", event);
+                };
 
-            ndef.addEventListener("reading", onReading);
-            ndef.addEventListener("readingerror", onReadingError);
+                ndef.addEventListener("reading", onReading);
+                ndef.addEventListener("readingerror", onReadingError);
 
-            await ndef.scan();
-            
-            showModal(
-                'NFC Chip Olvasás...',
-                '<p>Kérem, érintse a chipet a készülékhez.</p><div class="loader-small"></div>',
-                'Mégse'
-            );
+                await ndef.scan();
+                console.log("> Web NFC search scan started");
 
-        } catch (error) {
-            console.error(`Hiba az NFC olvasó indításakor: ${error.name}`, error);
-            let userMessage = "Hiba az NFC olvasó indításakor.";
-            if (error.name === 'NotAllowedError') {
-                userMessage = 'Az NFC szkennelés nem lett engedélyezve a felhasználó által.';
-            } else if (error.name === 'NotFoundError') {
-                userMessage = 'Nem található NFC olvasó a készüléken.';
+            } catch (error) {
+                console.warn(`Web NFC init failed (falling back to USB only): ${error.name}`, error);
             }
-            showModal('Hiba', `<p>${userMessage}</p>`, 'Bezárás');
+        } else {
+            console.log("Web NFC API not supported. Waiting for USB Reader input...");
         }
     }
 
@@ -929,8 +940,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     margin: 1,
                     errorCorrectionLevel: 'L',
                     color: {
-                        dark: '#e5e7eb', // gray-200
-                        light: '#00000000' // transparent
+                        dark: '#000000', // Black
+                        light: '#ffffff' // White
                     }
                 }, function (error) {
                     if (error) console.error('QR kód generálási hiba:', error);
