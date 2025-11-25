@@ -401,6 +401,19 @@ body.partner-mode-active {
     transform: scale(1.05);
 }
 
+/* Custom class for the "white filled" text effect. */
+.text-white-filled {
+    color: white;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.text-white-filled:hover {
+    transform: scale(1.05);
+}
+
 .sort-arrows-container {
 
 

@@ -512,15 +512,26 @@ export function initPartnerWorkScreen(partnerId, userData) {
             
             let chipClass = '';
             let confirmMessage = '';
-            if (!dev.finalizedFileUrl) {
+            
+            const hasChip = !!dev.chip;
+            const hasReport = !!dev.finalizedFileUrl;
+
+            if (!hasChip && !hasReport) {
+                // 1. Fehér átlátszó: nincs chip és jegyzőkönyv sincs
                 chipClass = 'text-hollow';
-                confirmMessage = 'Jegyzőkönyv még nem készült, Chip betanítás?';
-            } else if (!dev.chip) {
+                confirmMessage = 'Nincs se Chip, se jegyzőkönyv, új betanítás?';
+            } else if (!hasChip && hasReport) {
+                // 2. Fehér kitöltött: nincs chip, jegyzőkönyv van
+                chipClass = 'text-white-filled';
+                confirmMessage = 'Nincs Chip, van jegyzőkönyv, új betanítás?';
+            } else if (hasChip && !hasReport) {
+                // 3. Sárga: van chip, nincs jegyzőkönyv
                 chipClass = 'text-yellow';
-                confirmMessage = 'Jegyzőkönyv kész, Chip betanítás?';
+                confirmMessage = 'Már van hozzárendelt Chip, nincs jegyzőkönyv, új betanítás?';
             } else {
+                // 4. Lila (Glow): van chip, van jegyzőkönyv
                 chipClass = 'text-glow';
-                confirmMessage = 'Már van hozzárendelt Chip, új betanítás?';
+                confirmMessage = 'Már van hozzárendelt Chip és jegyzőkönyv, új betanítás?';
             }
             
             const chipButton = `<div class="${chipClass}" style="font-size: 1.0rem;" onclick="toggleChip(this, '${dev.id}', '${confirmMessage}')">CHIP</div>`;
@@ -775,19 +786,47 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 const deviceSerialNumber = device.serialNumber;
                 
                 if (deviceSerialNumber) {
-                    showModal('Siker', `<p>Eszköz megtalálva. Gyári szám: ${deviceSerialNumber}. A lista szűrése folyamatban...</p>`, 'OK');
-                    searchInput.value = deviceSerialNumber;
-                    searchTerm = deviceSerialNumber;
-                    
-                    modalCloseBtn.onclick = () => {
-                        hideModal();
-                        resetAndFetch();
-                    };
-                    
-                    setTimeout(() => {
-                        hideModal();
-                        resetAndFetch();
-                    }, 2000);
+                    const newInspectionScreen = document.getElementById('newInspectionScreen');
+                    const isNewInspectionActive = newInspectionScreen && newInspectionScreen.classList.contains('active');
+
+                    if (isNewInspectionActive) {
+                        showModal('Siker', `<p>Eszköz megtalálva. Gyári szám: ${deviceSerialNumber}. Adatok betöltése...</p>`, 'OK');
+                        
+                        const serialInput = document.getElementById('serialNumberInput');
+                        if (serialInput) {
+                            serialInput.value = deviceSerialNumber;
+                        }
+
+                        const triggerSearch = () => {
+                            const searchBtn = document.getElementById('searchDeviceBySerialBtn');
+                            if (searchBtn) searchBtn.click();
+                        };
+
+                        modalCloseBtn.onclick = () => {
+                            hideModal();
+                            triggerSearch();
+                        };
+
+                        setTimeout(() => {
+                            hideModal();
+                            triggerSearch();
+                        }, 1500);
+
+                    } else {
+                        showModal('Siker', `<p>Eszköz megtalálva. Gyári szám: ${deviceSerialNumber}. A lista szűrése folyamatban...</p>`, 'OK');
+                        searchInput.value = deviceSerialNumber;
+                        searchTerm = deviceSerialNumber;
+                        
+                        modalCloseBtn.onclick = () => {
+                            hideModal();
+                            resetAndFetch();
+                        };
+                        
+                        setTimeout(() => {
+                            hideModal();
+                            resetAndFetch();
+                        }, 2000);
+                    }
                 } else {
                     showModal('Hiba', '<p>Az eszközhöz tartozó gyári szám nem található az adatbázisban.</p>', 'OK');
                 }
@@ -799,9 +838,30 @@ export function initPartnerWorkScreen(partnerId, userData) {
     }
 
     async function startQRScanner() {
+        const modal = document.getElementById('nfc-modal');
         const modalBody = document.getElementById('nfc-modal-body');
         const modalTitle = document.getElementById('nfc-modal-title');
+        const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
         
+        // Ensure modal is visible
+        modal.style.display = 'flex';
+        
+        // Setup close button to stop scanner and hide modal
+        modalCloseBtn.onclick = () => {
+            if (window.html5QrCode) {
+                window.html5QrCode.stop().then(() => {
+                    window.html5QrCode.clear();
+                    delete window.html5QrCode;
+                    modal.style.display = 'none';
+                }).catch(err => {
+                    console.error("Failed to stop QR scanner", err);
+                    modal.style.display = 'none';
+                });
+            } else {
+                modal.style.display = 'none';
+            }
+        };
+
         modalTitle.textContent = 'QR-kód beolvasás';
         modalBody.innerHTML = `
             <div id="qr-reader" style="width: 100%;"></div>
@@ -1511,6 +1571,16 @@ export function initPartnerWorkScreen(partnerId, userData) {
         window.location.href = 'adatbevitel.html';
     }
 
+    const btnQrSearchNew = document.getElementById('btn-qr-search-start-new');
+    if (btnQrSearchNew) {
+        btnQrSearchNew.addEventListener('click', startQRScanner);
+    }
+
+    const btnNfcSearchNew = document.getElementById('btn-nfc-search-start-new');
+    if (btnNfcSearchNew) {
+        btnNfcSearchNew.addEventListener('click', scanChipAndSearchDevice);
+    }
+
     searchDeviceForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const serialNumber = serialNumberInput.value.trim();
@@ -1850,11 +1920,33 @@ function getNewInspectionScreenHtml() {
             </div>
 
             <h3 class="text-lg font-semibold mb-3">5. Eszköz keresése</h3>
-            <p class="mb-4 text-blue-300">Add meg a vizsgálandó eszköz gyári számát a meglévő adatok betöltéséhez.</p>
-            <form id="searchDeviceForm" class="flex flex-col sm:flex-row items-center gap-4 mb-6">
-                <input type="text" id="serialNumberInput" placeholder="Gyári szám..." class="input-field flex-grow" required>
-                <button id="searchDeviceBySerialBtn" class="btn btn-primary w-full sm:w-auto">Eszköz keresése</button>
-            </form>
+            
+            <div class="flex flex-col gap-4 mb-6">
+                <!-- Option 1: Manual -->
+                <div class="w-full">
+                    <label class="block text-sm text-gray-400 mb-1">1. Opció: Gyári szám megadása</label>
+                    <form id="searchDeviceForm" class="flex flex-col sm:flex-row items-center gap-4">
+                        <input type="text" id="serialNumberInput" placeholder="Gyári szám..." class="input-field flex-grow" required>
+                        <button id="searchDeviceBySerialBtn" class="btn btn-primary w-full sm:w-auto">Keresés</button>
+                    </form>
+                </div>
+
+                <div class="flex items-center justify-center text-gray-500 text-sm font-bold">- VAGY -</div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Option 2: QR -->
+                    <button type="button" id="btn-qr-search-start-new" class="flex items-center justify-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg border border-gray-600 transition-colors text-white">
+                        <i class="fas fa-qrcode text-green-400 text-xl"></i>
+                        <span>2. Opció: QR-kód beolvasása</span>
+                    </button>
+
+                    <!-- Option 3: NFC -->
+                    <button type="button" id="btn-nfc-search-start-new" class="flex items-center justify-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg border border-gray-600 transition-colors text-white">
+                        <i class="fas fa-rss text-blue-400 text-xl"></i>
+                        <span>3. Opció: NFC chip beolvasása</span>
+                    </button>
+                </div>
+            </div>
             <div id="deviceSearchResult" class="bg-blue-900/50 p-6 rounded-lg min-h-[8rem]">
                 <p class="text-gray-400">A keresés eredménye itt fog megjelenni.</p>
             </div>

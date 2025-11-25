@@ -99,6 +99,34 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    const excelReadButton = document.getElementById('excelReadButton');
+    if (excelReadButton) {
+        excelReadButton.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) {
+                alert('Nincs bejelentkezett felhasználó. Kérjük, jelentkezzen be!');
+                return;
+            }
+
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    if (userData.isEjkUser) {
+                        window.location.href = 'excel_import.html';
+                    } else {
+                        alert("Jelenleg ez a funkció csak H-ITB számára engedélyezett. Kérjük forduljon a H-ITB kapcsolattartójához, aki ezt a műveletet elvégzi Önnek!");
+                    }
+                } else {
+                    alert("Felhasználói adatok nem találhatók.");
+                }
+            } catch (error) {
+                console.error("Hiba a jogosultság ellenőrzésekor:", error);
+                alert("Hiba történt a jogosultság ellenőrzése közben.");
+            }
+        });
+    }
+
     saveButton.addEventListener('click', async function () {
         const user = auth.currentUser;
         if (!user) {
