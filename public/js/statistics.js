@@ -1,6 +1,7 @@
 import { db } from './firebase.js';
 import { showScreen, screens } from './ui.js';
 import { getPartnersForSelection } from './admin.js';
+import { showScheduler } from './scheduler.js';
 
 export async function showStatisticsScreen(user, userData) {
     // 1. Create screen element if it doesn't exist
@@ -47,11 +48,14 @@ export async function showStatisticsScreen(user, userData) {
                 expiredCount: 0,
                 noInspectionCount: 0,
                 monthlyExpirations: {}, // Key: "YYYY-MM", Value: { count: number, companies: Set<string> }
-                totalDevices: 0
+                totalDevices: 0,
+                devices: []
             };
 
             const devices = await Promise.all(devicesSnapshot.docs.map(async (doc) => {
                 const deviceData = doc.data();
+                deviceData.id = doc.id; // Add ID for persistence
+                
                 // Fetch latest inspection
                 const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
                     .collection('devices').doc(doc.id)
@@ -69,6 +73,7 @@ export async function showStatisticsScreen(user, userData) {
             }));
 
             stats.totalDevices = devices.length;
+            stats.devices = devices;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
@@ -165,7 +170,10 @@ function renderStatisticsUI(partnerStats, isEjkUser) {
         <div class="card max-w-5xl mx-auto relative">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-3xl font-bold">Statisztikák</h1>
-                <button id="backToMainFromStats" class="btn btn-secondary">Vissza</button>
+                <div class="flex gap-2">
+                    <button id="openSchedulerBtn" class="btn btn-primary hidden">Vizsgálati időpont egyeztetés</button>
+                    <button id="backToMainFromStats" class="btn btn-secondary">Vissza</button>
+                </div>
             </div>
             
             ${contentHtml}
@@ -176,7 +184,7 @@ function renderStatisticsUI(partnerStats, isEjkUser) {
     screens.statistics.innerHTML = html;
 
     document.getElementById('backToMainFromStats').addEventListener('click', () => {
-        window.location.reload();
+        showScreen('main');
     });
 
     // Modal Logic
@@ -273,8 +281,63 @@ function renderStatisticsUI(partnerStats, isEjkUser) {
 
     // Event Listener for Dropdown
     if (isEjkUser) {
-        document.getElementById('stats-partner-select').addEventListener('change', (e) => {
-            renderContent(e.target.value);
+        const partnerSelect = document.getElementById('stats-partner-select');
+        if (partnerSelect) {
+            partnerSelect.addEventListener('change', (e) => {
+                renderContent(e.target.value);
+            });
+        }
+    }
+
+    // Scheduler Button Logic
+    const schedulerBtn = document.getElementById('openSchedulerBtn');
+    if (schedulerBtn) {
+        // Show for everyone (ENY and EJK)
+        schedulerBtn.classList.remove('hidden');
+        schedulerBtn.addEventListener('click', () => {
+            // Collect all devices from all stats
+            let allDevices = [];
+            let partnerName = "Saját eszközök";
+            let isAggregate = false;
+            let partnerId = 'unknown';
+            
+            if (isEjkUser) {
+                // For EJK, check if a specific partner is selected
+                const partnerSelect = document.getElementById('stats-partner-select');
+                const selectedPartnerId = partnerSelect ? partnerSelect.value : 'all';
+                
+                if (selectedPartnerId === 'all') {
+                    isAggregate = true;
+                    partnerName = "Összes Partner (Összesítő)";
+                    partnerStats.forEach(stat => {
+                        if (stat.devices) {
+                            // Add partnerName to each device for breakdown
+                            const devicesWithPartner = stat.devices.map(d => ({...d, partnerName: stat.partnerName}));
+                            allDevices = allDevices.concat(devicesWithPartner);
+                        }
+                    });
+                } else {
+                    const selectedStat = partnerStats.find(p => p.partnerId === selectedPartnerId);
+                    if (selectedStat) {
+                        partnerName = selectedStat.partnerName;
+                        partnerId = selectedStat.partnerId;
+                        allDevices = selectedStat.devices || [];
+                    }
+                }
+            } else {
+                // ENY Logic
+                if (partnerStats.length === 1) {
+                    partnerName = partnerStats[0].partnerName;
+                    partnerId = partnerStats[0].partnerId;
+                }
+                partnerStats.forEach(stat => {
+                    if (stat.devices) {
+                        allDevices = allDevices.concat(stat.devices);
+                    }
+                });
+            }
+
+            showScheduler(partnerId, partnerName, allDevices, isEjkUser, isAggregate);
         });
     }
 }
