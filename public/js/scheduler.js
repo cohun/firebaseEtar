@@ -11,6 +11,13 @@ let isEjkUserGlobal = false;
 let isAggregateGlobal = false;
 let currentPartnerId = null;
 let unsubscribe = null;
+let showK = true;
+let showB = true;
+
+function isK(device) {
+    const name = device.szakerto;
+    return name === 'Gerőly Iván' || name === 'Szadlon Norbert';
+}
 
 export function showScheduler(partnerId, partnerName, devices, isEjkUser = false, isAggregate = false) {
     currentDevices = devices;
@@ -20,6 +27,8 @@ export function showScheduler(partnerId, partnerName, devices, isEjkUser = false
     currentPartnerId = partnerId;
     moves = {}; // Reset moves
     parkingEvents = new Set(); // Reset parking
+    showK = true; // Reset filters
+    showB = true;
     
     // Sync moves from devices (if they have appointment_proposal)
     syncMovesFromDevices();
@@ -105,6 +114,18 @@ function renderSchedulerUI() {
                         ${isEjkUserGlobal ? 'EJK Nézet' : 'Partner Nézet'} 
                         ${isAggregateGlobal ? '(Összesített - Csak olvasás)' : ''}
                     </p>
+                    ${isEjkUserGlobal ? `
+                    <div class="mt-2 flex gap-3 text-xs text-gray-300">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="filterK" class="form-checkbox h-3 w-3 text-blue-500 rounded focus:ring-0" ${showK ? 'checked' : ''}>
+                            <span class="ml-1">K (Gerőly/Szadlon)</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="filterB" class="form-checkbox h-3 w-3 text-blue-500 rounded focus:ring-0" ${showB ? 'checked' : ''}>
+                            <span class="ml-1">B (Nagy/Bagyinszki)</span>
+                        </label>
+                    </div>
+                    ` : ''}
                 </div>
 
                 <!-- Parking Zone -->
@@ -174,6 +195,18 @@ function renderSchedulerUI() {
         renderSchedulerUI();
     });
 
+    if (isEjkUserGlobal) {
+        document.getElementById('filterK').addEventListener('change', (e) => {
+            showK = e.target.checked;
+            renderSchedulerUI();
+        });
+
+        document.getElementById('filterB').addEventListener('change', (e) => {
+            showB = e.target.checked;
+            renderSchedulerUI();
+        });
+    }
+
     if (!isAggregateGlobal) {
         addDragAndDropListeners();
     }
@@ -182,13 +215,36 @@ function renderSchedulerUI() {
 function generateParkingContent() {
     let html = '';
     parkingEvents.forEach(originDate => {
-        const count = currentDevices.filter(d => d.kov_vizsg && d.kov_vizsg.replace(/\./g, '-') === originDate).length;
-        html += `
-            <div class="bg-blue-600 text-white text-[10px] p-1 rounded cursor-move draggable-event shadow-sm flex items-center gap-1" draggable="${!isAggregateGlobal}" data-origin-date="${originDate}" data-from-parking="true">
-                <span>${originDate}</span>
-                <span class="font-bold bg-blue-800 px-1 rounded-full">${count}</span>
-            </div>
-        `;
+        const devices = currentDevices.filter(d => d.kov_vizsg && d.kov_vizsg.replace(/\./g, '-') === originDate);
+        
+        if (isEjkUserGlobal) {
+            const kDevices = devices.filter(d => isK(d));
+            const bDevices = devices.filter(d => !isK(d));
+
+            const renderParkingBrick = (devs, type) => {
+                if (devs.length === 0) return '';
+                return `
+                    <div class="bg-blue-600 text-white text-[10px] p-1 rounded cursor-move draggable-event shadow-sm flex items-center justify-between gap-2 min-w-[80px]" draggable="${!isAggregateGlobal}" data-origin-date="${originDate}" data-from-parking="true">
+                        <span>${originDate}</span>
+                        <div class="flex items-center">
+                            <span class="font-bold">${devs.length}</span>
+                            <span class="ml-1 pl-1 border-l border-white/30 font-bold">${type}</span>
+                        </div>
+                    </div>
+                `;
+            };
+
+            if (showK) html += renderParkingBrick(kDevices, 'K');
+            if (showB) html += renderParkingBrick(bDevices, 'B');
+        } else {
+            // Original View for non-EJK
+             html += `
+                <div class="bg-blue-600 text-white text-[10px] p-1 rounded cursor-move draggable-event shadow-sm flex items-center gap-1" draggable="${!isAggregateGlobal}" data-origin-date="${originDate}" data-from-parking="true">
+                    <span>${originDate}</span>
+                    <span class="font-bold bg-blue-800 px-1 rounded-full">${devices.length}</span>
+                </div>
+            `;
+        }
     });
     return html;
 }
@@ -242,25 +298,56 @@ function getEventsForDate(dateStr) {
     });
 
     if (expiringDevices.length > 0) {
-        // Check if this date has been moved FROM
-        if (moves[dateStr] || parkingEvents.has(dateStr)) {
-            // It was moved to somewhere else OR is in parking -> Show as faded/strikethrough
-            let title = "Átmeneti tárolóban";
-            if (moves[dateStr]) {
-                title = `Áthelyezve ide: ${moves[dateStr].targetDate}`;
-            }
-            html += `
-                <div class="bg-blue-900/30 text-blue-500 text-xs p-1 rounded border border-blue-900/50 line-through opacity-50 cursor-not-allowed" title="${title}">
-                    ${expiringDevices.length} db lejárat
-                </div>
-            `;
+        if (isEjkUserGlobal) {
+            // Split into K and B
+            const kDevices = expiringDevices.filter(d => isK(d));
+            const bDevices = expiringDevices.filter(d => !isK(d));
+
+            const renderBrick = (devices, type) => {
+                if (devices.length === 0) return '';
+                
+                if (moves[dateStr] || parkingEvents.has(dateStr)) {
+                    let title = "Átmeneti tárolóban";
+                    if (moves[dateStr]) {
+                        title = `Áthelyezve ide: ${moves[dateStr].targetDate}`;
+                    }
+                    return `
+                        <div class="bg-blue-900/30 text-blue-500 text-xs p-1 rounded border border-blue-900/50 line-through opacity-50 cursor-not-allowed mb-1 flex justify-between items-center" title="${title}">
+                            <span>${devices.length} db lejárat</span>
+                            <span class="font-bold border-l border-blue-500/30 pl-1 ml-1">${type}</span>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="bg-blue-600 text-white text-xs p-1 rounded cursor-move draggable-event shadow-sm mb-1 flex justify-between items-center" draggable="${!isAggregateGlobal}" data-origin-date="${dateStr}">
+                            <span>${devices.length} db lejárat</span>
+                            <span class="font-bold border-l border-white/30 pl-1 ml-1">${type}</span>
+                        </div>
+                    `;
+                }
+            };
+
+            if (showK) html += renderBrick(kDevices, 'K');
+            if (showB) html += renderBrick(bDevices, 'B');
         } else {
-            // Normal active expiration -> Draggable
-            html += `
-                <div class="bg-blue-600 text-white text-xs p-1 rounded cursor-move draggable-event shadow-sm" draggable="${!isAggregateGlobal}" data-origin-date="${dateStr}">
-                    ${expiringDevices.length} db lejárat
-                </div>
-            `;
+            // Original View for non-EJK
+            if (moves[dateStr] || parkingEvents.has(dateStr)) {
+                let title = "Átmeneti tárolóban";
+                if (moves[dateStr]) {
+                    title = `Áthelyezve ide: ${moves[dateStr].targetDate}`;
+                }
+                html += `
+                    <div class="bg-blue-900/30 text-blue-500 text-xs p-1 rounded border border-blue-900/50 line-through opacity-50 cursor-not-allowed" title="${title}">
+                        ${expiringDevices.length} db lejárat
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="bg-blue-600 text-white text-xs p-1 rounded cursor-move draggable-event shadow-sm" draggable="${!isAggregateGlobal}" data-origin-date="${dateStr}">
+                        ${expiringDevices.length} db lejárat
+                    </div>
+                `;
+            }
         }
     }
 
@@ -270,37 +357,77 @@ function getEventsForDate(dateStr) {
     
     movedFromDates.forEach(originDate => {
         const move = moves[originDate];
-        const count = currentDevices.filter(d => d.kov_vizsg && d.kov_vizsg.replace(/\./g, '-') === originDate).length;
+        const allMovedDevices = currentDevices.filter(d => d.kov_vizsg && d.kov_vizsg.replace(/\./g, '-') === originDate);
         
-        // Determine Color and Label based on Initiator and Status
-        let bgClass = 'bg-yellow-600 border-yellow-400'; // Default ENY Pending
-        let label = 'Partner Tervezett';
-        
-        if (move.status === 'accepted') {
-            bgClass = 'bg-green-700 border-green-500';
-            label = 'Elfogadva';
-        } else if (move.initiator === 'EJK') {
-            bgClass = 'bg-green-500 border-green-300';
-            label = 'EJK Tervezett';
-        }
+        if (isEjkUserGlobal) {
+            const kMoved = allMovedDevices.filter(d => isK(d));
+            const bMoved = allMovedDevices.filter(d => !isK(d));
 
-        let clickAction = `onclick="handleClickOnMove('${originDate}', event)"`;
-        let dragAttrs = '';
-        let cursorClass = 'cursor-pointer';
+            const renderMovedBrick = (devices, type) => {
+                if (devices.length === 0) return '';
 
-        if (isAggregateGlobal) {
-            clickAction = ''; // Handled by parent container click
+                let bgClass = 'bg-yellow-600 border-yellow-400';
+                let label = 'Partner Tervezett';
+                
+                if (move.status === 'accepted') {
+                    bgClass = 'bg-green-700 border-green-500';
+                    label = 'Elfogadva';
+                } else if (move.initiator === 'EJK') {
+                    bgClass = 'bg-green-500 border-green-300';
+                    label = 'EJK Tervezett';
+                }
+
+                let clickAction = `onclick="handleClickOnMove('${originDate}', event)"`;
+                let dragAttrs = '';
+                let cursorClass = 'cursor-pointer';
+
+                if (isAggregateGlobal) {
+                    clickAction = ''; 
+                } else {
+                    dragAttrs = `draggable="true" data-origin-date="${originDate}"`;
+                    cursorClass += ' draggable-event cursor-move';
+                }
+
+                return `
+                    <div class="${bgClass} text-white text-xs p-1 rounded border shadow-sm ${cursorClass} mb-1 flex justify-between items-center" title="Eredeti dátum: ${originDate} (${label})" ${clickAction} ${dragAttrs}>
+                        <span>${devices.length} db (${label})</span>
+                        <span class="font-bold border-l border-white/30 pl-1 ml-1">${type}</span>
+                    </div>
+                `;
+            };
+
+            if (showK) html += renderMovedBrick(kMoved, 'K');
+            if (showB) html += renderMovedBrick(bMoved, 'B');
         } else {
-            // Enable dragging for proposed events to allow moving them again
-            dragAttrs = `draggable="true" data-origin-date="${originDate}"`;
-            cursorClass += ' draggable-event cursor-move';
-        }
+             // Original View for non-EJK
+            let bgClass = 'bg-yellow-600 border-yellow-400';
+            let label = 'Partner Tervezett';
+            
+            if (move.status === 'accepted') {
+                bgClass = 'bg-green-700 border-green-500';
+                label = 'Elfogadva';
+            } else if (move.initiator === 'EJK') {
+                bgClass = 'bg-green-500 border-green-300';
+                label = 'EJK Tervezett';
+            }
 
-        html += `
-            <div class="${bgClass} text-white text-xs p-1 rounded border shadow-sm ${cursorClass}" title="Eredeti dátum: ${originDate} (${label})" ${clickAction} ${dragAttrs}>
-                ${count} db (${label})
-            </div>
-        `;
+            let clickAction = `onclick="handleClickOnMove('${originDate}', event)"`;
+            let dragAttrs = '';
+            let cursorClass = 'cursor-pointer';
+
+            if (isAggregateGlobal) {
+                clickAction = ''; 
+            } else {
+                dragAttrs = `draggable="true" data-origin-date="${originDate}"`;
+                cursorClass += ' draggable-event cursor-move';
+            }
+
+            html += `
+                <div class="${bgClass} text-white text-xs p-1 rounded border shadow-sm ${cursorClass}" title="Eredeti dátum: ${originDate} (${label})" ${clickAction} ${dragAttrs}>
+                    ${allMovedDevices.length} db (${label})
+                </div>
+            `;
+        }
     });
 
     return html;

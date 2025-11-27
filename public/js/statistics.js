@@ -67,6 +67,7 @@ export async function showStatisticsScreen(user, userData) {
                 if (!latestInspectionSnapshot.empty) {
                     const latestInspection = latestInspectionSnapshot.docs[0].data();
                     deviceData.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                    deviceData.szakerto = latestInspection.szakerto;
                 }
                 
                 return deviceData;
