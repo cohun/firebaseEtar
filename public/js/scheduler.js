@@ -9,6 +9,7 @@ let parkingEvents = new Set(); // Set of originalDate (YYYY-MM-DD) currently in 
 let partnerNameStr = '';
 let isEjkUserGlobal = false;
 let isAggregateGlobal = false;
+let isReadOnlyGlobal = false;
 let currentPartnerId = null;
 let unsubscribe = null;
 let showK = true;
@@ -19,11 +20,12 @@ function isK(device) {
     return name === 'Gerőly Iván' || name === 'Szadlon Norbert';
 }
 
-export function showScheduler(partnerId, partnerName, devices, isEjkUser = false, isAggregate = false) {
+export function showScheduler(partnerId, partnerName, devices, isEjkUser = false, isAggregate = false, isReadOnly = false) {
     currentDevices = devices;
     partnerNameStr = partnerName;
     isEjkUserGlobal = isEjkUser;
     isAggregateGlobal = isAggregate;
+    isReadOnlyGlobal = isReadOnly;
     currentPartnerId = partnerId;
     moves = {}; // Reset moves
     parkingEvents = new Set(); // Reset parking
@@ -111,8 +113,10 @@ function renderSchedulerUI() {
                     <h2 class="text-xl font-bold text-white">Időpont egyeztetés</h2>
                     <p class="text-blue-400 text-sm">${partnerNameStr}</p>
                     <p class="text-gray-500 text-xs mt-1">
+                    <p class="text-gray-500 text-xs mt-1">
                         ${isEjkUserGlobal ? 'EJK Nézet' : 'Partner Nézet'} 
                         ${isAggregateGlobal ? '(Összesített - Csak olvasás)' : ''}
+                        ${isReadOnlyGlobal && !isAggregateGlobal ? '(Csak olvasás)' : ''}
                     </p>
                     ${isEjkUserGlobal ? `
                     <div class="mt-2 flex gap-3 text-xs text-gray-300">
@@ -207,7 +211,7 @@ function renderSchedulerUI() {
         });
     }
 
-    if (!isAggregateGlobal) {
+    if (!isAggregateGlobal && !isReadOnlyGlobal) {
         addDragAndDropListeners();
     }
 }
@@ -224,7 +228,7 @@ function generateParkingContent() {
             const renderParkingBrick = (devs, type) => {
                 if (devs.length === 0) return '';
                 return `
-                    <div class="bg-blue-600 text-white text-[10px] p-1 rounded cursor-move draggable-event shadow-sm flex items-center justify-between gap-2 min-w-[80px]" draggable="${!isAggregateGlobal}" data-origin-date="${originDate}" data-from-parking="true">
+                    <div class="bg-blue-600 text-white text-[10px] p-1 rounded ${!isReadOnlyGlobal ? 'cursor-move draggable-event' : 'cursor-default'} shadow-sm flex items-center justify-between gap-2 min-w-[80px]" draggable="${!isAggregateGlobal && !isReadOnlyGlobal}" data-origin-date="${originDate}" data-from-parking="true">
                         <span>${originDate}</span>
                         <div class="flex items-center">
                             <span class="font-bold">${devs.length}</span>
@@ -239,7 +243,7 @@ function generateParkingContent() {
         } else {
             // Original View for non-EJK
              html += `
-                <div class="bg-blue-600 text-white text-[10px] p-1 rounded cursor-move draggable-event shadow-sm flex items-center gap-1" draggable="${!isAggregateGlobal}" data-origin-date="${originDate}" data-from-parking="true">
+                <div class="bg-blue-600 text-white text-[10px] p-1 rounded ${!isReadOnlyGlobal ? 'cursor-move draggable-event' : 'cursor-default'} shadow-sm flex items-center gap-1" draggable="${!isAggregateGlobal && !isReadOnlyGlobal}" data-origin-date="${originDate}" data-from-parking="true">
                     <span>${originDate}</span>
                     <span class="font-bold bg-blue-800 px-1 rounded-full">${devices.length}</span>
                 </div>
@@ -319,7 +323,7 @@ function getEventsForDate(dateStr) {
                     `;
                 } else {
                     return `
-                        <div class="bg-blue-600 text-white text-xs p-1 rounded cursor-move draggable-event shadow-sm mb-1 flex justify-between items-center" draggable="${!isAggregateGlobal}" data-origin-date="${dateStr}">
+                        <div class="bg-blue-600 text-white text-xs p-1 rounded ${!isReadOnlyGlobal ? 'cursor-move draggable-event' : 'cursor-default'} shadow-sm mb-1 flex justify-between items-center" draggable="${!isAggregateGlobal && !isReadOnlyGlobal}" data-origin-date="${dateStr}">
                             <span>${devices.length} db lejárat</span>
                             <span class="font-bold border-l border-white/30 pl-1 ml-1">${type}</span>
                         </div>
@@ -343,7 +347,7 @@ function getEventsForDate(dateStr) {
                 `;
             } else {
                 html += `
-                    <div class="bg-blue-600 text-white text-xs p-1 rounded cursor-move draggable-event shadow-sm" draggable="${!isAggregateGlobal}" data-origin-date="${dateStr}">
+                    <div class="bg-blue-600 text-white text-xs p-1 rounded ${!isReadOnlyGlobal ? 'cursor-move draggable-event' : 'cursor-default'} shadow-sm" draggable="${!isAggregateGlobal && !isReadOnlyGlobal}" data-origin-date="${dateStr}">
                         ${expiringDevices.length} db lejárat
                     </div>
                 `;
@@ -381,8 +385,9 @@ function getEventsForDate(dateStr) {
                 let dragAttrs = '';
                 let cursorClass = 'cursor-pointer';
 
-                if (isAggregateGlobal) {
+                if (isAggregateGlobal || isReadOnlyGlobal) {
                     clickAction = ''; 
+                    cursorClass = 'cursor-default';
                 } else {
                     dragAttrs = `draggable="true" data-origin-date="${originDate}"`;
                     cursorClass += ' draggable-event cursor-move';
@@ -415,8 +420,9 @@ function getEventsForDate(dateStr) {
             let dragAttrs = '';
             let cursorClass = 'cursor-pointer';
 
-            if (isAggregateGlobal) {
+            if (isAggregateGlobal || isReadOnlyGlobal) {
                 clickAction = ''; 
+                cursorClass = 'cursor-default';
             } else {
                 dragAttrs = `draggable="true" data-origin-date="${originDate}"`;
                 cursorClass += ' draggable-event cursor-move';

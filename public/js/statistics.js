@@ -110,7 +110,7 @@ export async function showStatisticsScreen(user, userData) {
         }));
 
         // 5. Render UI
-        renderStatisticsUI(partnerStats, userData.isEjkUser);
+        renderStatisticsUI(partnerStats, userData);
 
     } catch (error) {
         console.error("Hiba a statisztikák betöltésekor:", error);
@@ -127,7 +127,8 @@ export async function showStatisticsScreen(user, userData) {
     }
 }
 
-function renderStatisticsUI(partnerStats, isEjkUser) {
+function renderStatisticsUI(partnerStats, userData) {
+    const isEjkUser = userData.isEjkUser;
     // Sort partners alphabetically
     partnerStats.sort((a, b) => a.partnerName.localeCompare(b.partnerName));
 
@@ -338,7 +339,20 @@ function renderStatisticsUI(partnerStats, isEjkUser) {
                 });
             }
 
-            showScheduler(partnerId, partnerName, allDevices, isEjkUser, isAggregate);
+            let isReadOnly = false;
+            if (isEjkUser) {
+                // Check roles array for EJK read access
+                if (userData.roles && (userData.roles.includes('EJK_read') || userData.roles.includes('EJK_reader'))) {
+                    isReadOnly = true;
+                }
+            } else {
+                // ENY Logic
+                if (userData.partnerRoles && userData.partnerRoles[partnerId] === 'read') {
+                    isReadOnly = true;
+                }
+            }
+
+            showScheduler(partnerId, partnerName, allDevices, isEjkUser, isAggregate, isReadOnly);
         });
     }
 }
