@@ -5,34 +5,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adatvédelmi Nyilatkozat - ETAR Rendszer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="images/ETAR_H.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-blue-900 text-gray-200 min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-3xl mx-auto bg-blue-950/50 p-8 rounded-xl shadow-2xl border border-blue-800">
-        <h1 class="text-3xl font-bold mb-6 text-center">Adatvédelmi Nyilatkozat - ETAR Rendszer</h1>
-        <div class="space-y-4 text-gray-300">
-            <p><strong>Hatálybalépés dátuma:</strong> 2023-11-20</p>
+<body class="bg-gray-900 text-gray-200 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-4xl mx-auto bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 my-8">
+        <div class="text-center mb-8">
+            <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-16 mx-auto mb-4">
+            <h1 class="text-3xl font-bold text-white">Adatvédelmi Nyilatkozat</h1>
+            <p class="text-gray-400 mt-2">ETAR - Emelőgép Törzskönyv és Adatnyilvántartó Rendszer</p>
+            <p class="text-sm text-gray-500 mt-1">Hatálybalépés dátuma: 2025. november 30.</p>
+        </div>
 
-            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">1. Az általunk gyűjtött adatok</h2>
-            <p>Az ETAR Rendszer a Google Bejelentkezés (OAuth 2.0) szolgáltatást használja a felhasználók azonosítására és a szolgáltatás működéséhez. A bejelentkezés során engedélyt kérünk a következő adatokhoz való hozzáféréshez:</p>
-            <ul class="list-disc list-inside pl-4">
-                <li><strong>Alapvető profilinformációk:</strong> A neved és e-mail címed, a felhasználó azonosításához.</li>
-                <li><strong>Google Drive:</strong> Hozzáférés a Google Drive-fiókodhoz, hogy az alkalmazás létrehozhassa, olvashassa és módosíthassa a működéséhez szükséges dokumentumokat és táblázatokat (pl. <code>adatbazis.xlsx</code>, <code>ceg.xlsx</code>, és a generált jegyzőkönyvek).</li>
-            </ul>
+        <div class="space-y-6 text-gray-300 leading-relaxed">
+            
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">1. Bevezetés</h2>
+                <p>Jelen Adatvédelmi Nyilatkozat célja, hogy tájékoztatást nyújtson a <strong>H-ITB Kft.</strong> (továbbiakban: Szolgáltató) által üzemeltetett <strong>ETAR Rendszer</strong> (továbbiakban: Alkalmazás) felhasználói számára az alkalmazás során kezelt személyes adatokról, az adatkezelés céljáról, jogalapjáról és időtartamáról.</p>
+            </section>
 
-            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">2. Az adatok felhasználása</h2>
-            <p>Az ETAR Rendszer a Google Drive-on tárolt adatokat kizárólag az alkalmazás alapvető funkcióinak biztosítására használja:</p>
-            <ul class="list-disc list-inside pl-4">
-                <li>A felhasználói jogosultságok ellenőrzése az <code>utvonalak.xlsx</code> fájl alapján.</li>
-                <li>Az emelőeszközök adatainak olvasása és írása a partnerhez tartozó <code>adatbazis.xlsx</code> fájlban.</li>
-                <li>Vizsgálati jegyzőkönyvek generálása a megadott sablonok és adatok alapján.</li>
-            </ul>
-            <p>Az alkalmazás nem osztja meg, nem adja el és nem továbbítja a felhasználói adatokat semmilyen harmadik félnek.</p>
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">2. Az Adatkezelő adatai</h2>
+                <ul class="list-none space-y-1 ml-4">
+                    <li><strong>Név:</strong> H-ITB Kft.</li>
+                    <li><strong>Székhely:</strong> 1119 Budapest, Kelenvölgyi határsor 5.</li>
+                    <li><strong>E-mail:</strong> <a href="mailto:hitb@h-itb.hu" class="text-blue-400 hover:underline">hitb@h-itb.hu</a></li>
+                    <li><strong>Telefon:</strong> +36 1 205-6208</li>
+                    <li><strong>Weboldal:</strong> <a href="https://www.h-itb.hu/" target="_blank" class="text-blue-400 hover:underline">www.h-itb.hu</a></li>
+                </ul>
+            </section>
 
-            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">3. Adatbiztonság</h2>
-            <p>Minden adatkezelés biztonságos (HTTPS) kapcsolaton keresztül történik a Google API-kon keresztül. Az adatokat közvetlenül a felhasználó saját Google Drive-fiókjában tároljuk, az alkalmazás nem rendelkezik saját szerveroldali adatbázissal.</p>
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">3. A kezelt adatok köre</h2>
+                <p class="mb-2">Az Alkalmazás használata során az alábbi adatokat kezeljük:</p>
+                <ul class="list-disc list-inside ml-4 space-y-2">
+                    <li><strong>Azonosítási adatok:</strong> A Google Firebase Authentication szolgáltatáson keresztül kapott név, e-mail cím és egyedi felhasználói azonosító (UID). Jelszavakat nem tárolunk és nem kezelünk, az azonosítás a Google rendszerén keresztül történik.</li>
+                    <li><strong>Működési adatok:</strong> Az emelőgépek nyilvántartásához szükséges adatok (pl. géptípus, gyári szám, teherbírás, vizsgálati eredmények), amelyeket a felhasználók rögzítenek a rendszerben.</li>
+                    <li><strong>Fájlok és dokumentumok:</strong> A rendszerbe feltöltött képek, jegyzőkönyvek és egyéb dokumentumok.</li>
+                    <li><strong>Technikai adatok:</strong> Naplófájlok, IP címek, böngésző típusa, amelyek a rendszer biztonságos működéséhez és hibaelhárításhoz szükségesek.</li>
+                </ul>
+            </section>
 
-            <h2 class="text-xl font-semibold pt-4 border-t border-blue-800">4. Kapcsolat</h2>
-            <p>Ha bármilyen kérdése van az adatvédelmi gyakorlatunkkal kapcsolatban, kérjük, vegye fel velünk a kapcsolatot a megadott támogatási e-mail címen.</p>
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">4. Az adatkezelés célja és jogalapja</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-400">
+                        <thead class="bg-gray-700 text-gray-200 uppercase">
+                            <tr>
+                                <th class="px-4 py-2">Adatkör</th>
+                                <th class="px-4 py-2">Cél</th>
+                                <th class="px-4 py-2">Jogalap</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <tr>
+                                <td class="px-4 py-2">Regisztrációs adatok</td>
+                                <td class="px-4 py-2">Felhasználó azonosítása, jogosultságkezelés.</td>
+                                <td class="px-4 py-2">Szerződés teljesítése / Jogos érdek</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">Emelőgép adatok</td>
+                                <td class="px-4 py-2">Nyilvántartás vezetése, vizsgálati jegyzőkönyvek generálása.</td>
+                                <td class="px-4 py-2">Jogi kötelezettség teljesítése (Munkavédelmi tv.)</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">Kapcsolattartási adatok</td>
+                                <td class="px-4 py-2">Ügyfélszolgálat, értesítések küldése.</td>
+                                <td class="px-4 py-2">Jogos érdek</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">5. Adatfeldolgozók és adattovábbítás</h2>
+                <p>Az adatok tárolásához és a szolgáltatás működtetéséhez a <strong>Google Ireland Limited</strong> (Gordon House, Barrow Street, Dublin 4, Írország) által biztosított <strong>Google Firebase</strong> szolgáltatásokat vesszük igénybe.</p>
+                <ul class="list-disc list-inside ml-4 mt-2 space-y-1">
+                    <li><strong>Firebase Authentication:</strong> Felhasználói hitelesítés.</li>
+                    <li><strong>Cloud Firestore:</strong> Adatbázis-szolgáltatás az adatok tárolására.</li>
+                    <li><strong>Cloud Storage for Firebase:</strong> Fájlok (képek, dokumentumok) tárolása.</li>
+                    <li><strong>Firebase Hosting:</strong> A webalkalmazás kiszolgálása.</li>
+                </ul>
+                <p class="mt-2">A Google adatvédelmi irányelvei itt érhetők el: <a href="https://policies.google.com/privacy" target="_blank" class="text-blue-400 hover:underline">https://policies.google.com/privacy</a></p>
+                <p class="mt-2">Harmadik félnek adatot nem továbbítunk, kivéve, ha arra jogszabály kötelez minket.</p>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">6. Adatbiztonság</h2>
+                <p>Minden adatkommunikáció titkosított (SSL/TLS) csatornán keresztül történik. Az adatokat a Google biztonságos szerverein tároljuk, amelyek megfelelnek a legszigorúbb iparági biztonsági szabványoknak (ISO 27001, SOC 2). A hozzáférést szigorú jogosultságkezelési szabályok (Firebase Security Rules) korlátozzák, biztosítva, hogy minden felhasználó csak a számára engedélyezett adatokhoz férjen hozzá.</p>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">7. Felhasználói jogok</h2>
+                <p>Ön jogosult:</p>
+                <ul class="list-disc list-inside ml-4 space-y-1">
+                    <li>Tájékoztatást kérni személyes adatai kezeléséről.</li>
+                    <li>Kérni adatai helyesbítését.</li>
+                    <li>Kérni adatai törlését ("elfeledtetéshez való jog"), amennyiben nincs jogi akadálya.</li>
+                    <li>Tiltakozni személyes adatai kezelése ellen.</li>
+                    <li>Adatai hordozhatóságát kérni.</li>
+                </ul>
+                <p class="mt-2">Jogérvényesítési igényével kérjük, forduljon hozzánk a <a href="mailto:hitb@h-itb.hu" class="text-blue-400 hover:underline">hitb@h-itb.hu</a> e-mail címen.</p>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">8. Jogorvoslat</h2>
+                <p>Amennyiben úgy érzi, hogy megsértettük adatvédelmi jogait, panaszt tehet a Nemzeti Adatvédelmi és Információszabadság Hatóságnál (NAIH):</p>
+                <ul class="list-none space-y-1 ml-4 mt-2 text-sm">
+                    <li><strong>Cím:</strong> 1055 Budapest, Falk Miksa utca 9-11.</li>
+                    <li><strong>Weboldal:</strong> <a href="https://naih.hu" target="_blank" class="text-blue-400 hover:underline">www.naih.hu</a></li>
+                </ul>
+            </section>
+
+            <div class="mt-8 pt-6 border-t border-gray-700 text-center">
+                <a href="index.html" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                    Vissza a főoldalra
+                </a>
+            </div>
         </div>
     </div>
 </body>
