@@ -18,6 +18,12 @@ export function onAuthStateChanged() {
             const userRef = db.collection('users').doc(user.uid);
             let userDoc = await userRef.get();
 
+            if (!userDoc.exists) {
+                // Retry once after a short delay to handle registration race condition
+                // where Auth triggers before Firestore write completes.
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                userDoc = await userRef.get();
+            }
 
             console.log("Bejelentkezve:", user.email);
             if (userDoc.exists) {
@@ -48,12 +54,13 @@ export function onAuthStateChanged() {
                         showMainScreen(user, userData);
                     }
                 } else {
-                    showCompanyRegistrationOptions();
+                    showCompanyRegistrationOptions(userData);
                 }
             } else {
                 // This case might happen if user exists in Auth but not in Firestore
                 // For safety, we show company registration options.
-                showCompanyRegistrationOptions();
+                // We don't have userData here, so we pass an empty object or handle it in UI
+                showCompanyRegistrationOptions({});
             }
         } else {
             console.log("Kijelentkezve.");
@@ -67,8 +74,11 @@ export function onAuthStateChanged() {
  * @param {string} email 
  * @param {string} password 
  * @param {string} name 
+ * @param {boolean} isEkvUser 
+ * @param {string} szakertoiCim 
+ * @param {string} bizonyitvanySzama 
  */
-export async function registerUser(email, password, name) {
+export async function registerUser(email, password, name, isEkvUser = false, szakertoiCim = '', bizonyitvanySzama = '') {
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     const user = userCredential.user;
 
@@ -76,13 +86,24 @@ export async function registerUser(email, password, name) {
         displayName: name
     });
 
-    await db.collection('users').doc(user.uid).set({
+    const userData = {
         email: user.email,
         name: name,
         partnerRoles: {},
-        roles: []
-    });
-    // onAuthStateChanged will trigger and show the correct screen
+        roles: [],
+        isEkvUser: isEkvUser
+    };
+
+    if (isEkvUser) {
+        userData.szakertoiCim = szakertoiCim;
+        userData.bizonyitvanySzama = bizonyitvanySzama;
+    }
+
+    await db.collection('users').doc(user.uid).set(userData);
+    
+    // Explicitly update UI to ensure correct state with userData, 
+    // covering cases where onAuthStateChanged fired too early.
+    showCompanyRegistrationOptions(userData);
 }
 
 /**
@@ -135,12 +156,20 @@ export async function joinCompanyWithCode(etarCode) {
 
     // 2. Update user's document
     const userRef = db.collection('users').doc(user.uid);
+    const userDoc = await userRef.get();
+    const userData = userDoc.data();
+
     const type = etarCode === 'Q27LXR' ? 'EJK' : 'ENY';
-    const newRole = 'pending';
+    
+    let newRole = 'pending';
+    if (userData.isEkvUser) {
+        newRole = 'pending_inspector';
+    }
 
     await userRef.update({
         [`partnerRoles.${partnerId}`]: newRole,
-        isEjkUser: type === 'EJK',
+        isEjkUser: type === 'EJK', // This might overwrite isEkvUser logic if not careful, but EJK is special. 
+                                   // Assuming EKV users won't use the EJK code 'Q27LXR'.
         roles: firebase.firestore.FieldValue.arrayUnion(`${type}_${newRole}`)
     });
 

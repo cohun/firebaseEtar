@@ -22,6 +22,14 @@ function getEszkozListaHtml() {
             <div class="card mb-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-semibold text-white">Szűrés és Keresés</h2>
+                    
+                    <!-- 3-Way Filter Switch -->
+                    <div id="source-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
+                        <button data-value="all" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
+                        <button data-value="h-itb" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">H-ITB</button>
+                        <button data-value="external" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Külsős</button>
+                    </div>
+
                     <button id="filter-hamburger-btn" class="text-white focus:outline-none xl:hidden">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
@@ -74,6 +82,7 @@ function getEszkozListaHtml() {
                                         <th scope="col" data-sort="operatorId" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Operátor ID <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="status" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Megállapítások <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="kov_vizsg" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Köv. Vizsg. <i class="fas fa-sort"></i></th>
+                                        <th scope="col" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white">Külsős</th>
                                         <th scope="col" class="py-3.5 px-1 text-center"><span class="sr-only">Státusz</span></th>
                                         <th scope="col" class="whitespace-nowrap py-3.5 px-1 text-center text-sm font-semibold text-white">CHIP</th>
                                         <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">QR</span></th>
@@ -90,6 +99,7 @@ function getEszkozListaHtml() {
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Operátor ID</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megállapítások</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Köv. Vizsg.</th>
+                                        <th rowspan="2" class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Külsős</th>
                                         <th rowspan="2" class="p-3"></th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">CHIP</th>
                                         <th rowspan="2" class="p-3"></th>
@@ -239,6 +249,56 @@ export function initPartnerWorkScreen(partnerId, userData) {
         kov_vizsg: ''
     };
     
+    // --- SOURCE FILTER LOGIC ---
+    let sourceFilter = 'all'; // 'all', 'h-itb', 'external'
+    
+    // Determine default filter based on user type
+    const isEkvUser = (userData && userData.isEkvUser) === true;
+    
+    if (isEkvUser) {
+        sourceFilter = 'external';
+    } else if (isEjkUser) {
+        sourceFilter = 'h-itb';
+    } else {
+        sourceFilter = 'all';
+    }
+
+    const sourceFilterContainer = document.getElementById('source-filter-container');
+    const filterButtons = document.querySelectorAll('.filter-switch-btn');
+
+    if (sourceFilterContainer) {
+        if (isEkvUser) {
+            sourceFilterContainer.style.display = 'none';
+        } else {
+            // Initialize UI
+            updateFilterButtonsUI();
+
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    sourceFilter = e.target.dataset.value;
+                    updateFilterButtonsUI();
+                    currentPage = 1; // Reset pagination
+                    // Reset pagination cursors when changing filters
+                    firstVisibleDoc = null;
+                    lastVisibleDoc = null;
+                    fetchDevices();
+                });
+            });
+        }
+    }
+
+    function updateFilterButtonsUI() {
+        filterButtons.forEach(btn => {
+            if (btn.dataset.value === sourceFilter) {
+                btn.classList.remove('text-gray-300', 'hover:text-white');
+                btn.classList.add('bg-blue-600', 'text-white');
+            } else {
+                btn.classList.add('text-gray-300', 'hover:text-white');
+                btn.classList.remove('bg-blue-600', 'text-white');
+            }
+        });
+    }
+    
     let firstVisibleDoc = null;
     let lastVisibleDoc = null;
     let currentPage = 1;
@@ -322,12 +382,18 @@ export function initPartnerWorkScreen(partnerId, userData) {
             
             // NOTE: Date filters are handled client-side below because the data is in a subcollection
 
-            // Determine if we need client-side handling (filtering OR sorting by date)
+            // Determine if we need client-side handling (filtering OR sorting by date OR complex source filtering)
             const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
             const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
-            const useClientSideLogic = isDateFiltering || isDateSorting;
+            // We use client-side logic for 'h-itb' to robustly handle "false or missing" isI
+            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb';
 
             if (!useClientSideLogic) {
+                // Server-side filtering for 'external' (isI == true)
+                if (sourceFilter === 'external') {
+                    query = query.where('isI', '==', true);
+                }
+                
                 query = query.orderBy(currentSortField, currentSortDirection);
             }
 
@@ -401,6 +467,15 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 if (filters.kov_vizsg) {
                     const filterDate = normalizeDate(filters.kov_vizsg);
                     devices = devices.filter(d => normalizeDate(d.kov_vizsg).includes(filterDate));
+                }
+
+                // Source Filtering (Client-Side)
+                if (sourceFilter === 'h-itb') {
+                    // isI is false OR undefined/null
+                    devices = devices.filter(d => !d.isI);
+                } else if (sourceFilter === 'external') {
+                    // isI is true
+                    devices = devices.filter(d => d.isI === true);
                 }
 
                 // 2. Sorting
@@ -536,6 +611,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
             
             const chipButton = `<div class="${chipClass}" style="font-size: 1.0rem;" onclick="toggleChip(this, '${dev.id}', '${confirmMessage}')">CHIP</div>`;
 
+            const checkboxDisabled = isEkvUser ? 'disabled' : '';
+            const checkboxOpacity = isEkvUser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+
             return `
             <tr class="hover:bg-gray-700/50">
                 <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
@@ -547,6 +625,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.operatorId || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass} text-center align-middle">${dev.status || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass} text-center align-middle">${dev.kov_vizsg || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-center align-middle">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ${checkboxOpacity}" ${dev.isI ? 'checked' : ''} ${checkboxDisabled} onchange="window.toggleIsI(this, '${dev.id}')">
+                </td>
                 <td class="whitespace-nowrap py-4 px-1 text-center align-middle"></td>
                 <td class="whitespace-nowrap py-4 px-1 text-center align-middle">${chipButton}</td>
                 <td class="relative whitespace-nowrap py-2 px-3 text-center align-middle">
@@ -561,6 +642,20 @@ export function initPartnerWorkScreen(partnerId, userData) {
     window.toggleChip = async function(element, deviceId, confirmMessage) {
         if (confirm(confirmMessage)) {
             await startNFCReader(element, deviceId); // Átadjuk az elemet a vizuális frissítéshez
+        }
+    }
+
+    window.toggleIsI = async function(checkbox, deviceId) {
+        const newValue = checkbox.checked;
+        try {
+            await db.collection('partners').doc(partnerId).collection('devices').doc(deviceId).update({
+                isI: newValue
+            });
+            console.log(`Device ${deviceId} isI updated to ${newValue}`);
+        } catch (error) {
+            console.error("Error updating isI:", error);
+            alert("Hiba történt a mentés során. Kérjük, próbálja újra.");
+            checkbox.checked = !newValue; // Revert change on error
         }
     }
 

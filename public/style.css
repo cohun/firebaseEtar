@@ -465,3 +465,24 @@ body.partner-mode-active {
     background-color: rgba(255, 255, 0, 0.5) !important; /* Stronger lemon yellow */
     box-shadow: inset 0 0 15px rgba(255, 255, 0, 0.8);
 }
+
+/* EKV User Mode Styles */
+body.ekv-mode {
+    background: linear-gradient(135deg, #0f172a, #064e3b) !important; /* Dark Slate to Dark Green */
+}
+
+body.ekv-mode .card {
+    border-top: 4px solid #10b981; /* Emerald-500 */
+}
+
+body.ekv-mode .btn-primary {
+    background-color: #059669; /* Emerald-600 */
+}
+
+body.ekv-mode .btn-primary:hover {
+    background-color: #047857; /* Emerald-700 */
+}
+
+body.ekv-mode .text-blue-300 {
+    color: #6ee7b7 !important; /* Emerald-300 */
+}

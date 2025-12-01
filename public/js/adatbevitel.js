@@ -8,6 +8,32 @@ document.addEventListener('DOMContentLoaded', function () {
     const loadPreviousButton = document.getElementById('loadPreviousButton');
     const form = document.getElementById('dataEntryForm');
     const storageKey = 'previousDeviceData';
+    let currentUserData = null; // Store user data for save logic
+
+    // Wait for Auth to be ready
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            console.log("User authenticated:", user.email);
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    currentUserData = userDoc.data();
+                    
+                    // Apply EKV mode if applicable
+                    if (currentUserData.isEkvUser) {
+                        document.body.classList.add('ekv-mode');
+                    } else {
+                        document.body.classList.remove('ekv-mode');
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+            }
+        } else {
+            console.log("User not authenticated, redirecting to login...");
+            window.location.href = 'index.html';
+        }
+    });
 
     if (backButton) {
         backButton.addEventListener('click', () => {
@@ -109,16 +135,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             try {
-                const userDoc = await db.collection('users').doc(user.uid).get();
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
-                    if (userData.isEjkUser) {
-                        window.location.href = 'excel_import.html';
-                    } else {
-                        alert("Jelenleg ez a funkció csak H-ITB számára engedélyezett. Kérjük forduljon a H-ITB kapcsolattartójához, aki ezt a műveletet elvégzi Önnek!");
-                    }
+                // Use cached userData if available, otherwise fetch
+                let userData = currentUserData;
+                if (!userData) {
+                     const userDoc = await db.collection('users').doc(user.uid).get();
+                     userData = userDoc.exists ? userDoc.data() : {};
+                }
+
+                if (userData.isEjkUser) {
+                    window.location.href = 'excel_import.html';
                 } else {
-                    alert("Felhasználói adatok nem találhatók.");
+                    alert("Jelenleg ez a funkció csak H-ITB számára engedélyezett. Kérjük forduljon a H-ITB kapcsolattartójához, aki ezt a műveletet elvégzi Önnek!");
                 }
             } catch (error) {
                 console.error("Hiba a jogosultság ellenőrzésekor:", error);
@@ -144,9 +171,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         let createdByName = user.displayName;
-        if (!createdByName) {
-            const userDoc = await db.collection('users').doc(user.uid).get();
-            createdByName = userDoc.exists ? userDoc.data().name || user.email : user.email;
+        if (!createdByName && currentUserData) {
+            createdByName = currentUserData.name || user.email;
         }
 
         const deviceData = {
@@ -193,6 +219,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!partnerId) {
                 alert('Nincs kiválasztott partner. Kérjük, válasszon partnert!');
                 return;
+            }
+
+            // Check if user is EKV or has inspector role using cached data
+            console.log("Checking user data for isI...");
+            let userData = currentUserData;
+            if (!userData) {
+                 console.log("currentUserData is null, fetching...");
+                 const userDoc = await db.collection('users').doc(user.uid).get();
+                 userData = userDoc.exists ? userDoc.data() : {};
+            }
+            console.log("User data used for check:", userData);
+            
+            const isInspector = Object.values(userData.partnerRoles || {}).some(role => role.includes('inspector'));
+            
+            if (userData.isEkvUser || isInspector) {
+                console.log("User is EKV or Inspector, setting isI to true.");
+                deviceData.isI = true;
+            } else {
+                console.log("User is NOT EKV/Inspector, isI remains undefined.");
             }
 
             deviceData.createdAt = firebase.firestore.FieldValue.serverTimestamp();

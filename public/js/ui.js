@@ -36,6 +36,7 @@ export function showScreen(screenId) {
 }
 
 export function showLoginScreen() {
+    document.body.classList.remove('ekv-mode'); // Clean up EKV mode styles
     const loginHtml = `
         <div class="card max-w-md mx-auto">
             <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto mb-8 w-64 h-auto rounded-lg shadow-md">
@@ -147,6 +148,16 @@ export function showRegistrationScreen() {
                     <input type="text" id="nameInput" placeholder="Teljes név" class="input-field" required>
                     <input type="email" id="regEmailInput" placeholder="E-mail cím" class="input-field" required>
                     <input type="password" id="regPasswordInput" placeholder="Jelszó" class="input-field" required>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="ekvCheckbox" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2">
+                        <label for="ekvCheckbox" class="ml-2 text-sm font-medium text-gray-300">Külső Szakértő (EKV) regisztráció</label>
+                    </div>
+
+                    <div id="ekvFields" class="hidden space-y-4 border-l-2 border-blue-500 pl-4">
+                        <input type="text" id="szakertoiCimInput" placeholder="Szakértői cím" class="input-field">
+                        <input type="text" id="bizonyitvanySzamaInput" placeholder="Bizonyítvány száma" class="input-field">
+                    </div>
                 </div>
                 <p id="registrationError" class="text-red-400 text-sm mt-4 h-5"></p>
                 <button type="submit" class="btn btn-primary text-lg w-full mt-6">Regisztráció</button>
@@ -158,16 +169,36 @@ export function showRegistrationScreen() {
     `;
     screens.login.innerHTML = registrationHtml; // Still using the login screen container
 
+    const ekvCheckbox = document.getElementById('ekvCheckbox');
+    const ekvFields = document.getElementById('ekvFields');
+    const szakertoiCimInput = document.getElementById('szakertoiCimInput');
+    const bizonyitvanySzamaInput = document.getElementById('bizonyitvanySzamaInput');
+
+    ekvCheckbox.addEventListener('change', () => {
+        if (ekvCheckbox.checked) {
+            ekvFields.classList.remove('hidden');
+            szakertoiCimInput.required = true;
+            bizonyitvanySzamaInput.required = true;
+        } else {
+            ekvFields.classList.add('hidden');
+            szakertoiCimInput.required = false;
+            bizonyitvanySzamaInput.required = false;
+        }
+    });
+
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('nameInput').value;
         const email = document.getElementById('regEmailInput').value;
         const password = document.getElementById('regPasswordInput').value;
+        const isEkvUser = ekvCheckbox.checked;
+        const szakertoiCim = szakertoiCimInput.value;
+        const bizonyitvanySzama = bizonyitvanySzamaInput.value;
         const errorP = document.getElementById('registrationError');
 
         try {
             errorP.textContent = '';
-            await registerUser(email, password, name);
+            await registerUser(email, password, name, isEkvUser, szakertoiCim, bizonyitvanySzama);
             // onAuthStateChanged will handle the screen change
         } catch (error) {
             console.error("Regisztrációs hiba:", error.code);
@@ -180,23 +211,32 @@ export function showRegistrationScreen() {
     });
 }
 
-export function showCompanyRegistrationOptions() {
+export function showCompanyRegistrationOptions(userData) {
+    const isEkvUser = userData && userData.isEkvUser === true;
+
+    let buttonsHtml = '';
+    if (!isEkvUser) {
+        buttonsHtml += `<button id="registerNewCompanyBtn" class="btn btn-primary w-full">Új céget regisztrálok, én leszek a jogosultság osztó</button>`;
+    }
+    buttonsHtml += `<button id="joinCompanyBtn" class="btn btn-secondary w-full">Már regisztrált cégbe lépek ETAR kóddal</button>`;
+
     const companyRegHtml = `
         <div class="card max-w-md mx-auto text-center">
             <h2 class="text-2xl font-bold mb-4">Sikeres regisztráció!</h2>
             <p class="mb-6 text-blue-300">Válassza ki a következő lépést:</p>
             <div class="space-y-4">
-                <button id="registerNewCompanyBtn" class="btn btn-primary w-full">Új céget regisztrálok, én leszek a jogosultság osztó</button>
-                <button id="joinCompanyBtn" class="btn btn-secondary w-full">Már regisztrált cégbe lépek ETAR kóddal</button>
+                ${buttonsHtml}
             </div>
         </div>
     `;
     screens.login.innerHTML = companyRegHtml; // Display in the same area
     showScreen('login');
 
-    document.getElementById('registerNewCompanyBtn').addEventListener('click', () => {
-        showNewCompanyForm();
-    });
+    if (!isEkvUser) {
+        document.getElementById('registerNewCompanyBtn').addEventListener('click', () => {
+            showNewCompanyForm();
+        });
+    }
     document.getElementById('joinCompanyBtn').addEventListener('click', () => {
         showJoinCompanyForm();
     });
@@ -302,6 +342,13 @@ export async function showMainScreen(user, userData) {
     const canSelectPartner = isEjkUser || partnerIds.length > 1;
     const isEnyUserWithSinglePartner = !isEjkUser && partnerIds.length === 1;
 
+    // Apply EKV mode styles if applicable
+    if (userData.isEkvUser) {
+        document.body.classList.add('ekv-mode');
+    } else {
+        document.body.classList.remove('ekv-mode');
+    }
+
     let buttonsHtml = '';
     if (isEjkUser) {
         buttonsHtml += `<button onclick="window.location.href='drafts.html'" class="btn btn-secondary w-full">Piszkozatok áttekintése</button>`;
@@ -319,8 +366,12 @@ export async function showMainScreen(user, userData) {
     buttonsHtml += `<button id="statisticsBtn" class="btn btn-secondary w-full mt-2">Statisztikák</button>`;
 
     // "Add new company" buttons are always available for non-EJK users
+    // "Add new company" buttons are always available for non-EJK users
     if (!isEjkUser) {
-        buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Új céget regisztrálok</button>`;
+        // EKV users cannot create new companies, only join existing ones
+        if (!userData.isEkvUser) {
+            buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Új céget regisztrálok</button>`;
+        }
         buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
     }
 
@@ -334,7 +385,7 @@ export async function showMainScreen(user, userData) {
     // Display info about the user type
     const userInfoHtml = `
         <div class="text-left my-6 p-4 border border-blue-800 rounded-lg bg-blue-900/30">
-            <p class="text-gray-300">Felhasználói típus: <strong class="font-semibold text-blue-300">${isEjkUser ? 'EJK' : 'ENY'}</strong></p>
+            <p class="text-gray-300">Felhasználói típus: <strong class="font-semibold text-blue-300">${isEjkUser ? 'EJK' : (userData.isEkvUser ? 'EKV' : 'ENY')}</strong></p>
             <p class="text-gray-300">Társított partnerek: <strong class="font-semibold text-blue-300">${partnerIds.length}</strong></p>
         </div>
     `;
@@ -404,10 +455,12 @@ export async function showMainScreen(user, userData) {
     });
 
     if (!isEjkUser) {
-        document.getElementById('registerAnotherCompanyBtn').addEventListener('click', () => {
-            showNewCompanyForm();
-            showScreen('login');
-        });
+        if (!userData.isEkvUser) {
+            document.getElementById('registerAnotherCompanyBtn').addEventListener('click', () => {
+                showNewCompanyForm();
+                showScreen('login');
+            });
+        }
         document.getElementById('joinAnotherCompanyBtn').addEventListener('click', () => {
             showJoinCompanyForm();
             showScreen('login');
@@ -435,7 +488,7 @@ export function showPermissionManagementLoadingScreen() {
 export function showPermissionManagementScreen(users, currentUserData) {
     const isAdminEJK = currentUserData.isEjkUser;
 
-    const roleOptions = ['pending', 'admin', 'write', 'read'];
+    const roleOptions = ['pending', 'admin', 'write', 'read', 'inspector', 'pending_inspector'];
 
     const userListHtml = users.map(user => {
         const associationsHtml = user.associations.map(assoc => {
@@ -685,6 +738,14 @@ export function showPartnerSelectionScreen(partners, userData) {
 }export function showPartnerWorkScreen(partner, userData) {
     sessionStorage.setItem('lastPartnerId', partner.id);
     document.body.classList.add('partner-mode-active');
+    
+    // Apply EKV mode styles if applicable
+    if (userData && userData.isEkvUser) {
+        document.body.classList.add('ekv-mode');
+    } else {
+        document.body.classList.remove('ekv-mode');
+    }
+
     const partnerWorkScreen = document.getElementById('partnerWorkScreen');
     partnerWorkScreen.innerHTML = getPartnerWorkScreenHtml(partner, userData);
     showScreen('partnerWork');
