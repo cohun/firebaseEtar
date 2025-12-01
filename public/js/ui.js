@@ -716,3 +716,30 @@ export function showPartnerSelectionScreen(partners, userData) {
 }
 
 
+
+export function showLoadingModal(message) {
+    let modal = document.getElementById('loading-modal');
+    if (!modal) {
+        const modalHtml = `
+            <div id="loading-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                <div class="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full text-center">
+                    <div class="loader mx-auto"></div>
+                    <p id="loading-modal-message" class="mt-4 text-blue-300">${message}</p>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    } else {
+        const messageEl = document.getElementById('loading-modal-message');
+        if (messageEl) {
+            messageEl.textContent = message;
+        }
+    }
+}
+
+export function hideLoadingModal() {
+    const modal = document.getElementById('loading-modal');
+    if (modal) {
+        modal.remove();
+    }
+}

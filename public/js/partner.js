@@ -1,5 +1,5 @@
 import { auth, db, storage, updateDeviceChipId } from './firebase.js';
-import { getTemplates, showTemplateSelector, generateAndDownloadZip } from './doc-generator.js';
+
 
 // ===================================================================================
 // ESZKÖZLISTA NÉZET

@@ -1,5 +1,5 @@
 import { auth, db, storage } from './firebase.js';
-import { getTemplates, showTemplateSelector, generateZipFromDrafts, showLoadingModal, hideLoadingModal } from './doc-generator.js';
+import { showLoadingModal, hideLoadingModal } from './ui.js';
 import { generateAndUploadFinalizedHtml, generateHtmlView } from './html-generator.js';
 
 let allEnrichedDrafts = []; // Store all fetched drafts globally in this module
@@ -252,12 +252,9 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
 
 /**
  * Starts the finalization process for selected drafts.
- * This function is called after a template has been selected.
- * @param {string} templateName The selected template name.
  * @param {object[]} draftsToFinalize The array of draft objects to finalize.
- * @deprecated This function is for DOCX generation and is being replaced by the HTML flow.
  */
-async function startFinalizationProcess(templateName, draftsToFinalize) {
+async function startFinalizationProcess(draftsToFinalize) {
     const total = draftsToFinalize.length;
     showLoadingModal(`Véglegesítés előkészítése... 1 / ${total}`);
 
@@ -352,7 +349,7 @@ document.getElementById('finalizeDraftsButton').addEventListener('click', async 
         const draftsToFinalize = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
 
         // Directly call the finalization process. No template selection needed for HTML.
-        await startFinalizationProcess(null, draftsToFinalize);
+        await startFinalizationProcess(draftsToFinalize);
 
     } catch (error) {
         console.error("Hiba a véglegesítés előkészítésekor: ", error);
