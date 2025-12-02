@@ -14,13 +14,17 @@ service cloud.firestore {
       return getUserData().isEjkUser == true;
     }
 
+    function isEkvUser() {
+      return getUserData().isEkvUser == true;
+    }
+
     function isAnAdmin() {
       return getUserData().roles.hasAny(['EJK_admin', 'ENY_admin', 'ENY_pendingAdmin']);
     }
 
-    // ÚJ FÜGGVÉNY: Ellenőrzi, hogy a felhasználó EJK admin vagy EJK író-e.
+    // ÚJ FÜGGVÉNY: Ellenőrzi, hogy a felhasználó EJK admin, EJK író vagy EKV user-e.
     function canWriteInspection() {
-      return getUserData().roles.hasAny(['EJK_admin', 'EJK_write']);
+      return getUserData().roles.hasAny(['EJK_admin', 'EJK_write']) || isEkvUser();
     }
 
     match /users/{userId} {
@@ -36,7 +40,7 @@ service cloud.firestore {
     }
 
     match /partners/{partnerId}/devices/{deviceId} {
-      allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
+      allow read, list: if isEjkUser() || (isEkvUser() && resource.data.isI == true) || getRoleForPartner(partnerId) != null;
 			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write';
     }
 
@@ -51,7 +55,7 @@ service cloud.firestore {
     // Ez szükséges a "Piszkozatok" oldal működéséhez (EJK userek),
     // és a véglegesített jegyzőkönyvek olvasásához (minden partner user).
     match /{path=**}/inspections/{inspectionId} {
-      allow read: if isEjkUser() || (resource.data.status == 'finalized' && getRoleForPartner(resource.data.partnerId) != null);
+      allow read: if isEjkUser() || isEkvUser() || (resource.data.status == 'finalized' && getRoleForPartner(resource.data.partnerId) != null);
     }
     
       // ÚJ SZABÁLY: Szakértők kollekció olvasása

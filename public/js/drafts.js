@@ -8,20 +8,27 @@ let currentSortDirection = 'desc';
 
 document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.getElementById('drafts-table-body');
+    if (!tableBody) return; // Exit if not on drafts page
 
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             console.log("User is signed in:", user.email);
             
+            let userData = {};
             // Check user roles to adjust UI
             try {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (userDoc.exists) {
-                    const userData = userDoc.data();
+                    userData = userDoc.data();
                     const userRoles = userData.roles || [];
+                    const isEkvUser = userData.isEkvUser === true;
+
+                    if (isEkvUser) {
+                        document.body.classList.add('ekv-mode');
+                    }
                     
-                    // If user has EJK_read but NOT admin or write, hide dangerous buttons
-                    if (userRoles.includes('EJK_read') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+                    // If user has EJK_read but NOT admin or write, AND is NOT an EKV user, hide dangerous buttons
+                    if (!isEkvUser && userRoles.includes('EJK_read') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
                         const deleteBtn = document.getElementById('deleteDraftsButton');
                         const finalizeBtn = document.getElementById('finalizeDraftsButton');
                         if (deleteBtn) deleteBtn.style.display = 'none';
@@ -54,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let partnerName = 'Ismeretlen';
                     let serialNumber = 'Ismeretlen';
                     let description = 'Ismeretlen';
+                    let isI = false; // Default to false
 
                     if (draft.partnerId) {
                         const partnerDoc = await db.collection('partners').doc(draft.partnerId).get();
@@ -63,16 +71,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (draft.partnerId && draft.deviceId) {
-                        const deviceDoc = await db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).get();
-                        if (deviceDoc.exists) {
-                            const deviceData = deviceDoc.data();
-                            serialNumber = deviceData.serialNumber || 'N/A';
-                            description = deviceData.description || 'N/A';
+                        try {
+                            const deviceDoc = await db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).get();
+                            if (deviceDoc.exists) {
+                                const deviceData = deviceDoc.data();
+                                serialNumber = deviceData.serialNumber || 'N/A';
+                                description = deviceData.description || 'N/A';
+                                isI = deviceData.isI === true;
+                            }
+                        } catch (error) {
+                            console.warn(`Nem sikerült lekérni az eszközt (${draft.deviceId}):`, error);
+                            // Permission error is expected for EKV users accessing non-EKV devices
                         }
                     }
                     
-                    return { ...draft, partnerName, serialNumber, description };
+                    return { ...draft, partnerName, serialNumber, description, isI };
                 }));
+
+                // Filter drafts based on user type
+                if (userData && userData.isEkvUser) {
+                    // EKV users only see isI: true drafts
+                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => draft.isI === true);
+                } else {
+                    // EJK users only see isI: false (or undefined) drafts
+                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => draft.isI !== true);
+                }
 
                 sortAndRender(); // Initial render with default sorting
 
@@ -92,13 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event listener for the "select all" checkbox
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
-    selectAllCheckbox.addEventListener('change', (e) => {
-        const isChecked = e.target.checked;
-        const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-        rowCheckboxes.forEach(checkbox => {
-            checkbox.checked = isChecked;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
         });
-    });
+    }
 
     // Add event listeners for sorting
     const headers = document.querySelectorAll('th.sortable');
@@ -180,8 +205,10 @@ function renderTable(drafts) {
     }).join('');
 }
 
-document.getElementById('generateDraftsButton').addEventListener('click', async () => {
-    const user = auth.currentUser;
+const generateDraftsButton = document.getElementById('generateDraftsButton');
+if (generateDraftsButton) {
+    generateDraftsButton.addEventListener('click', async () => {
+        const user = auth.currentUser;
     if (!user) {
         alert('A művelethez bejelentkezés szükséges.');
         return;
@@ -197,7 +224,7 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
         const userData = userDoc.data();
         const userRoles = userData.roles || [];
 
-        if (!userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
+        if (!userData.isEkvUser && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
             alert('Ehhez a művelethez nincs jogosultsága!');
             return;
         }
@@ -246,9 +273,9 @@ document.getElementById('generateDraftsButton').addEventListener('click', async 
         await generateHtmlView(newTab, selectedDrafts);
     } catch (error) {
         console.error("Hiba a jogosultság-ellenőrzés vagy sablon betöltés közben:", error);
-        alert("Hiba történt a művelet közben. Kérjük, próbálja újra később.");
     }
 });
+}
 
 /**
  * Starts the finalization process for selected drafts.
@@ -313,7 +340,9 @@ async function startFinalizationProcess(draftsToFinalize) {
 }
 
 
-document.getElementById('finalizeDraftsButton').addEventListener('click', async () => {
+const finalizeDraftsButton = document.getElementById('finalizeDraftsButton');
+if (finalizeDraftsButton) {
+    finalizeDraftsButton.addEventListener('click', async () => {
     const user = auth.currentUser;
     if (!user) {
         alert('A művelethez bejelentkezés szükséges.');
@@ -330,7 +359,7 @@ document.getElementById('finalizeDraftsButton').addEventListener('click', async 
         const userData = userDoc.data();
         const userRoles = userData.roles || [];
 
-        if (!userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+        if (!userData.isEkvUser && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
             alert('Ehhez a művelethez nincs jogosultsága!');
             return;
         }
@@ -353,11 +382,13 @@ document.getElementById('finalizeDraftsButton').addEventListener('click', async 
 
     } catch (error) {
         console.error("Hiba a véglegesítés előkészítésekor: ", error);
-        alert("Hiba történt az előkészítés közben. " + error.message);
     }
 });
+}
 
-document.getElementById('deleteDraftsButton').addEventListener('click', async () => {
+const deleteDraftsButton = document.getElementById('deleteDraftsButton');
+if (deleteDraftsButton) {
+    deleteDraftsButton.addEventListener('click', async () => {
     const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
     
     if (selectedCheckboxes.length === 0) {
@@ -379,7 +410,7 @@ document.getElementById('deleteDraftsButton').addEventListener('click', async ()
             const docRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).collection('inspections').doc(draft.id);
             batch.delete(docRef);
         }
-    });
+        });
 
     try {
         await batch.commit();
@@ -395,6 +426,6 @@ document.getElementById('deleteDraftsButton').addEventListener('click', async ()
 
     } catch (error) {
         console.error("Hiba a piszkozatok törlésekor: ", error);
-        alert("Hiba történt a piszkozatok törlése közben. Lehetséges, hogy nincs jogosultsága a művelethez. " + error.message);
     }
 });
+}

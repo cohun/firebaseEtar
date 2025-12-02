@@ -1366,7 +1366,13 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
     async function fetchAllDevicesForExport() {
         try {
-            const query = db.collection('partners').doc(partnerId).collection('devices');
+            let query = db.collection('partners').doc(partnerId).collection('devices');
+            
+            // Filter for EKV users
+            if (userData && userData.isEkvUser) {
+                query = query.where('isI', '==', true);
+            }
+
             const snapshot = await query.get();
             const devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -1684,8 +1690,15 @@ export function initPartnerWorkScreen(partnerId, userData) {
         deviceSearchResult.innerHTML = `<p class="text-gray-400">Keresés...</p>`;
 
         try {
-            const querySnapshot = await db.collection('partners').doc(partnerId).collection('devices')
-                .where('serialNumber', '==', serialNumber).limit(1).get();
+            let query = db.collection('partners').doc(partnerId).collection('devices')
+                .where('serialNumber', '==', serialNumber);
+
+            // EKV users can only search for isI: true devices
+            if (userData && userData.isEkvUser) {
+                query = query.where('isI', '==', true);
+            }
+
+            const querySnapshot = await query.limit(1).get();
 
             if (querySnapshot.empty) {
                 deviceSearchResult.innerHTML = `
@@ -1996,6 +2009,7 @@ function getNewInspectionScreenHtml() {
                     <select id="templateSelectNewInspection" class="input-field">
                         <option>Fővizsgálat</option>
                         <option>Szerkezeti vizsgálat</option>
+                        <option>Biztonsági Felülvizsgálat</option>
                     </select>
                 </div>
                 <div>
@@ -2058,7 +2072,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     const userRoles = userData.roles || [];
 
     const isReadOnly = role === 'read' && !userData.isEjkUser;
-    const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write');
+    const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write') || userData.isEkvUser;
 
     let uploadButtonHtml;
     if (isReadOnly) {
@@ -2080,13 +2094,16 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     let actionButtonsHtml = '';
     let actionButtonsHtmlMobile = '';
     if (!isReadOnly) {
+        // EKV users cannot decommission devices
+        const showDecommissionBtn = !userData.isEkvUser;
+        
         actionButtonsHtml = `
             <button id="delete-device-btn" class="menu-btn menu-btn-primary"><i class="fas fa-trash fa-fw"></i>Törlés</button>
-            <button id="decommission-reactivate-btn" class="menu-btn menu-btn-primary"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>
+            ${showDecommissionBtn ? `<button id="decommission-reactivate-btn" class="menu-btn menu-btn-primary"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>` : ''}
         `;
         actionButtonsHtmlMobile = `
             <button id="delete-device-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-trash fa-fw"></i>Törlés</button>
-            <button id="decommission-reactivate-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>
+            ${showDecommissionBtn ? `<button id="decommission-reactivate-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>` : ''}
         `;
     }
 

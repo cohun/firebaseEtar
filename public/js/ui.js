@@ -350,7 +350,7 @@ export async function showMainScreen(user, userData) {
     }
 
     let buttonsHtml = '';
-    if (isEjkUser) {
+    if (isEjkUser || userData.isEkvUser) {
         buttonsHtml += `<button onclick="window.location.href='drafts.html'" class="btn btn-secondary w-full">Piszkozatok áttekintése</button>`;
     }
     if (canManagePermissions) {
