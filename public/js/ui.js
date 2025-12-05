@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { registerUser, registerNewCompany, joinCompanyWithCode, sendPasswordReset } from './auth.js';
-import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection } from './admin.js';
+import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection, getExternalExperts } from './admin.js';
 import { getPartnerWorkScreenHtml, initPartnerWorkScreen } from './partner.js';
 import { showStatisticsScreen } from './statistics.js';
 
@@ -143,7 +143,7 @@ export function showRegistrationScreen() {
     const registrationHtml = `
         <div class="card max-w-md mx-auto">
             <h1 class="text-3xl sm:text-4xl font-bold mb-6">Regisztráció</h1>
-            <form id="registrationForm">
+            <form id="registrationForm" novalidate>
                 <div class="space-y-4">
                     <input type="text" id="nameInput" placeholder="Teljes név" class="input-field" required>
                     <input type="email" id="regEmailInput" placeholder="E-mail cím" class="input-field" required>
@@ -156,7 +156,9 @@ export function showRegistrationScreen() {
 
                     <div id="ekvFields" class="hidden space-y-4 border-l-2 border-blue-500 pl-4">
                         <input type="text" id="szakertoiCimInput" placeholder="Szakértői cím" class="input-field">
-                        <input type="text" id="bizonyitvanySzamaInput" placeholder="Bizonyítvány száma" class="input-field">
+                        <input type="text" id="vizsgaloCegNeveInput" placeholder="Vizsgáló cég neve" class="input-field">
+                        <input type="text" id="vizsgaloCegCimeInput" placeholder="Vizsgáló cég címe" class="input-field">
+                        <input type="text" id="kamaraiSzamInput" placeholder="Kamarai/Jogosultsági szám" class="input-field">
                     </div>
                 </div>
                 <p id="registrationError" class="text-red-400 text-sm mt-4 h-5"></p>
@@ -172,33 +174,59 @@ export function showRegistrationScreen() {
     const ekvCheckbox = document.getElementById('ekvCheckbox');
     const ekvFields = document.getElementById('ekvFields');
     const szakertoiCimInput = document.getElementById('szakertoiCimInput');
-    const bizonyitvanySzamaInput = document.getElementById('bizonyitvanySzamaInput');
+    const vizsgaloCegNeveInput = document.getElementById('vizsgaloCegNeveInput');
+    const vizsgaloCegCimeInput = document.getElementById('vizsgaloCegCimeInput');
+    const kamaraiSzamInput = document.getElementById('kamaraiSzamInput');
 
     ekvCheckbox.addEventListener('change', () => {
         if (ekvCheckbox.checked) {
             ekvFields.classList.remove('hidden');
-            szakertoiCimInput.required = true;
-            bizonyitvanySzamaInput.required = true;
         } else {
             ekvFields.classList.add('hidden');
-            szakertoiCimInput.required = false;
-            bizonyitvanySzamaInput.required = false;
         }
     });
 
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('nameInput').value;
-        const email = document.getElementById('regEmailInput').value;
-        const password = document.getElementById('regPasswordInput').value;
+        const nameInput = document.getElementById('nameInput');
+        const emailInput = document.getElementById('regEmailInput');
+        const passwordInput = document.getElementById('regPasswordInput');
+        
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
         const isEkvUser = ekvCheckbox.checked;
-        const szakertoiCim = szakertoiCimInput.value;
-        const bizonyitvanySzama = bizonyitvanySzamaInput.value;
         const errorP = document.getElementById('registrationError');
+
+        // Clear previous errors
+        errorP.textContent = '';
+
+        // Manual validation for basic fields
+        if (!name || !email || !password) {
+             errorP.textContent = "Kérjük, töltsön ki minden kötelező mezőt!";
+             return;
+        }
+
+        let szakertoiCim = '';
+        let vizsgaloCegNeve = '';
+        let vizsgaloCegCime = '';
+        let kamaraiSzam = '';
+
+        if (isEkvUser) {
+            szakertoiCim = szakertoiCimInput.value.trim();
+            vizsgaloCegNeve = vizsgaloCegNeveInput.value.trim();
+            vizsgaloCegCime = vizsgaloCegCimeInput.value.trim();
+            kamaraiSzam = kamaraiSzamInput.value.trim();
+
+            if (!szakertoiCim || !vizsgaloCegNeve || !vizsgaloCegCime || !kamaraiSzam) {
+                errorP.textContent = "EKV regisztrációhoz minden mező kitöltése kötelező!";
+                return;
+            }
+        }
 
         try {
             errorP.textContent = '';
-            await registerUser(email, password, name, isEkvUser, szakertoiCim, bizonyitvanySzama);
+            await registerUser(email, password, name, isEkvUser, szakertoiCim, vizsgaloCegNeve, vizsgaloCegCime, kamaraiSzam);
             // onAuthStateChanged will handle the screen change
         } catch (error) {
             console.error("Regisztrációs hiba:", error.code);
@@ -213,6 +241,11 @@ export function showRegistrationScreen() {
 
 export function showCompanyRegistrationOptions(userData) {
     const isEkvUser = userData && userData.isEkvUser === true;
+
+    if (isEkvUser) {
+        showJoinCompanyForm(true); // Pass true to indicate EKV flow
+        return;
+    }
 
     let buttonsHtml = '';
     if (!isEkvUser) {
@@ -238,7 +271,7 @@ export function showCompanyRegistrationOptions(userData) {
         });
     }
     document.getElementById('joinCompanyBtn').addEventListener('click', () => {
-        showJoinCompanyForm();
+        showJoinCompanyForm(false);
     });
 }
 
@@ -275,10 +308,11 @@ export function showNewCompanyForm() {
     });
 }
 
-export function showJoinCompanyForm() {
+export function showJoinCompanyForm(isEkvFlow = false) {
     const joinHtml = `
         <div class="card max-w-md mx-auto">
             <h1 class="text-3xl sm:text-4xl font-bold mb-6">Csatlakozás céghez</h1>
+            ${isEkvFlow ? '<p class="mb-4 text-blue-300">Kérjük, adja meg annak a cégnek az ETAR kódját, amelyhez csatlakozni kíván.</p>' : ''}
             <form id="joinCompanyForm">
                 <div class="space-y-4">
                     <input type="text" id="etarCodeInput" placeholder="ETAR Kód" class="input-field" required>
@@ -299,7 +333,11 @@ export function showJoinCompanyForm() {
             errorP.textContent = '';
             const success = await joinCompanyWithCode(etarCode);
             if (success) {
-                showPendingApprovalScreen();
+                if (isEkvFlow) {
+                    showEkvSuccessScreen();
+                } else {
+                    showPendingApprovalScreen();
+                }
             } else {
                 errorP.textContent = "Érvénytelen vagy nem létező ETAR kód.";
             }
@@ -307,6 +345,23 @@ export function showJoinCompanyForm() {
             console.error("Csatlakozási hiba:", error);
             errorP.textContent = "Hiba történt a csatlakozás során.";
         }
+    });
+}
+
+
+
+function showEkvSuccessScreen() {
+    const successHtml = `
+        <div class="card max-w-md mx-auto text-center">
+            <h2 class="text-2xl font-bold mb-4">Sikeres jelentkezés!</h2>
+            <p class="text-blue-300 mb-6">A továbblépéshez fel kell vennie a kapcsolatot egy ETAR adminisztrátorral, aki a belépését véglegesíti.</p>
+            <button id="backToLoginBtn" class="btn btn-secondary w-full">Vissza a bejelentkezéshez</button>
+        </div>
+    `;
+    screens.login.innerHTML = successHtml;
+
+    document.getElementById('backToLoginBtn').addEventListener('click', () => {
+        auth.signOut().catch(console.error);
     });
 }
 
@@ -363,7 +418,12 @@ export async function showMainScreen(user, userData) {
     }
 
     // Statistics button for everyone (functionality differs)
+    // Statistics button for everyone (functionality differs)
     buttonsHtml += `<button id="statisticsBtn" class="btn btn-secondary w-full mt-2">Statisztikák</button>`;
+
+    if (isEjkUser) {
+        buttonsHtml += `<button id="externalExpertsBtn" class="btn btn-secondary w-full mt-2">Külső Szakértők</button>`;
+    }
 
     // "Add new company" buttons are always available for non-EJK users
     // "Add new company" buttons are always available for non-EJK users
@@ -462,8 +522,23 @@ export async function showMainScreen(user, userData) {
             });
         }
         document.getElementById('joinAnotherCompanyBtn').addEventListener('click', () => {
-            showJoinCompanyForm();
+            showJoinCompanyForm(false);
             showScreen('login');
+        });
+    }
+
+    if (isEjkUser) {
+        document.getElementById('externalExpertsBtn').addEventListener('click', async () => {
+            // Re-use the permissions loading screen style as it's similar
+            showPermissionManagementLoadingScreen(); 
+            try {
+                const experts = await getExternalExperts();
+                showExternalExpertsScreen(experts);
+            } catch (error) {
+                console.error("Hiba a külső szakértők lekérése során:", error);
+                alert("Hiba történt az adatok lekérése közben.");
+                window.location.reload();
+            }
         });
     }
 }
@@ -485,13 +560,17 @@ export function showPermissionManagementLoadingScreen() {
     });
 }
 
+import { attachPermissionManagementListeners } from './ui_helpers.js';
+
 export function showPermissionManagementScreen(users, currentUserData) {
+    // ... existing content ...
     const isAdminEJK = currentUserData.isEjkUser;
 
     const roleOptions = ['pending', 'admin', 'write', 'read', 'inspector', 'pending_inspector'];
-
+    // ... render html ...
     const userListHtml = users.map(user => {
-        const associationsHtml = user.associations.map(assoc => {
+        // ... same mapping logic ... as before ...
+         const associationsHtml = user.associations.map(assoc => {
             if (!assoc.partnerDetails) return '';
 
             const partnerId = assoc.partnerId;
@@ -556,85 +635,86 @@ export function showPermissionManagementScreen(users, currentUserData) {
     screens.permissionManagement.innerHTML = screenHtml;
     showScreen('permissionManagement');
 
-    // Eseménykezelők a mentés és törlés gombokhoz
-    users.forEach(user => {
-        user.associations.forEach(assoc => {
-            if (!assoc.partnerDetails) return;
-
-            const partnerId = assoc.partnerId;
-            const roleSelect = document.getElementById(`role-select-${user.id}-${partnerId}`);
-            const saveButton = document.getElementById(`save-btn-${user.id}-${partnerId}`);
-            const originalRole = roleSelect.dataset.originalRole;
-
-            roleSelect.addEventListener('change', () => {
-                const selectedValue = roleSelect.value;
-
-                if (selectedValue === originalRole) {
-                    // Visszaállt az eredeti, gomb elrejtése
-                    saveButton.classList.add('hidden');
-                } else if (selectedValue === 'Törlés') {
-                    // Törlés opció, gomb pirosra váltása
-                    saveButton.textContent = 'Törlés';
-                    saveButton.classList.remove('hidden', 'btn-primary', 'btn-success');
-                    saveButton.classList.add('btn-danger');
-                } else {
-                    // Más szerepkör, mentés gomb megjelenítése
-                    saveButton.textContent = 'Mentés';
-                    saveButton.classList.remove('hidden', 'btn-danger', 'btn-success');
-                    saveButton.classList.add('btn-primary');
-                }
-            });
-
-            saveButton.addEventListener('click', async () => {
-                const newRole = roleSelect.value;
-
-                if (newRole === "Törlés") {
-                    // Törlési logika
-                    const confirmation = confirm(`Biztosan törölni szeretné a(z) ${assoc.partnerDetails.name} partnerkapcsolatot ${user.name} felhasználótól? Ez a művelet nem visszavonható.`);
-                    if (confirmation) {
-                        saveButton.disabled = true;
-                        saveButton.textContent = 'Törlés...';
-                        try {
-                            await removeUserPartnerAssociation(user.id, partnerId);
-                            saveButton.textContent = 'Törölve';
-                            setTimeout(() => window.location.reload(), 1000);
-                        } catch (error) {
-                            console.error("Hiba a partnerkapcsolat törlésekor:", error);
-                            alert(`Hiba történt a törlés során: ${error.message}`);
-                            saveButton.disabled = false;
-                            saveButton.textContent = 'Törlés'; // Visszaállítjuk a gombot hiba esetén
-                        }
-                    }
-                } else {
-                    // Frissítési logika
-                    saveButton.disabled = true;
-                    saveButton.textContent = 'Mentés...';
-                    try {
-                        await updateUserPartnerRole(user.id, partnerId, newRole);
-                        saveButton.textContent = 'Mentve';
-                        saveButton.classList.add('btn-success');
-                        
-                        // Frissítjük az originalRole-t a sikeres mentés után
-                        roleSelect.dataset.originalRole = newRole;
-
-                        setTimeout(() => {
-                            saveButton.classList.add('hidden');
-                            saveButton.disabled = false;
-                            saveButton.textContent = 'Mentés';
-                            saveButton.classList.remove('btn-success');
-                        }, 2000);
-                    } catch (error) {
-                        console.error("Hiba a jogosultságok mentésekor:", error);
-                        alert(`Hiba történt a mentés során: ${error.message}`);
-                        saveButton.disabled = false;
-                        saveButton.textContent = 'Mentés';
-                    }
-                }
-            });
-        });
-    });
+    // Use shared function
+    attachPermissionManagementListeners(users);
 
     document.getElementById('backToMainScreenBtn').addEventListener('click', () => {
+        window.location.reload();
+    });
+}
+
+export function showExternalExpertsScreen(experts) {
+    const roleOptions = ['pending_inspector', 'inspector'];
+
+    const userListHtml = experts.map(user => {
+        const associationsHtml = user.associations.map(assoc => {
+            if (!assoc.partnerDetails) return '';
+
+            const partnerId = assoc.partnerId;
+
+            const roleDropdown = `
+                <div>
+                    <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
+                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        <option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>
+                    </select>
+                </div>
+            `;
+            
+            const partnerDetailsHtml = `
+                <div class="flex-1">
+                    <p><strong>Cégnév:</strong> ${assoc.partnerDetails.name || 'N/A'}</p>
+                    <p><strong>Cím:</strong> ${assoc.partnerDetails.address || 'N/A'}</p>
+                    <p class="text-sm text-gray-400"><strong>Partner ID:</strong> ${partnerId}</p>
+                </div>
+            `;
+
+            const saveButtonHtml = `<button id="save-btn-${user.id}-${partnerId}" class="btn btn-primary w-full mt-2 hidden">Mentés</button>`;
+
+            return `
+            <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-start">
+                ${partnerDetailsHtml}
+                <div class="flex flex-col gap-2">
+                    ${roleDropdown}
+                    ${saveButtonHtml}
+                </div>
+            </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="p-4 border border-blue-800 rounded-lg mb-4">
+                <h3 class="text-xl font-bold text-blue-300">${user.name}</h3>
+                <p class="text-gray-400">${user.email}</p>
+                ${user.vizsgaloCegNeve ? `<p class="text-sm text-gray-400">Vizsgáló cég: ${user.vizsgaloCegNeve}</p>` : ''}
+                <div class="mt-4 space-y-2">
+                    <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
+                    ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const screenHtml = `
+        <div class="card max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold">Külső Szakértők</h1>
+                <button id="backToMainScreenBtn2" class="btn btn-secondary">Vissza</button>
+            </div>
+            <div class="max-h-[60vh] overflow-y-auto pr-2">
+                ${userListHtml.length > 0 ? userListHtml : '<p class="text-center text-gray-400">Nincsenek külső szakértők.</p>'}
+            </div>
+        </div>
+    `;
+    // Reuse the permissionManagement screen container as it is a generic full screen container
+    screens.permissionManagement.innerHTML = screenHtml;
+    showScreen('permissionManagement');
+
+    attachPermissionManagementListeners(experts);
+    
+    // Need to attach listener to the new back button ID
+    document.getElementById('backToMainScreenBtn2').addEventListener('click', () => {
         window.location.reload();
     });
 }

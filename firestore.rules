@@ -28,8 +28,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAnAdmin() || request.auth.uid == userId;
-      allow write: if request.auth.uid == userId || isAnAdmin();
+      allow read: if isAnAdmin() || request.auth.uid == userId || isEjkUser();
+      allow write: if request.auth.uid == userId || isAnAdmin() || isEjkUser();
     }
 
     match /partners/{partnerId} {
@@ -41,7 +41,7 @@ service cloud.firestore {
 
     match /partners/{partnerId}/devices/{deviceId} {
       allow read, list: if isEjkUser() || (isEkvUser() && resource.data.isI == true) || getRoleForPartner(partnerId) != null;
-			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write';
+			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write' || getRoleForPartner(partnerId) == 'inspector';
     }
 
     // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
@@ -55,7 +55,9 @@ service cloud.firestore {
     // Ez szükséges a "Piszkozatok" oldal működéséhez (EJK userek),
     // és a véglegesített jegyzőkönyvek olvasásához (minden partner user).
     match /{path=**}/inspections/{inspectionId} {
-      allow read: if isEjkUser() || isEkvUser() || (resource.data.status == 'finalized' && getRoleForPartner(resource.data.partnerId) != null);
+      allow read: if isEjkUser() || 
+                    (isEkvUser() && (resource.data.finalizedByUid == request.auth.uid || resource.data.createdByUid == request.auth.uid)) || 
+                    (resource.data.status == 'finalized' && getRoleForPartner(resource.data.partnerId) != null);
     }
     
       // ÚJ SZABÁLY: Szakértők kollekció olvasása

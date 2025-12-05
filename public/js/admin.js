@@ -77,6 +77,56 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
     return usersWithAssociations.filter(u => u); // Filter out any nulls from the mapping
 }
 
+export async function getExternalExperts() {
+    // 1. Fetch all users where isEkvUser == true
+    const usersSnapshot = await db.collection('users').where('isEkvUser', '==', true).get();
+    const ekvUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // 2. Enhance with partner details
+    const expertsWithAssociations = await Promise.all(ekvUsers.map(async (user) => {
+        const userPartnerRoles = user.partnerRoles || {};
+        const partnerIds = Object.keys(userPartnerRoles);
+
+        if (partnerIds.length === 0) {
+            return {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                associations: []
+            };
+        }
+
+        // Fetch partner details
+        // Note: Ideally we should batch this or cache partners, but for now individual fetches or Promise.all is okay given scale.
+        // To be safer with limits, we'll do Promise.all.
+        const partnerDocs = await Promise.all(
+            partnerIds.map(id => db.collection('partners').doc(id).get())
+        );
+
+        const associations = partnerDocs.map(doc => {
+            if (!doc.exists) return null;
+            const partnerId = doc.id;
+            const partnerDetails = { id: partnerId, ...doc.data() };
+            const role = userPartnerRoles[partnerId];
+            
+            return {
+                partnerId: partnerId,
+                role: role,
+                partnerDetails: partnerDetails
+            };
+        }).filter(a => a);
+
+        return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            associations: associations
+        };
+    }));
+
+    return expertsWithAssociations;
+}
+
 export async function updateUserPartnerRole(userId, partnerId, newRole) {
     if (!userId || !partnerId || !newRole) {
         throw new Error("Hiányzó paraméterek a frissítéshez.");

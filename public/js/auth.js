@@ -76,9 +76,11 @@ export function onAuthStateChanged() {
  * @param {string} name 
  * @param {boolean} isEkvUser 
  * @param {string} szakertoiCim 
- * @param {string} bizonyitvanySzama 
+ * @param {string} vizsgaloCegNeve
+ * @param {string} vizsgaloCegCime
+ * @param {string} kamaraiSzam 
  */
-export async function registerUser(email, password, name, isEkvUser = false, szakertoiCim = '', bizonyitvanySzama = '') {
+export async function registerUser(email, password, name, isEkvUser = false, szakertoiCim = '', vizsgaloCegNeve = '', vizsgaloCegCime = '', kamaraiSzam = '') {
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     const user = userCredential.user;
 
@@ -96,7 +98,9 @@ export async function registerUser(email, password, name, isEkvUser = false, sza
 
     if (isEkvUser) {
         userData.szakertoiCim = szakertoiCim;
-        userData.bizonyitvanySzama = bizonyitvanySzama;
+        userData.vizsgaloCegNeve = vizsgaloCegNeve;
+        userData.vizsgaloCegCime = vizsgaloCegCime;
+        userData.kamaraiSzam = kamaraiSzam;
     }
 
     await db.collection('users').doc(user.uid).set(userData);

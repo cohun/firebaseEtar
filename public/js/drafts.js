@@ -15,13 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("User is signed in:", user.email);
             
             let userData = {};
+            let isEkvUser = false; // Declare outside try block
+            
             // Check user roles to adjust UI
             try {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (userDoc.exists) {
                     userData = userDoc.data();
                     const userRoles = userData.roles || [];
-                    const isEkvUser = userData.isEkvUser === true;
+                    isEkvUser = userData.isEkvUser === true; // Assign value
 
                     if (isEkvUser) {
                         document.body.classList.add('ekv-mode');
@@ -43,10 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 // The initial query is already sorted by creation date
-                const snapshot = await db.collectionGroup('inspections')
-                    .where('status', '==', 'draft')
-                    .orderBy('createdAt', 'desc')
-                    .get();
+                // The initial query is already sorted by creation date
+                let dGroup = db.collectionGroup('inspections').where('status', '==', 'draft');
+
+                if (isEkvUser) {
+                     // EKV users only see their own drafts
+                     // This requires a composite index 'status' + 'createdByUid' + 'createdAt'
+                     dGroup = dGroup.where('createdByUid', '==', user.uid);
+                }
+
+                const snapshot = await dGroup.orderBy('createdAt', 'desc').get();
                 
                 console.log(`Lekérdezés lefutott, ${snapshot.docs.length} dokumentumot talált.`);
 
@@ -309,6 +317,7 @@ async function startFinalizationProcess(draftsToFinalize) {
                 batch.update(docRef, { 
                     status: 'finalized',
                     finalizedAt: now,
+                    finalizedByUid: auth.currentUser.uid, // Save UID for EKV visibility
                     fileUrl: downloadURL, // Save the generated file's URL
                     deviceDetails: {
                         serialNumber: draft.serialNumber || 'N/A',

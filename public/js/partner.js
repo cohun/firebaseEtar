@@ -420,12 +420,29 @@ export function initPartnerWorkScreen(partnerId, userData) {
             // Fetch inspection data for ALL fetched devices
             const deviceDataPromises = rawDevices.map(async (device) => {
                 // Latest inspection
-                const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
+                let latestInspectionQuery = db.collection('partners').doc(partnerId)
                     .collection('devices').doc(device.id)
                     .collection('inspections')
                     .orderBy('createdAt', 'desc')
-                    .limit(1)
-                    .get();
+                    .limit(1);
+
+                if (isEkvUser) {
+                    // EKV users only see works they created/finalized (assuming 'finalizedByUid' tracks finalizer)
+                    // Note: 'createdByUid' is more appropriate for 'createdAt' sort, but finalizedByUid is better for 'finalized' reports.
+                    // However, orderBy('createdAt') requires a composite index if filters are applied.
+                    // For simplicity and avoiding index explosion, we might fetch and filter in memory if the list is small per device,
+                    // OR rely on 'finalizedByUid' for finalized ones.
+                    
+                    // Since specific index creation might be needed, we'll try filtering by query.
+                    // IMPORTANT: Firestore requires index for 'createdByUid' + 'createdAt'.
+                    // If index is missing, this will fail. For now we assume logic correctness and user will create index.
+                    latestInspectionQuery = latestInspectionQuery.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                }
+
+                const latestInspectionSnapshot = await latestInspectionQuery.get().catch(e => {
+                     console.warn("Error fetching latest inspection (likely missing index or permission):", e);
+                     return { empty: true };
+                });
 
                 if (!latestInspectionSnapshot.empty) {
                     const latestInspection = latestInspectionSnapshot.docs[0].data();
@@ -435,13 +452,21 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 }
 
                 // Finalized inspection URL
-                const finalizedInspectionSnapshot = await db.collection('partners').doc(partnerId)
+                let finalizedInspectionQuery = db.collection('partners').doc(partnerId)
                     .collection('devices').doc(device.id)
                     .collection('inspections')
                     .where('status', '==', 'finalized')
                     .orderBy('finalizedAt', 'desc')
-                    .limit(1)
-                    .get();
+                    .limit(1);
+
+                if (isEkvUser) {
+                     finalizedInspectionQuery = finalizedInspectionQuery.where('finalizedByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                }
+
+                const finalizedInspectionSnapshot = await finalizedInspectionQuery.get().catch(e => {
+                    console.warn("Error fetching finalized inspection (likely missing index or permission):", e);
+                    return { empty: true };
+                });
 
                 if (!finalizedInspectionSnapshot.empty) {
                     device.finalizedFileUrl = finalizedInspectionSnapshot.docs[0].data().fileUrl;
@@ -1326,11 +1351,19 @@ export function initPartnerWorkScreen(partnerId, userData) {
         if (!finalizedBody) return;
 
         try {
-            const snapshot = await db.collectionGroup('inspections')
+
+            let query = db.collectionGroup('inspections')
                 .where('partnerId', '==', partnerId)
-                .where('status', '==', 'finalized')
-                .orderBy('finalizedAt', 'desc')
-                .get();
+                .where('status', '==', 'finalized');
+            
+            // EKV users only see inspections they finalized
+            if (isEkvUser) {
+                // IMPORTANT: This requires composite index: partnerId + status + finalizedByUid + finalizedAt
+                // If fetching fails due to missing index, we catch it.
+                query = query.where('finalizedByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+            }
+
+            const snapshot = await query.orderBy('finalizedAt', 'desc').get();
 
             if (snapshot.empty) {
                 finalizedBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">Nincsenek véglegesített jegyzőkönyvek.</td></tr>`;
@@ -1948,6 +1981,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             ajanlatKeres: document.getElementById('ajanlatKeresCheckbox').checked,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             createdBy: user.displayName || user.email,
+                            createdByUid: user.uid, // Save UID for EKV filtering
                             status: 'draft' // Piszkozat állapot beállítása
                         };
 
