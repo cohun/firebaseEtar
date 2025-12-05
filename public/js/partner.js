@@ -36,31 +36,31 @@ function getEszkozListaHtml() {
                         </svg>
                     </button>
                 </div>
-                <div id="filter-menu" class="hidden xl:flex xl:flex-wrap xl:items-end xl:gap-4 space-y-4 xl:space-y-0">
-                    <div class="flex-1" style="min-width: 150px;">
-                        <label for="main-search-input" class="block text-sm font-medium text-gray-300">Keresés gyári számra</label>
-                        <input type="search" id="main-search-input" class="input-field w-full mt-1" placeholder="Gyári szám...">
+                <div id="filter-menu" class="hidden xl:flex xl:flex-nowrap xl:items-end xl:gap-2 space-y-4 xl:space-y-0">
+                    <div class="flex-1 min-w-0">
+                        <label for="main-search-input" class="block text-xs font-medium text-gray-300 truncate">Gyári szám</label>
+                        <input type="search" id="main-search-input" class="input-field w-full mt-1 text-sm" placeholder="Keresés...">
                     </div>
-                    <div class="flex-1" style="min-width: 150px;">
-                        <label for="filter-vizsg-idopont" class="block text-sm font-medium text-gray-300">Vizsgálat dátuma</label>
-                        <input type="text" id="filter-vizsg-idopont" class="input-field w-full mt-1" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
+                    <div class="flex-1 min-w-0">
+                        <label for="filter-vizsg-idopont" class="block text-xs font-medium text-gray-300 truncate">Vizsgálat dátuma</label>
+                        <input type="text" id="filter-vizsg-idopont" class="input-field w-full mt-1 text-sm" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
                     </div>
-                    <div class="flex-1" style="min-width: 150px;">
-                        <label for="filter-kov-vizsg" class="block text-sm font-medium text-gray-300">Következő vizsga</label>
-                        <input type="text" id="filter-kov-vizsg" class="input-field w-full mt-1" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
+                    <div class="flex-1 min-w-0">
+                        <label for="filter-kov-vizsg" class="block text-xs font-medium text-gray-300 truncate">Következő vizsga</label>
+                        <input type="text" id="filter-kov-vizsg" class="input-field w-full mt-1 text-sm" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
                     </div>
-                    <div class="flex-1" style="min-width: 120px;">
-                        <button id="reset-filters-btn" class="menu-btn menu-btn-clear-filters w-full"><i class="fas fa-trash-alt fa-fw"></i> Szűrők törlése</button>
+                    <div class="flex-none">
+                        <button id="reset-filters-btn" class="menu-btn menu-btn-clear-filters w-full text-sm whitespace-nowrap px-3"><i class="fas fa-trash-alt fa-fw"></i> Szűrők</button>
                     </div>
-                    <div class="flex-1 flex items-center justify-center pb-1" style="min-width: 100px;">
+                    <div class="flex-none flex items-center justify-center pb-2 px-2">
                         <input id="inactive-toggle" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
-                        <label for="inactive-toggle" class="font-medium text-gray-300 ml-2">Inaktívak</label>
+                        <label for="inactive-toggle" class="font-medium text-gray-300 ml-2 text-sm whitespace-nowrap">Inaktívak</label>
                     </div>
-                    <div class="flex-1" style="min-width: 120px;">
-                        <button id="refresh-list-btn" class="menu-btn menu-btn-primary w-full"><i class="fas fa-sync-alt fa-fw"></i> Lista frissítése</button>
+                    <div class="flex-none">
+                        <button id="refresh-list-btn" class="menu-btn menu-btn-primary w-full text-sm whitespace-nowrap px-3"><i class="fas fa-sync-alt fa-fw"></i> Frissítés</button>
                     </div>
-                    <div class="flex-1" style="min-width: 120px;">
-                        <button id="scan-chip-modal-btn" class="menu-btn text-glow w-full" style="background-color: #1f2937; border: 1px solid #3b82f6;"><i class="fas fa-expand fa-fw"></i> Digitális beolvasás</button>
+                    <div class="flex-none">
+                        <button id="scan-chip-modal-btn" class="menu-btn text-glow w-full text-sm whitespace-nowrap px-3" style="background-color: #1f2937; border: 1px solid #3b82f6;"><i class="fas fa-expand fa-fw"></i> Beolvasás</button>
                     </div>
                 </div>
             </div>
@@ -2128,13 +2128,13 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                     </button>
                 </div>
                  <!-- Desktop Menu -->
-                <nav class="hidden xl:flex items-center space-x-2">
-                    <button id="download-db-btn" class="menu-btn menu-btn-primary"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
-                    ${uploadButtonHtml.replace('w-full text-left', '')}
-                    ${newInspectionButtonHtml}
-                    ${actionButtonsHtml}
-                    <button id="generate-protocol-btn" class="menu-btn menu-btn-primary"><i class="fas fa-file-alt fa-fw"></i>Jegyzőkönyvek</button>
-                    <button id="backToMainFromWorkScreenBtn" class="menu-btn menu-btn-secondary"><i class="fas fa-arrow-left fa-fw"></i>Vissza</button>
+                <nav class="hidden xl:flex items-center gap-2 flex-nowrap">
+                    <button id="download-db-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2"><i class="fas fa-download fa-fw"></i>Adatbázis</button>
+                    ${uploadButtonHtml.replace('w-full text-left', '').replace('Új eszköz feltöltés', 'Feltöltés').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
+                    ${newInspectionButtonHtml.replace('Új vizsgálat', 'Új vizsgálat').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
+                    ${actionButtonsHtml.replace(/menu-btn-primary/g, 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
+                    <button id="generate-protocol-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2"><i class="fas fa-file-alt fa-fw"></i>Jegyzőkönyvek</button>
+                    <button id="backToMainFromWorkScreenBtn" class="menu-btn menu-btn-secondary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2"><i class="fas fa-arrow-left fa-fw"></i>Vissza</button>
                 </nav>
             </div>
             <!-- Mobile Menu -->
