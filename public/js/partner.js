@@ -647,6 +647,13 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
     window.toggleIsI = async function(checkbox, deviceId) {
         const newValue = checkbox.checked;
+        const confirmMessage = "Valóban ennek az eszköznek a vizsgálatát ezentúl más végzi?";
+        
+        if (!confirm(confirmMessage)) {
+            checkbox.checked = !newValue; // Revert change
+            return;
+        }
+
         try {
             await db.collection('partners').doc(partnerId).collection('devices').doc(deviceId).update({
                 isI: newValue

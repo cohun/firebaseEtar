@@ -73,12 +73,15 @@ export async function showStatisticsScreen(user, userData) {
                 return deviceData;
             }));
 
-            stats.totalDevices = devices.length;
-            stats.devices = devices;
+            // Filter devices for EKV users (only isI: true)
+            const statsDevices = (userData.isEkvUser) ? devices.filter(d => d.isI === true) : devices;
+
+            stats.totalDevices = statsDevices.length;
+            stats.devices = statsDevices;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            devices.forEach(device => {
+            statsDevices.forEach(device => {
                 if (!device.kov_vizsg) {
                     stats.noInspectionCount++;
                     return;
@@ -294,8 +297,10 @@ function renderStatisticsUI(partnerStats, userData) {
     // Scheduler Button Logic
     const schedulerBtn = document.getElementById('openSchedulerBtn');
     if (schedulerBtn) {
-        // Show for everyone (ENY and EJK)
-        schedulerBtn.classList.remove('hidden');
+        // Show for everyone except EKV users
+        if (!userData.isEkvUser) {
+            schedulerBtn.classList.remove('hidden');
+        }
         schedulerBtn.addEventListener('click', () => {
             // Collect all devices from all stats
             let allDevices = [];
