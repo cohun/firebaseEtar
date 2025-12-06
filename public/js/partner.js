@@ -1,3 +1,4 @@
+import { getUevmModalHtml, initUevmModal } from './uevm.js';
 import { auth, db, storage, updateDeviceChipId } from './firebase.js';
 
 
@@ -163,6 +164,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
     const partnerRoles = (userData && userData.partnerRoles) ? userData.partnerRoles : {};
     const role = partnerRoles[partnerId] || null;
     const isEjkUser = (userData && userData.isEjkUser) || false;
+    const isEkvUser = (userData && userData.isEkvUser) || false; // Define here for wider scope
+
     
     // Only restrict if explicitly read-only. Default to allowing edit to prevent locking out admins.
     const isReadOnly = (role === 'read' && !isEjkUser);
@@ -237,6 +240,39 @@ export function initPartnerWorkScreen(partnerId, userData) {
         }
     }
 
+    // --- PROTOCOL LOADING LOGIC (EKV Users) ---
+    async function loadProtocols() {
+        const selectEl = document.getElementById('expertSelectNewInspection');
+        if (!selectEl) return;
+
+        try {
+            // List files from Firebase Storage 'templates/foreign-doc'
+            const listRef = storage.ref('templates/foreign-doc');
+            const res = await listRef.listAll();
+
+            selectEl.innerHTML = '<option value="" disabled selected>Válassz egy jegyzőkönyvet...</option>'; // Reset
+
+            if (res.items.length === 0) {
+                 const option = document.createElement('option');
+                 option.disabled = true;
+                 option.textContent = "Nincsenek elérhető jegyzőkönyvek";
+                 selectEl.appendChild(option);
+                 return;
+            }
+
+            res.items.forEach(itemRef => {
+                const option = document.createElement('option');
+                option.value = itemRef.name; // Use filename as value
+                option.textContent = itemRef.name;
+                selectEl.appendChild(option);
+            });
+
+        } catch (error) {
+            console.error("Hiba a jegyzőkönyvek betöltésekor:", error);
+            selectEl.innerHTML = '<option value="" disabled selected>Hiba a betöltés során</option>';
+        }
+    }
+
 
     // --- DEVICE LIST LOGIC ---
     let currentDevices = [];
@@ -253,7 +289,6 @@ export function initPartnerWorkScreen(partnerId, userData) {
     let sourceFilter = 'all'; // 'all', 'h-itb', 'external'
     
     // Determine default filter based on user type
-    const isEkvUser = (userData && userData.isEkvUser) === true;
     
     if (isEkvUser) {
         sourceFilter = 'external';
@@ -1342,7 +1377,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
     updateUiForView(); // Kezdeti UI beállítása
     fetchDevices();
-    loadExperts();
+    if (isEkvUser) {
+        loadProtocols();
+    } else {
+        loadExperts();
+    }
     loadFinalizedInspections(partnerId); // ÚJ: Véglegesített jegyzőkönyvek betöltése
 
     // --- VÉGLEGESÍTETT JEGYZŐKÖNYVEK BETÖLTÉSE ---
@@ -1727,6 +1766,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         const serialNumber = serialNumberInput.value.trim();
         if (!serialNumber) return;
 
+        window.currentUevmData = null; // Reset UEVM data on new search
         deviceSearchResult.innerHTML = `<p class="text-gray-400">Keresés...</p>`;
 
         try {
@@ -1750,6 +1790,14 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 const device = querySnapshot.docs[0].data();
                 currentInspectedDevice = { id: querySnapshot.docs[0].id, ...device };
 
+                // Check if modal container exists, if not add it
+                if (!document.getElementById('uevm-modal-container')) {
+                    const modalContainer = document.createElement('div');
+                    modalContainer.id = 'uevm-modal-container';
+                    modalContainer.innerHTML = getUevmModalHtml();
+                    document.body.appendChild(modalContainer);
+                }
+
                 const keyMappings = {
                     description: 'Megnevezés',
                     type: 'Típus',
@@ -1761,6 +1809,14 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     operatorId: 'Üzemeltetői azonosító',
                     id: 'id'
                 };
+
+                // Check if modal container exists, if not add it
+                if (!document.getElementById('uevm-modal-container')) {
+                    const modalContainer = document.createElement('div');
+                    modalContainer.id = 'uevm-modal-container';
+                    modalContainer.innerHTML = getUevmModalHtml();
+                    document.body.appendChild(modalContainer);
+                }
 
                 let detailsHtml = '<h3 class="text-xl font-bold mb-4 text-green-300">Megtalált eszköz adatai</h3>';
                 detailsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-left">';
@@ -1853,10 +1909,10 @@ export function initPartnerWorkScreen(partnerId, userData) {
                                         <option>Megfelelt</option>
                                         <option>Nem felelt meg</option>
                                     </select>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="ajanlatKeresCheckbox" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                        <label for="ajanlatKeresCheckbox" class="ml-2 text-sm text-gray-300 whitespace-nowrap">Ajánlat menjen?</label>
-                                    </div>
+                                    <button type="button" id="openUevmBtn" class="ml-2 px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded border border-blue-500 transition-colors">
+                                        <i class="fas fa-paperclip mr-1"></i> Vizsgálati melléklet
+                                    </button>
+                                    <div id="uevm-status-indicator" class="ml-2 text-xs text-gray-500 hidden"><i class="fas fa-check text-green-500"></i> Csatolva</div>
                                 </div>
                             </div>
                             <div class="md:col-span-2">
@@ -1877,6 +1933,25 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
                 deviceSearchResult.innerHTML = detailsHtml;
 
+            // UEVM Button Logic
+            const openUevmBtn = document.getElementById('openUevmBtn');
+            if (openUevmBtn) {
+                    openUevmBtn.addEventListener('click', () => {
+                        initUevmModal((data) => {
+                            window.currentUevmData = data; // Save to global/window for persistence
+                            // Update UI to show it's attached
+                            const indicator = document.getElementById('uevm-status-indicator');
+                            if (indicator) {
+                                indicator.classList.remove('hidden');
+                            }
+                            openUevmBtn.classList.remove('bg-blue-700', 'border-blue-500');
+                            openUevmBtn.classList.add('bg-green-700', 'border-green-500');
+                            openUevmBtn.innerHTML = '<i class="fas fa-edit mr-1"></i> Melléklet szerkesztése';
+                        }, window.currentUevmData || null);
+                    });
+            }
+
+            // Automatikus scroll az eredményhez
                 const copyButton = document.getElementById('copyPreviousInspectionDataBtn');
                 if (copyButton) {
                     copyButton.addEventListener('click', () => {
@@ -1970,7 +2045,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             deviceId: currentInspectedDevice.id,
                             partnerId: partnerId,
                             vizsgalatJellege: document.getElementById('templateSelectNewInspection').value,
-                            szakerto: document.getElementById('expertSelectNewInspection').value,
+                            szakerto: (userData && userData.isEkvUser) ? (user.displayName || user.email) : document.getElementById('expertSelectNewInspection').value,
+                            inspectionProtocol: (userData && userData.isEkvUser) ? document.getElementById('expertSelectNewInspection').value : null,
                             vizsgalatHelye: document.getElementById('inspectionLocationInput').value,
                             vizsgalatIdopontja: document.getElementById('inspectionDateInput').value,
                             kovetkezoIdoszakosVizsgalat: document.querySelector('[name="kov_idoszakos_vizsgalat"]').value,
@@ -1978,11 +2054,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             vizsgalatEredmenye: document.querySelector('[name="vizsgalat_eredmenye"]').value,
                             feltartHiba: document.querySelector('[name="feltart_hiba"]').value,
                             felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]').value,
-                            ajanlatKeres: document.getElementById('ajanlatKeresCheckbox').checked,
+                            // Deleted: ajanlatKeres
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             createdBy: user.displayName || user.email,
                             createdByUid: user.uid, // Save UID for EKV filtering
-                            status: 'draft' // Piszkozat állapot beállítása
+                            status: 'draft', // Piszkozat állapot beállítása
+                            uevmData: window.currentUevmData || null // Save UEVM data if exists
                         };
 
                         const dataToHash = `${inspectionData.deviceId}${inspectionData.szakerto}${inspectionData.vizsgalatIdopontja}`;
@@ -2038,8 +2115,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
 // PARTNER MUNKA KÉPERNYŐ (KERET)
 // ===================================================================================
 
-function getNewInspectionScreenHtml() {
+function getNewInspectionScreenHtml(userData) {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD formátum
+    const isEkvUser = (userData && userData.isEkvUser) || false;
+    const secondFieldLabel = isEkvUser ? "2. Jegyzőkönyv" : "2. Szakértő";
+    const secondFieldPlaceholder = isEkvUser ? "Jegyzőkönyvek betöltése..." : "Szakértők betöltése...";
+
     return `
         <div class="card max-w-3xl mx-auto">
             <h2 class="text-2xl font-bold text-center mb-8">Új vizsgálat rögzítése</h2>
@@ -2054,9 +2135,9 @@ function getNewInspectionScreenHtml() {
                     </select>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-3">2. Szakértő</h3>
+                    <h3 class="text-lg font-semibold mb-3">${secondFieldLabel}</h3>
                     <select id="expertSelectNewInspection" class="input-field" required>
-                        <option value="" disabled selected>Szakértők betöltése...</option>
+                        <option value="" disabled selected>${secondFieldPlaceholder}</option>
                     </select>
                 </div>
                 <div>
@@ -2229,7 +2310,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             </div>
 
             <div id="newInspectionScreen" class="screen">
-                ${getNewInspectionScreenHtml()}
+                ${getNewInspectionScreenHtml(userData)}
             </div>
         </main>
         <!-- NFC Modal -->

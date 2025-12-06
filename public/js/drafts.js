@@ -1,6 +1,6 @@
 import { auth, db, storage } from './firebase.js';
 import { showLoadingModal, hideLoadingModal } from './ui.js';
-import { generateAndUploadFinalizedHtml, generateHtmlView } from './html-generator.js';
+import { generateAndUploadFinalizedHtml, generateHtmlView, getTemplateForDraft } from './html-generator.js';
 
 let allEnrichedDrafts = []; // Store all fetched drafts globally in this module
 let currentSortField = 'createdAt';
@@ -294,11 +294,11 @@ async function startFinalizationProcess(draftsToFinalize) {
     showLoadingModal(`Véglegesítés előkészítése... 1 / ${total}`);
 
     try {
-        // Fetch HTML template content once
-        const url = 'jkv.html'; // The path to our new HTML template
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Hiba a jkv.html sablon betöltésekor: ${response.statusText}`);
-        const htmlTemplateString = await response.text();
+        // TEMPLATE FETCHING REMOVED FROM HERE - DONE PER DRAFT NOW
+        // const url = 'jkv.html'; 
+        // const response = await fetch(url);
+        // ...
+        // const htmlTemplateString = await response.text();
 
         const batch = db.batch();
         const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -309,6 +309,16 @@ async function startFinalizationProcess(draftsToFinalize) {
             showLoadingModal(`Folyamatban: ${i + 1} / ${total} (${draft.serialNumber || 'N/A'}) generálása és feltöltése...`);
             
             if (draft.partnerId && draft.deviceId && draft.id) {
+                // Get the appropriate template for this specific draft
+                let htmlTemplateString;
+                try {
+                    htmlTemplateString = await getTemplateForDraft(draft);
+                } catch (err) {
+                    console.error("Failed to load template for draft:", draft.id, err);
+                    // Skip or continue? Let's skip this one to avoid bad data
+                    continue; 
+                }
+
                 // Generate HTML, upload, and get URL
                 const downloadURL = await generateAndUploadFinalizedHtml(htmlTemplateString, draft);
 

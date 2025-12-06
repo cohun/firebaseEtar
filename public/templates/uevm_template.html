@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Univerzális Emelőgép Vizsgálati Melléklet (UEVM)</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            font-size: 10pt;
+            line-height: 1.3;
+            color: #000;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .header p {
+            font-size: 10pt;
+            font-style: italic;
+            margin: 5px 0 0 0;
+        }
+        h2 {
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 10px 0 5px 0;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 4px;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-align: left;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .w-ref { width: 30px; }
+        .w-method { width: 40px; }
+        .w-score { width: 25px; text-align: center; }
+        
+        .checkbox-container {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        .checkbox {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #000;
+            text-align: center;
+            line-height: 10px;
+            margin-right: 3px;
+        }
+        .legend {
+            font-size: 8pt;
+            margin-bottom: 10px;
+        }
+        .section-title {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .no-border-bottom { border-bottom: none; }
+        .no-border-top { border-top: none; }
+        /* --- ÚJ: Képernyős "Boríték" --- */
+        .screen-view-wrapper {
+            background-color: #f4f4f4;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top, avoiding vertical centering issues with long content */
+            min-height: 100vh;
+        }
+
+        /* --- A Dokumentum Konténer (Képernyőre) --- */
+        .container {
+            width: 100%;
+            max-width: 900px; 
+            background-color: #ffffff;
+            padding: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            margin: 0 auto;
+        }
+
+        /* --- Reszponzív Stílusok (Mobil nézet) --- */
+        @media (max-width: 600px) {
+            .screen-view-wrapper {
+                padding: 0;
+            }
+            .container {
+                max-width: 100%;
+                padding: 15px;
+                border: none;
+                box-shadow: none;
+                border-radius: 0;
+            }
+        }
+
+        /* --- Nyomtatási stílusok --- */
+        @media print {
+            .screen-view-wrapper {
+                display: block;
+                padding: 0;
+                margin: 0;
+                background-color: #ffffff !important;
+                min-height: auto;
+            }
+
+            .container {
+                width: 100%;
+                max-width: none;
+                padding: 0;
+                margin: 0;
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+                min-height: 100%;
+            }
+            body { 
+                background-color: #ffffff !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="screen-view-wrapper">
+        <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <h1>Univerzális Emelőgép Vizsgálati Melléklet (UEVM)</h1>
+        <p>Csatolmány a(z) <strong>{{jegyzokonyvSorszam}}</strong> számú Teherfelvevő Eszköz Időszakos Vizsgálati Jegyzőkönyvhöz</p>
+    </div>
+
+    <!-- I. Általános Adatok -->
+    <h2>I. A Vizsgált Emelőgép Kiegészítő Adatai</h2>
+    <table>
+        <tr>
+            <td width="50%">
+                <strong>Vizsgálat típusa:</strong><br>
+                <div class="checkbox-container"><span class="checkbox">{{checkSzv}}</span> Szerkezeti (SzV)</div>
+                <div class="checkbox-container"><span class="checkbox">{{checkFv}}</span> Fővizsgálat (Fv)</div>
+                <div class="checkbox-container"><span class="checkbox">{{checkIbf}}</span> IBF</div>
+            </td>
+            <td width="50%">
+                <strong>Emelőgép jellege/típusa:</strong><br>
+                {{emelogepTipusa}}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>Gyártási év:</strong> {{gyartasiEv}}</td>
+            <td><strong>Teherbírás (Q):</strong> {{teherbiras}}</td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Vizsgálati csoportszám (MSZ 9750):</strong><br>
+                {{csoportszam}}
+            </td>
+            <td>
+                <strong>Üzemóra / Kilométeróra állás:</strong><br>
+                {{uzemoraAllas}}
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <strong>Vizsgálat alapjául szolgáló jogszabályok, szabványok:</strong><br>
+                <i>{{specifikusSzabvany}}</i>
+            </td>
+        </tr>
+    </table>
+
+    <!-- II. Részletes Vizsgálat -->
+    <h2>II. Részletes Vizsgálati Jegyzőkönyv és Minősítés (MSZ 9721-1 szerint)</h2>
+    <div class="legend">
+        <strong>Jelmagyarázat:</strong> <strong>3:</strong> Megfelelő | <strong>2:</strong> Fokozott ellenőrzés szükséges | <strong>1:</strong> Javítandó (határidővel) | <strong>0:</strong> Azonnal leállítandó!<br>
+        <strong>Mód:</strong> SZV (Szemrevételezés), T (Tapintás), ME (Mérés), MM (Műszeres mérés), ÜJ (Üresjárat), ÜT (Üzemi terhelés)
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th class="w-ref">Ref.</th>
+                <th>Vizsgálat Tárgya</th>
+                <th class="w-method">Mód</th>
+                <th>Mért érték / Megállapítás</th>
+                <th class="w-score">3</th>
+                <th class="w-score">2</th>
+                <th class="w-score">1</th>
+                <th class="w-score">0</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>4.2.</td>
+                <td><strong>Dokumentáció</strong><br><small>Napló, gépkönyv, CE, üzembehelyezési jkv.</small></td>
+                <td class="text-center">SZV</td>
+                <td>{{uevm_dok_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_dok_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_dok_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_dok_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_dok_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td><strong>Korábbi hiányosságok</strong><br><small>Előző jkv. szerinti hibák javítása</small></td>
+                <td class="text-center">SZV</td>
+                <td>{{uevm_korabbi_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_korabbi_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korabbi_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korabbi_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korabbi_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>4.4.</td>
+                <td><strong>Tartószerkezet</strong><br><small>Főtartó, gém, oszlop deformációja</small></td>
+                <td class="text-center">SZV,MM</td>
+                <td>{{uevm_tarto_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_tarto_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_tarto_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_tarto_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_tarto_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>4.5.</td>
+                <td><strong>Kötések állapota</strong><br><small>Hegesztési varratok, csavarkötések</small></td>
+                <td class="text-center">SZV,T</td>
+                <td>{{uevm_kotes_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_kotes_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_kotes_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_kotes_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_kotes_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>4.6.1</td>
+                <td><strong>Gépészeti egységek</strong><br><small>Kerekek, dobok, tengelyek kopása</small></td>
+                <td class="text-center">SZV,ME</td>
+                <td>{{uevm_gepeszet_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_gepeszet_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_gepeszet_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_gepeszet_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_gepeszet_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td><strong>Hajlékony vonóelem</strong><br><small>Drótkötél/Lánc sodrása, korróziója</small></td>
+                <td class="text-center">ME</td>
+                <td>{{uevm_vono_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_vono_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_vono_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_vono_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_vono_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td><strong>Teherfelvevő eszköz</strong><br><small>Horog, villa kopása, nyílásméret</small></td>
+                <td class="text-center">ME</td>
+                <td>{{uevm_teherfel_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_teherfel_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_teherfel_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_teherfel_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_teherfel_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>4.8.</td>
+                <td><strong>Biztonsági berendezések</strong><br><small>Vészleállító, végálláskapcsolók, fékek</small></td>
+                <td class="text-center">ÜJ</td>
+                <td>{{uevm_bizt_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_bizt_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_bizt_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_bizt_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_bizt_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td><strong>Érintésvédelem</strong><br><small>Jegyzőkönyv száma, érvényessége</small></td>
+                <td class="text-center">SZV</td>
+                <td>{{uevm_ev_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_ev_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_ev_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_ev_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_ev_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>4.10.</td>
+                <td><strong>Korrózióvédelem</strong><br><small>Festés állapota, rétegvastagság</small></td>
+                <td class="text-center">ME</td>
+                <td>{{uevm_korr_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_korr_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korr_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korr_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korr_val_0}}X{{/if}}</td>
+            </tr>
+            <tr>
+                <td>4.18.</td>
+                <td><strong>Korszerűsítési szükséglet</strong><br><small>Kockázatcsökkentés lehetőségei</small></td>
+                <td class="text-center">SZV</td>
+                <td>{{uevm_korsz_megjegyzes}}</td>
+                <td class="text-center">{{#if uevm_korsz_val_3}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korsz_val_2}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korsz_val_1}}X{{/if}}</td>
+                <td class="text-center">{{#if uevm_korsz_val_0}}X{{/if}}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- III. Teherpróbák -->
+    <h2>III. Teherpróba és Működési Vizsgálatok (Fővizsgálat / IBF esetén)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th width="20%">Vizsgálat Fajta</th>
+                <th width="50%">Módszer és Követelmény</th>
+                <th>Eredmény / Megállapítás</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Üresjárati vizsgálat (ÜJ)</strong></td>
+                <td>Funkciók, irányhűség, vészleállító, végállások ellenőrzése terhelés nélkül.</td>
+                <td>
+                    <span class="checkbox">{{resUjOk}}</span> Megfelelt<br>
+                    <span class="checkbox">{{resUjNok}}</span> Nem felelt meg
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Üzemi Terhelés (ÜT)</strong><br>(Dinamikus/Statikus)</td>
+                <td>
+                    Névleges teher: <strong>{{nevlegesTeher}}</strong> kg.<br>
+                    Teher emelése, tartása (min. 10 perc), fékhatás vizsgálata.
+                </td>
+                <td>
+                    Süllyedés: {{sullyedesMm}} mm<br>
+                    <span class="checkbox">{{resUtOk}}</span> Megfelelt<br>
+                    <span class="checkbox">{{resUtNok}}</span> Nem felelt meg
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Túlterhelés (TT)</strong></td>
+                <td>
+                    Túlterhelésgátló működésének ellenőrzése (ha van).<br>
+                    Próbateher: <strong>{{probateher}}</strong> kg.
+                </td>
+                <td>
+                    <span class="checkbox">{{resTtOk}}</span> Letiltott (Megfelelt)<br>
+                    <span class="checkbox">{{resTtNok}}</span> Nem tiltott le<br>
+                    <span class="checkbox">{{resTtNa}}</span> Nincs kiépítve
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- IV. Összegzés -->
+    <h2>IV. Összegző Értékelés és Határozatok</h2>
+    
+    <div style="margin-bottom: 15px;">
+        <strong>Minősítés a feltárt hibák és a mérési eredmények alapján:</strong><br><br>
+        <div class="checkbox-container"><span class="checkbox">{{w1Box}}</span> <strong>ÜZEMELTETÉSRE ALKALMATLAN.</strong> Azonnali leállítás szükséges a hiba elhárításáig.</div><br>
+        <div class="checkbox-container"><span class="checkbox">{{w2Box}}</span> <strong>EGYENÉRTÉKŰ BIZTONSÁG MELLETT ÜZEMELTETHETŐ.</strong> Javítás a megadott határidőig kötelező.</div><br>
+        <div class="checkbox-container"><span class="checkbox">{{w3Box}}</span> <strong>FELTÉTELESEN ÜZEMELTETHETŐ.</strong> Fokozott felügyelet szükséges a következő vizsgálatig.</div><br>
+        <div class="checkbox-container"><span class="checkbox">{{w4Box}}</span> <strong>ÜZEMSZERŰ HASZNÁLATRA ALKALMAS.</strong></div>
+    </div>
+
+    <strong>Feltárt Hibák és Intézkedési Terv:</strong>
+    <table>
+        <thead>
+            <tr>
+                <th width="10%">Hiv.</th>
+                <th width="40%">Géprész / Hiányosság leírása</th>
+                <th width="30%">Szükséges teendő</th>
+                <th width="20%">Határidő</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{h1Id}}</td>
+                <td>{{h1Desc}}</td>
+                <td>{{h1Action}}</td>
+                <td>{{h1Date}}</td>
+            </tr>
+            <tr>
+                <td>{{h2Id}}</td>
+                <td>{{h2Desc}}</td>
+                <td>{{h2Action}}</td>
+                <td>{{h2Date}}</td>
+            </tr>
+            <tr>
+                <td>{{h3Id}}</td>
+                <td>{{h3Desc}}</td>
+                <td>{{h3Action}}</td>
+                <td>{{h3Date}}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <br>
+    
+    <table style="border: none;">
+        <tr>
+            <td style="border: none; width: 60%;">
+                <strong>Következő vizsgálat esedékessége:</strong><br>
+                Dátum: <strong>{{kovDatum}}</strong> &nbsp;&nbsp; Jellege: <strong>{{kovJelleg}}</strong>
+            </td>
+            <td style="border: none; width: 40%;"></td>
+        </tr>
+    </table>
+
+    <br><br>
+
+    <table style="border: none;">
+        <tr>
+            <td style="border: none; width: 50%; text-align: center;">
+                <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
+                    <strong>Üzemeltető képviselője</strong><br>
+                    (A jegyzőkönyvet átvettem)
+                </div>
+            </td>
+            <td style="border: none; width: 50%; text-align: center;">
+                <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
+                    <strong>{{szakertoNev}}</strong><br>
+                    (Kamarai/Jogosultsági szám: {{jogosultsagSzam}})
+                </div>
+            </td>
+        </tr>
+    </table>
+
+        </div>
+    </div>
+</body>
+</html>
