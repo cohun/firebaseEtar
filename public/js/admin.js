@@ -109,11 +109,13 @@ export async function getExternalExperts() {
             const partnerDetails = { id: partnerId, ...doc.data() };
             const role = userPartnerRoles[partnerId];
             const ejkRole = user.ejkPartnerRoles ? user.ejkPartnerRoles[partnerId] : null;
+            const subscription = user.partnerSubscriptions ? user.partnerSubscriptions[partnerId] : null;
             
             return {
                 partnerId: partnerId,
                 role: role,
                 ejkRole: ejkRole,
+                subscription: subscription,
                 partnerDetails: partnerDetails
             };
         }).filter(a => a);
@@ -129,7 +131,7 @@ export async function getExternalExperts() {
     return expertsWithAssociations;
 }
 
-export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAction = false) {
+export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAction = false, newExpiryDate = null) {
     if (!userId || !partnerId || !newRole) {
         throw new Error("Hiányzó paraméterek a frissítéshez.");
     }
@@ -152,6 +154,14 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
             // Update EJK specific memory of the role if this is an EJK action
             if (isEjkAction) {
                 updates[`ejkPartnerRoles.${partnerId}`] = newRole;
+            }
+
+            // Handle Subscription Date
+            if (newExpiryDate) {
+                updates[`partnerSubscriptions.${partnerId}`] = newExpiryDate;
+            } else if (newRole !== 'subscriber' && isEjkAction) {
+                // If role changes from subscriber to something else, remove subscription
+                 updates[`partnerSubscriptions.${partnerId}`] = firebase.firestore.FieldValue.delete();
             }
 
             // 2. If the user is an EJK user, also update the main 'roles' array
@@ -248,5 +258,50 @@ export async function getPartnersForSelection(userData) {
             });
         });
         return partners;
+    }
+}
+export async function checkAndEnforceSubscriptionExpiry(user) {
+    if (!user) return; // Basic check
+    
+    // We need the full user doc to check roles and subscriptions
+    // 'user' might be just the auth object which doesn't have firestore data
+    const userRef = db.collection('users').doc(user.uid);
+    
+    try {
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) return;
+        
+        const userData = userDoc.data();
+        // Only relevant for EKV users
+        if (!userData.isEkvUser) return;
+
+        const partnerSubscriptions = userData.partnerSubscriptions || {};
+        const partnerRoles = userData.partnerRoles || {};
+        const now = Date.now();
+        let changed = false;
+
+        for (const [partnerId, expiryTimestamp] of Object.entries(partnerSubscriptions)) {
+             // Only check if current role is 'subscriber'
+            if (partnerRoles[partnerId] === 'subscriber') {
+                if (now > expiryTimestamp) {
+                    console.log(`Subscription expired for partner ${partnerId}. Downgrading...`);
+                    
+                    // We call the existing update function which handles roles array logic properly
+                    await updateUserPartnerRole(user.uid, partnerId, 'pending_inspector', true); // isEjkAction=true ensures ejkPartnerRoles is matched
+                    changed = true;
+                }
+            }
+        }
+        
+        if (changed) {
+            console.log("Subscriptions enforced. Refreshing...");
+            // Optional: reload page to update UI if currently viewing something relevant?
+            // Or just let the user navigate.
+            // A reload ensures they don't do actions they aren't allowed to do anymore visually.
+            window.location.reload();
+        }
+
+    } catch (e) {
+        console.error("Error enforcing subscription", e);
     }
 }

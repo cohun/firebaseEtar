@@ -683,9 +683,28 @@ export function showExternalExpertsScreen(experts, userData) {
             // Priority: ejkRole (saved by EJK) > role (current actual role)
             const roleToShow = assoc.ejkRole || assoc.role;
 
+            let subscriptionHtml = '';
+            if (roleToShow === 'subscriber' && assoc.subscription) {
+                const now = Date.now();
+                const expiry = assoc.subscription;
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const daysRemaining = Math.max(0, Math.ceil((expiry - now) / msPerDay));
+                const colorClass = daysRemaining < 10 ? 'text-red-500' : 'text-green-500';
+                
+                subscriptionHtml = `
+                    <span id="sub-counter-${user.id}-${partnerId}" 
+                          data-expiry="${expiry}" 
+                          class="${colorClass} font-bold cursor-pointer ml-2" 
+                          title="Kattintson a meghosszabbításhoz">
+                          ${daysRemaining} nap
+                    </span>`;
+            }
+
             const roleDropdown = `
                 <div>
-                    <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                    <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">
+                        Szerepkör ${subscriptionHtml}
+                    </label>
                     <select id="role-select-${user.id}-${partnerId}" data-original-role="${roleToShow}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
                         ${roleOptions.map(opt => `<option value="${opt}" ${roleToShow === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                         <option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>
