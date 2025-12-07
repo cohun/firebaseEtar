@@ -98,8 +98,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Filter drafts based on user type
                 if (userData && userData.isEkvUser) {
-                    // EKV users only see isI: true drafts
-                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => draft.isI === true);
+                    // EKV users only see isI: true drafts AND only if they have inspector/subcontractor role for that partner
+                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => {
+                        if (draft.isI !== true) return false;
+                        
+                        const role = userData.partnerRoles && draft.partnerId ? userData.partnerRoles[draft.partnerId] : null;
+                        return role === 'inspector' || role === 'subcontractor';
+                    });
                 } else {
                     // EJK users only see isI: false (or undefined) drafts
                     allEnrichedDrafts = allEnrichedDrafts.filter(draft => draft.isI !== true);

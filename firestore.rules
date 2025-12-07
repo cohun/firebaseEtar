@@ -41,7 +41,7 @@ service cloud.firestore {
 
     match /partners/{partnerId}/devices/{deviceId} {
       allow read, list: if isEjkUser() || (isEkvUser() && resource.data.isI == true) || getRoleForPartner(partnerId) != null;
-			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write' || getRoleForPartner(partnerId) == 'inspector';
+			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write' || getRoleForPartner(partnerId) == 'inspector' || getRoleForPartner(partnerId) == 'subcontractor';
     }
 
     // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ

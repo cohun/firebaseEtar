@@ -21,7 +21,7 @@ async function getExpertDetails(expertName, optUid) {
         return expertCache[expertName];
     }
 
-    let details = { certificateNumber: 'N/A', companyName: '', companyAddress: '' };
+    let details = { certificateNumber: 'N/A', companyName: '', companyAddress: '', kamaraiSzam: '', szakertoiCim: '' };
 
     try {
         // 1. Try 'experts' collection first
@@ -32,6 +32,7 @@ async function getExpertDetails(expertName, optUid) {
             details.certificateNumber = data.certificateNumber || 'N/A';
             details.companyName = data.companyName || '';
             details.companyAddress = data.companyAddress || '';
+            details.kamaraiSzam = data.kamaraiSzam || '';
         } else {
             console.warn(`Expert not found in 'experts' collection: ${expertName}. Trying users fallback...`);
             
@@ -44,6 +45,8 @@ async function getExpertDetails(expertName, optUid) {
                      details.certificateNumber = userData.certificateNumber || 'N/A';
                      details.companyName = userData.vizsgaloCegNeve || '';
                      details.companyAddress = userData.vizsgaloCegCime || '';
+                     details.szakertoiCim = userData.szakertoiCim || userData.vizsgaloCegCime || ''; // Fallback to company address if specific expert address missing
+                     details.kamaraiSzam = userData.kamaraiSzam || '';
                  }
             }
         }
@@ -117,7 +120,11 @@ function prepareUevmData(uevmData, generalData) {
     // Fallback/Defaults
     flat.jegyzokonyvSorszam = generalData.sorszam || generalData['{sorszam}'] || '';
     flat.szakertoNev = generalData.szakerto_nev || generalData['{szakerto_nev}'] || '';
-    flat.jogosultsagSzam = generalData.szakerto_bizonyitvanyszam || generalData['{szakerto_bizonyitvanyszam}'] || '';
+    // Map additional expert details for footer - corrected to use szakertoiCim
+    flat.szakertoiCim = generalData.szakertoiCim || generalData.VizsgalaoCegCime || ''; 
+    flat.kamaraiSzam = generalData.kamaraiSzam || '';
+    // Use kamaraiSzam if available for jogosultsagSzam placeholder, or keep original fallback
+    flat.jogosultsagSzam = generalData.kamaraiSzam || generalData.szakerto_bizonyitvanyszam || '';
 
     // Next Exam Date from the UEVM data itself or main draft?
     // In partner.js uevmModal save, we capture what?
@@ -135,12 +142,7 @@ function prepareUevmData(uevmData, generalData) {
     // For now, mapping main draft values.
     flat.kovJelleg = 'Időszakos'; // Placeholder default
     
-    // Checkboxes for current exam type (checkSzv, checkFv, checkIbf) are in uevmData (uevm_checkSzv etc)
-    // Map them to simple booleans for the template if they follow uevm_checkSzv name
-    // My template uses {{checkSzv}}. My JS saves uevm_checkSzv.
-    if (flat.uevm_checkSzv) flat.checkSzv = 'X';
-    if (flat.uevm_checkFv) flat.checkFv = 'X';
-    if (flat.uevm_checkIbf) flat.checkIbf = 'X';
+
 
     // Map other fields that might have prefix 'uevm_' in JS but simple names in Template?
     // In uevm.js inputs are named name="uevm_emelogepTipusa". 
@@ -149,9 +151,36 @@ function prepareUevmData(uevmData, generalData) {
     Object.keys(flat).forEach(key => {
         if (key.startsWith('uevm_')) {
             const cleanKey = key.replace('uevm_', '');
-            flat[cleanKey] = flat[key];
+            // Only copy if not already set (to preserve our custom logic above if any) -> actually we want to overwrite EXCEPT for checks
+            if (!flat[cleanKey] || !cleanKey.startsWith('check')) {
+                 flat[cleanKey] = flat[key];
+            }
         }
     });
+
+    // Handle Checkboxes correctly - MOVED AFTER FLATTENING to avoid overwrite
+    // Checkboxes for current exam type
+    // Ensure we clear any existing boolean values that might just print "true"
+    // and replace with checkmark for the template.
+    const checkmark = '✓'; 
+
+    if (flat.uevm_checkSzv === true || flat.uevm_checkSzv === 'true' || flat.checkSzv === true || flat.checkSzv === 'true') {
+        flat.checkSzv = checkmark;
+    } else {
+        flat.checkSzv = '';
+    }
+
+    if (flat.uevm_checkFv === true || flat.uevm_checkFv === 'true' || flat.checkFv === true || flat.checkFv === 'true') {
+        flat.checkFv = checkmark;
+    } else {
+        flat.checkFv = '';
+    }
+
+    if (flat.uevm_checkIbf === true || flat.uevm_checkIbf === 'true' || flat.checkIbf === true || flat.checkIbf === 'true') {
+        flat.checkIbf = checkmark;
+    } else {
+        flat.checkIbf = '';
+    }
 
     // Handle Radio Result Logic for Detailed Rows
     // Template expects {{uevm_dok_val_3}}, etc.
@@ -285,6 +314,8 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         szakerto_bizonyitvanyszam: expertDetails.certificateNumber,
         VizsgaloCegNeve: expertDetails.companyName,
         VizsgalaoCegCime: expertDetails.companyAddress,
+        szakertoiCim: expertDetails.szakertoiCim,
+        kamaraiSzam: expertDetails.kamaraiSzam,
         generalas_idobelyeg: new Date().toLocaleString('hu-HU'),
     };
 
@@ -301,7 +332,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
             // Note: In a pure client-side function that might be called where relative paths differ, 
             // relying on fetch('templates/...') might be risky if current page isn't root. 
             // But usually this app structure is flat.
-            const resp = await fetch('templates/uevm_template.html');
+            const resp = await fetch('templates/uevm_template.html?v=' + new Date().getTime());
             if (resp.ok) {
                 const uevmTemplate = await resp.text();
                 const uevmPopulated = populateUevmTemplate(uevmTemplate, uevmDataMap);
@@ -346,7 +377,7 @@ export async function generateHtmlView(targetWindow, drafts) {
         let uevmTemplateHtml = '';
         try {
             console.log("Fetching UEVM template from: templates/uevm_template.html");
-            const resp = await fetch('templates/uevm_template.html');
+            const resp = await fetch('templates/uevm_template.html?v=' + new Date().getTime());
             if (resp.ok) {
                 uevmTemplateHtml = await resp.text();
                 console.log("UEVM template fetched successfully, length:", uevmTemplateHtml.length);
@@ -373,32 +404,35 @@ export async function generateHtmlView(targetWindow, drafts) {
             const deviceData = deviceDoc.data();
             const expertDetails = await getExpertDetails(draft.szakerto, draft.createdByUid);
 
-            const replacements = {
-                '{partner_nev}': partnerData.name || '-',
-                '{partner_cim}': partnerData.address || '-',
-                '{sorszam}': draft.hash?.substring(0, 6).toUpperCase() || 'N/A',
-                '{eszkoz_megnevezes}': deviceData.description || '-',
-                '{eszkoz_azonosito}': deviceData.operatorId || '-',
-                '{eszkoz_tipus}': deviceData.type || '-',
-                '{eszkoz_hossz}': deviceData.effectiveLength || '-',
-                '{eszkoz_teherbiras}': deviceData.loadCapacity || '-',
-                '{eszkoz_gyarto}': deviceData.manufacturer || '-',
-                '{eszkoz_gyari_szam}': deviceData.serialNumber || '-',
-                '{eszkoz_gyartasi_ev}': deviceData.yearOfManufacture || '-',
-                '{vizsgalat_idopontja}': draft.vizsgalatIdopontja || '-',
-                '{vizsgalat_helye}': draft.vizsgalatHelye || '-',
-                '{vizsgalat_jellege}': draft.vizsgalatJellege || '-',
-                '{vizsgalat_eredmenye}': draft.vizsgalatEredmenye || '-',
-                '{feltart_hiba}': draft.feltartHiba || 'Nem volt',
-                '{felhasznalt_anyagok}': draft.felhasznaltAnyagok || 'Nem volt',
-                '{kovetkezo_idoszakos}': draft.kovetkezoIdoszakosVizsgalat || '-',
-                '{kovetkezo_terhelesi}': draft.kovetkezoTerhelesiProba || '-',
-                '{kelt_datum}': draft.createdAt?.toDate().toLocaleDateString('hu-HU') || new Date().toLocaleDateString('hu-HU'),
-                '{szakerto_nev}': draft.szakerto || '-',
-                '{szakerto_bizonyitvanyszam}': expertDetails.certificateNumber,
-                '{VizsgaloCegNeve}': expertDetails.companyName,
-                '{VizsgalaoCegCime}': expertDetails.companyAddress,
-                '{generalas_idobelyeg}': generationTime.toLocaleString('hu-HU'),
+            const templateData = {
+                'partner_nev': partnerData.name || '-',
+                'partner_cim': partnerData.address || '-',
+                'sorszam': draft.hash?.substring(0, 6).toUpperCase() || 'N/A',
+                'eszkoz_megnevezes': deviceData.description || '-',
+                'eszkoz_azonosito': deviceData.operatorId || '-',
+                'eszkoz_tipus': deviceData.type || '-',
+                'eszkoz_hossz': deviceData.effectiveLength || '-',
+                'eszkoz_teherbiras': deviceData.loadCapacity || '-',
+                'eszkoz_gyarto': deviceData.manufacturer || '-',
+                'eszkoz_gyari_szam': deviceData.serialNumber || '-',
+                'eszkoz_gyartasi_ev': deviceData.yearOfManufacture || '-',
+                'vizsgalat_idopontja': draft.vizsgalatIdopontja || '-',
+                'vizsgalat_helye': draft.vizsgalatHelye || '-',
+                'vizsgalat_jellege': draft.vizsgalatJellege || '-',
+                'vizsgalat_eredmenye': draft.vizsgalatEredmenye || '-',
+                'feltart_hiba': draft.feltartHiba || 'Nem volt',
+                'felhasznalt_anyagok': draft.felhasznaltAnyagok || 'Nem volt',
+                'kovetkezo_idoszakos': draft.kovetkezoIdoszakosVizsgalat || '-',
+                'kovetkezo_terhelesi': draft.kovetkezoTerhelesiProba || '-',
+                'kelt_datum': draft.createdAt?.toDate().toLocaleDateString('hu-HU') || new Date().toLocaleDateString('hu-HU'),
+                'szakerto_nev': draft.szakerto || '-',
+                'szakerto_nev': draft.szakerto || '-',
+                'szakerto_bizonyitvanyszam': expertDetails.certificateNumber,
+                'VizsgaloCegNeve': expertDetails.companyName,
+                'VizsgalaoCegCime': expertDetails.companyAddress,
+                'szakertoiCim': expertDetails.szakertoiCim,
+                'kamaraiSzam': expertDetails.kamaraiSzam || '',
+                'generalas_idobelyeg': generationTime.toLocaleString('hu-HU'),
             };
 
 
@@ -410,16 +444,14 @@ export async function generateHtmlView(targetWindow, drafts) {
                  finalHtml = "<h3>Hiba a sablon betöltésekor.</h3>";
             }
 
-            for (const placeholder in replacements) {
-                finalHtml = finalHtml.replace(new RegExp(placeholder, 'g'), replacements[placeholder]);
-            }
+            finalHtml = populateTemplate(finalHtml, templateData);
 
             // Append UEVM if exists
             console.log("Checking for UEVM data in draft:", draft.id, "Has Data:", !!draft.uevmData, "Template Loaded:", !!uevmTemplateHtml);
             if (draft.uevmData && uevmTemplateHtml) {
                 try {
                     console.log("Appending UEVM content...");
-                    const uevmData = prepareUevmData(draft.uevmData, replacements); // Helper needed? Or just flatten
+                    const uevmData = prepareUevmData(draft.uevmData, templateData); // Helper needed? Or just flatten
                     const uevmContent = populateUevmTemplate(uevmTemplateHtml, uevmData);
                     finalHtml += '<div style="page-break-before: always;"></div>' + uevmContent;
                 } catch (err) {

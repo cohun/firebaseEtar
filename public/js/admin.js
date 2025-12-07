@@ -108,10 +108,12 @@ export async function getExternalExperts() {
             const partnerId = doc.id;
             const partnerDetails = { id: partnerId, ...doc.data() };
             const role = userPartnerRoles[partnerId];
+            const ejkRole = user.ejkPartnerRoles ? user.ejkPartnerRoles[partnerId] : null;
             
             return {
                 partnerId: partnerId,
                 role: role,
+                ejkRole: ejkRole,
                 partnerDetails: partnerDetails
             };
         }).filter(a => a);
@@ -127,7 +129,7 @@ export async function getExternalExperts() {
     return expertsWithAssociations;
 }
 
-export async function updateUserPartnerRole(userId, partnerId, newRole) {
+export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAction = false) {
     if (!userId || !partnerId || !newRole) {
         throw new Error("Hiányzó paraméterek a frissítéshez.");
     }
@@ -146,6 +148,11 @@ export async function updateUserPartnerRole(userId, partnerId, newRole) {
 
             // 1. Update the partnerRoles map
             updates[`partnerRoles.${partnerId}`] = newRole;
+
+            // Update EJK specific memory of the role if this is an EJK action
+            if (isEjkAction) {
+                updates[`ejkPartnerRoles.${partnerId}`] = newRole;
+            }
 
             // 2. If the user is an EJK user, also update the main 'roles' array
             if (userData.isEjkUser === true) {

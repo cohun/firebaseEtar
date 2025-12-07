@@ -1,7 +1,7 @@
 // Helper to manage role updates
 import { updateUserPartnerRole, removeUserPartnerAssociation } from './admin.js';
 
-export function attachPermissionManagementListeners(users) {
+export function attachPermissionManagementListeners(users, currentUserData) {
      users.forEach(user => {
         user.associations.forEach(assoc => {
             if (!assoc.partnerDetails) return;
@@ -35,13 +35,13 @@ export function attachPermissionManagementListeners(users) {
 
             saveButton.addEventListener('click', async () => {
                 const newRole = roleSelect.value;
-                await handleRoleUpdate(user, partnerId, newRole, saveButton, roleSelect, assoc);
+                await handleRoleUpdate(user, partnerId, newRole, saveButton, roleSelect, assoc, currentUserData);
             });
         });
     });
 }
 
-async function handleRoleUpdate(user, partnerId, newRole, saveButton, roleSelect, assoc) {
+async function handleRoleUpdate(user, partnerId, newRole, saveButton, roleSelect, assoc, currentUserData) {
     if (newRole === "Törlés") {
         const confirmation = confirm(`Biztosan törölni szeretné a(z) ${assoc.partnerDetails.name} partnerkapcsolatot ${user.name} felhasználótól? Ez a művelet nem visszavonható.`);
         if (confirmation) {
@@ -62,7 +62,8 @@ async function handleRoleUpdate(user, partnerId, newRole, saveButton, roleSelect
         saveButton.disabled = true;
         saveButton.textContent = 'Mentés...';
         try {
-            await updateUserPartnerRole(user.id, partnerId, newRole);
+            const isEjkAction = currentUserData && currentUserData.isEjkUser;
+            await updateUserPartnerRole(user.id, partnerId, newRole, isEjkAction);
             saveButton.textContent = 'Mentve';
             saveButton.classList.add('btn-success');
             

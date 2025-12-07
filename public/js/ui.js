@@ -533,7 +533,7 @@ export async function showMainScreen(user, userData) {
             showPermissionManagementLoadingScreen(); 
             try {
                 const experts = await getExternalExperts();
-                showExternalExpertsScreen(experts);
+                showExternalExpertsScreen(experts, userData);
             } catch (error) {
                 console.error("Hiba a külső szakértők lekérése során:", error);
                 alert("Hiba történt az adatok lekérése közben.");
@@ -576,12 +576,39 @@ export function showPermissionManagementScreen(users, currentUserData) {
             const partnerId = assoc.partnerId;
 
             // Szerepkör legördülő menü
+            let roleDropdownContent = '';
+            let isDisabled = false;
+            let displayRole = assoc.role;
+            let extraInfo = '';
+
+            // ENY logic handling
+            if (!currentUserData.isEjkUser) {
+                if (assoc.role === 'pending_inspector') {
+                    isDisabled = true;
+                    // Keep original value but it will be disabled
+                } else if (assoc.role === 'subcontractor') {
+                    isDisabled = true;
+                    displayRole = 'inspector'; // Visually show as Inspector
+                    extraInfo = ' (Alvállalkozó)'; 
+                } else if (assoc.role === 'subscriber') {
+                     // Subscriber can be changed to Inspector, so not disabled by default
+                }
+            }
+
             const roleDropdown = `
                 <div>
                     <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
-                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                        <option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>
+                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
+                        ${roleOptions.map(opt => {
+                            // If it's a subcontractor showing as inspector
+                            if (assoc.role === 'subcontractor' && opt === 'inspector') {
+                                return `<option value="${assoc.role}" selected>inspector${extraInfo}</option>`;
+                            }
+                             // Standard matching
+                            return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
+                        }).join('')}
+                        ${!roleOptions.includes(assoc.role) && assoc.role !== 'subcontractor' ? `<option value="${assoc.role}" selected>${assoc.role}</option>` : ''}
+                        ${assoc.role === 'subcontractor' ? '' : `<option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>`}
                     </select>
                 </div>
             `;
@@ -636,15 +663,16 @@ export function showPermissionManagementScreen(users, currentUserData) {
     showScreen('permissionManagement');
 
     // Use shared function
-    attachPermissionManagementListeners(users);
+    // Use shared function
+    attachPermissionManagementListeners(users, currentUserData);
 
     document.getElementById('backToMainScreenBtn').addEventListener('click', () => {
         window.location.reload();
     });
 }
 
-export function showExternalExpertsScreen(experts) {
-    const roleOptions = ['pending_inspector', 'inspector'];
+export function showExternalExpertsScreen(experts, userData) {
+    const roleOptions = ['pending_inspector', 'subcontractor', 'subscriber'];
 
     const userListHtml = experts.map(user => {
         const associationsHtml = user.associations.map(assoc => {
@@ -652,11 +680,14 @@ export function showExternalExpertsScreen(experts) {
 
             const partnerId = assoc.partnerId;
 
+            // Priority: ejkRole (saved by EJK) > role (current actual role)
+            const roleToShow = assoc.ejkRole || assoc.role;
+
             const roleDropdown = `
                 <div>
                     <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
-                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                        ${roleOptions.map(opt => `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${roleToShow}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
+                        ${roleOptions.map(opt => `<option value="${opt}" ${roleToShow === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                         <option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>
                     </select>
                 </div>
@@ -711,7 +742,7 @@ export function showExternalExpertsScreen(experts) {
     screens.permissionManagement.innerHTML = screenHtml;
     showScreen('permissionManagement');
 
-    attachPermissionManagementListeners(experts);
+    attachPermissionManagementListeners(experts, userData);
     
     // Need to attach listener to the new back button ID
     document.getElementById('backToMainScreenBtn2').addEventListener('click', () => {
