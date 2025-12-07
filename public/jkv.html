@@ -259,15 +259,14 @@
 
         /* --- Nyomtatási stílusok (Optimalizált) --- */
         @media print {
+            /* Oldal beállítása: A4, 1cm alap margó (csökkentve 2cm-ről) */
             @page {
                 size: A4;
-                margin: 2cm; /* Ez a szabály változatlan marad */
+                margin: 1cm;
             }
 
             /* A képernyős boríték elrejtése nyomtatásban */
             .screen-view-wrapper {
-                /* display: none; <-- EZ VOLT A HIBA */
-                
                 /* HELYETTE: Reseteljük a stílusát, de a tartalmát megtartjuk */
                 display: block;
                 padding: 0;
@@ -294,7 +293,6 @@
                 width: 100%;
                 max-width: none;
                 /* --- MÓDOSÍTÁS: Belső margó hozzáadása --- */
-                /* padding: 0; */ /* Régi szabály */
                 padding: 0 5mm; /* 0 felül/alul, de 5mm (0.5cm) margó balra és jobbra */
                 margin: 0;
                 box-shadow: none;
@@ -311,10 +309,10 @@
             .header {
                 border-bottom: 2px solid #000;
                 /* --- MÓDOSÍTÁS: Hely csökkentése --- */
-                margin-bottom: 15px;
+                margin-bottom: 10px;
             }
             .header img {
-                max-height: 2cm; /* Igazodik a nyomtatási mérethez */
+                max-height: 1.2cm !important; /* Fix méret, kikényszerítve */
                 width: auto;
             }
             

@@ -85,7 +85,7 @@ export async function getTemplateForDraft(draft) {
     }
     
     // Default template
-    const response = await fetch('jkv.html');
+    const response = await fetch('jkv.html?v=' + new Date().getTime());
     if (!response.ok) throw new Error(`Default template 'jkv.html' could not be loaded.`);
     return await response.text();
 }
