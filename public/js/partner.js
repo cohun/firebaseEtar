@@ -28,7 +28,7 @@ function getEszkozListaHtml() {
                     <div id="source-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
                         <button data-value="all" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
                         <button data-value="h-itb" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">H-ITB</button>
-                        <button data-value="external" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Külsős</button>
+                        <button data-value="external" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">I-vizsgáló</button>
                     </div>
 
                     <button id="filter-hamburger-btn" class="text-white focus:outline-none xl:hidden">
@@ -83,7 +83,7 @@ function getEszkozListaHtml() {
                                         <th scope="col" data-sort="operatorId" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Operátor ID <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="status" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Megállapítások <i class="fas fa-sort"></i></th>
                                         <th scope="col" data-sort="kov_vizsg" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Köv. Vizsg. <i class="fas fa-sort"></i></th>
-                                        <th scope="col" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white">Külsős</th>
+                                        <th scope="col" class="whitespace-nowrap py-3.5 px-3 text-left text-sm font-semibold text-white">I<br><span class="text-xs font-normal">vizsgáló</span></th>
                                         <th scope="col" class="py-3.5 px-1 text-center"><span class="sr-only">Státusz</span></th>
                                         <th scope="col" class="whitespace-nowrap py-3.5 px-1 text-center text-sm font-semibold text-white">CHIP</th>
                                         <th scope="col" class="relative py-3.5 px-3"><span class="sr-only">QR</span></th>
@@ -100,7 +100,7 @@ function getEszkozListaHtml() {
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Operátor ID</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megállapítások</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Köv. Vizsg.</th>
-                                        <th rowspan="2" class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Külsős</th>
+                                        <th rowspan="2" class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">I<br><span class="text-xs font-normal">vizsgáló</span></th>
                                         <th rowspan="2" class="p-3"></th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">CHIP</th>
                                         <th rowspan="2" class="p-3"></th>
@@ -484,6 +484,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     device.vizsg_idopont = latestInspection.vizsgalatIdopontja;
                     device.status = latestInspection.vizsgalatEredmenye;
                     device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                    // Restore ajanlatKeres mapping
+                    device.ajanlatKeres = latestInspection.ajanlatKeres || false;
                 }
 
                 // Finalized inspection URL
@@ -638,8 +640,10 @@ export function initPartnerWorkScreen(partnerId, userData) {
         tableBody.innerHTML = devices.map(dev => {
             const kovVizsgColorClass = getKovVizsgColorClass(dev.kov_vizsg);
             const statusColorClass = getStatusColorClass(dev.status);
-
-            const qrCanvas = `<canvas class="qr-code-canvas" data-serial-number="${dev.serialNumber || ''}"></canvas>`;
+            const qrCanvas = `<canvas class="qr-code-canvas" data-serial-number="${dev.serialNumber}"></canvas>`;
+            
+            // Highlight row if 'Ajánlat menjen' was requested
+            const rowClass = dev.ajanlatKeres ? 'bg-yellow-900/40' : 'hover:bg-gray-700/50';
             // The 'qr-link-active' class is removed from here
             const qrCodeHtml = dev.finalizedFileUrl
                 ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése">${qrCanvas}</a>`
@@ -675,7 +679,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
             const checkboxOpacity = isEkvUser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
 
             return `
-            <tr class="hover:bg-gray-700/50">
+            <tr class="${rowClass}">
                 <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.vizsg_idopont || 'N/A'}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-white'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-white'); this.classList.remove('text-blue-300');">${dev.description || ''}</td>
@@ -1909,10 +1913,17 @@ export function initPartnerWorkScreen(partnerId, userData) {
                                         <option>Megfelelt</option>
                                         <option>Nem felelt meg</option>
                                     </select>
+                                    ${(userData && userData.isEkvUser) ? `
                                     <button type="button" id="openUevmBtn" class="ml-2 px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded border border-blue-500 transition-colors">
                                         <i class="fas fa-paperclip mr-1"></i> Vizsgálati melléklet
                                     </button>
                                     <div id="uevm-status-indicator" class="ml-2 text-xs text-gray-500 hidden"><i class="fas fa-check text-green-500"></i> Csatolva</div>
+                                    ` : `
+                                    <div class="flex items-center ml-2 border border-gray-600 rounded px-2 py-1 bg-gray-700">
+                                        <input type="checkbox" id="ajanlatKeresInput" name="ajanlat_keres" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                        <label for="ajanlatKeresInput" class="ml-2 text-xs font-medium text-gray-300 cursor-pointer select-none">Ajánlat menjen</label>
+                                    </div>
+                                    `}
                                 </div>
                             </div>
                             <div class="md:col-span-2">
@@ -2054,7 +2065,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             vizsgalatEredmenye: document.querySelector('[name="vizsgalat_eredmenye"]').value,
                             feltartHiba: document.querySelector('[name="feltart_hiba"]').value,
                             felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]').value,
-                            // Deleted: ajanlatKeres
+
+                            ajanlatKeres: document.getElementById('ajanlatKeresInput') ? document.getElementById('ajanlatKeresInput').checked : false,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             createdBy: user.displayName || user.email,
                             createdByUid: user.uid, // Save UID for EKV filtering
