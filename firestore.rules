@@ -22,9 +22,10 @@ service cloud.firestore {
       return getUserData().roles.hasAny(['EJK_admin', 'ENY_admin', 'ENY_pendingAdmin']);
     }
 
-    // ÚJ FÜGGVÉNY: Ellenőrzi, hogy a felhasználó EJK admin, EJK író vagy EKV user-e.
-    function canWriteInspection() {
-      return getUserData().roles.hasAny(['EJK_admin', 'EJK_write']) || isEkvUser();
+    // ÚJ FÜGGVÉNY: Ellenőrzi, hogy a felhasználó EJK admin, EJK író vagy ÉRVÉNYES SZEREPKÖRREL rendelkezik.
+    function canWriteInspection(partnerId) {
+      return getUserData().roles.hasAny(['EJK_admin', 'EJK_write']) || 
+             (isEkvUser() && getRoleForPartner(partnerId) in ['inspector', 'subcontractor', 'subscriber']);
     }
 
     match /users/{userId} {
@@ -46,9 +47,9 @@ service cloud.firestore {
 
     // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
 		match /partners/{partnerId}/devices/{deviceId}/inspections/{inspectionId} {
-  		allow create, update: if canWriteInspection() || request.auth.token.email == 'attila.hitb@gmail.com';
+  		allow create, update: if canWriteInspection(partnerId) || request.auth.token.email == 'attila.hitb@gmail.com';
   		allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
-			allow delete: if canWriteInspection() && resource.data.status == 'draft';
+			allow delete: if canWriteInspection(partnerId) && resource.data.status == 'draft';
 		}
 
     // ÚJ SZABÁLY: Engedélyezi a 'collectionGroup' lekérdezést az 'inspections' kollekcióra.

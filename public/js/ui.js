@@ -588,8 +588,8 @@ export function showPermissionManagementScreen(users, currentUserData) {
                     // Keep original value but it will be disabled
                 } else if (assoc.role === 'subcontractor') {
                     isDisabled = true;
-                    displayRole = 'inspector'; // Visually show as Inspector
-                    extraInfo = ' (Alvállalkozó)'; 
+                    displayRole = 'i-vizsgáló'; // Visually show as i-vizsgáló instead of inspector
+                    extraInfo = ''; 
                 } else if (assoc.role === 'subscriber') {
                      // Subscriber can be changed to Inspector, so not disabled by default
                 }
@@ -600,9 +600,9 @@ export function showPermissionManagementScreen(users, currentUserData) {
                     <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
                     <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
                         ${roleOptions.map(opt => {
-                            // If it's a subcontractor showing as inspector
+                            // If it's a subcontractor showing as inspector (or i-vizsgáló)
                             if (assoc.role === 'subcontractor' && opt === 'inspector') {
-                                return `<option value="${assoc.role}" selected>inspector${extraInfo}</option>`;
+                                return `<option value="${assoc.role}" selected>${displayRole}</option>`;
                             }
                              // Standard matching
                             return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
