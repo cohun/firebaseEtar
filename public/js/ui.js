@@ -839,9 +839,12 @@ export function showPartnerSelectionScreen(partners, userData) {
 
     const screenHtml = `
         <div class="card max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">Partnerek</h1>
-                <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary">Vissza</button>
+                <div class="relative w-full md:w-auto flex-1 md:mx-4">
+                     <input type="text" id="partnerSearchInput" placeholder="Keresés partner neve alapján..." class="input-field w-full">
+                </div>
+                <button id="backToMainScreenFromPartnerSelectBtn" class="btn btn-secondary whitespace-nowrap">Vissza</button>
             </div>
             <div id="partner-list" class="max-h-[60vh] overflow-y-auto pr-2">
                 ${partnerListHtml.length > 0 ? partnerListHtml : '<p class="text-center text-gray-400">Nincsenek megjeleníthető partnerek.</p>'}
@@ -853,6 +856,30 @@ export function showPartnerSelectionScreen(partners, userData) {
 
     document.getElementById('backToMainScreenFromPartnerSelectBtn').addEventListener('click', () => {
         window.location.reload();
+    });
+
+    const searchInput = document.getElementById('partnerSearchInput');
+    const partnerList = document.getElementById('partner-list');
+    const partnerCards = partnerList.children;
+
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        let hasVisible = false;
+
+        Array.from(partnerCards).forEach(card => {
+            // Skip if it's the "no partners" message (though that shouldn't be matched usually as it's a p tag, but purely technically it's a child)
+            // Better: search within h3 inside the card
+            const nameEl = card.querySelector('h3');
+            if (nameEl) {
+                const name = nameEl.textContent.toLowerCase();
+                if (name.includes(searchTerm)) {
+                    card.classList.remove('hidden');
+                    hasVisible = true;
+                } else {
+                    card.classList.add('hidden');
+                }
+            }
+        });
     });
 
     document.getElementById('partner-list').addEventListener('click', (e) => {
