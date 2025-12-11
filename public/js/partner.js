@@ -1927,11 +1927,21 @@ export function initPartnerWorkScreen(partnerId, userData) {
                                 </div>
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-sm">Feltárt hiba</label>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-sm">Feltárt hiba</label>
+                                    <button type="button" id="dictate-error-btn" class="dictation-btn" title="Diktálás">
+                                        <i class="fas fa-microphone"></i>
+                                    </button>
+                                </div>
                                 <textarea name="feltart_hiba" class="input-field" rows="2"></textarea>
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-sm">Felhasznált anyagok</label>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-sm">Felhasznált anyagok</label>
+                                    <button type="button" id="dictate-material-btn" class="dictation-btn" title="Diktálás">
+                                        <i class="fas fa-microphone"></i>
+                                    </button>
+                                </div>
                                 <textarea name="felhasznalt_anyagok" class="input-field" rows="2"></textarea>
                             </div>
                         </div>
@@ -1943,6 +1953,69 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 `;
 
                 deviceSearchResult.innerHTML = detailsHtml;
+
+                // --- DICTATION LOGIC START ---
+                const setupDictation = (btnId, inputName) => {
+                    const btn = document.getElementById(btnId);
+                    const input = document.querySelector(`[name="${inputName}"]`);
+                    
+                    if (!btn || !input) return;
+
+                    // Check browser support
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (!SpeechRecognition) {
+                        console.warn("Speech Recognition API not supported in this browser.");
+                        btn.style.display = 'none'; // Hide button if not supported
+                        return;
+                    }
+
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'hu-HU';
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+
+                    recognition.onstart = () => {
+                        console.log(`Dictation started for ${inputName}`);
+                        btn.classList.add('recording');
+                    };
+
+                    recognition.onend = () => {
+                        console.log(`Dictation ended for ${inputName}`);
+                        btn.classList.remove('recording');
+                    };
+
+                    recognition.onerror = (event) => {
+                        console.error("Speech recognition error", event.error);
+                        btn.classList.remove('recording');
+                        // Optional: alert user on specific errors like 'not-allowed'
+                    };
+
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        console.log(`Transcript: ${transcript}`);
+                        
+                        // Append with space if needed
+                        if (input.value && !input.value.endsWith(' ') && !input.value.endsWith('\n')) {
+                             input.value += ' ';
+                        }
+                        input.value += transcript;
+                        // Trigger change event just in case
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                    };
+
+                    btn.addEventListener('click', () => {
+                        if (btn.classList.contains('recording')) {
+                            recognition.stop();
+                        } else {
+                            recognition.start();
+                        }
+                    });
+                };
+
+                // Initialize dictation for both fields
+                setupDictation('dictate-error-btn', 'feltart_hiba');
+                setupDictation('dictate-material-btn', 'felhasznalt_anyagok');
+                // --- DICTATION LOGIC END ---
 
             // UEVM Button Logic
             const openUevmBtn = document.getElementById('openUevmBtn');
