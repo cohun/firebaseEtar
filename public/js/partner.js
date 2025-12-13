@@ -2362,13 +2362,15 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             <!-- Véglegesített Jegyzőkönyvek Szekció -->
             <div id="finalizedDocsScreen" class="mt-12">
                 <div class="px-4 sm:px-6 lg:px-8">
-                    <div class="sm:flex sm:items-center">
-                        <div class="sm:flex-auto">
-                            <h1 class="text-2xl font-semibold text-white">Véglegesített Jegyzőkönyvek</h1>
-                            <p class="mt-2 text-sm text-gray-300">A partnerhez tartozó, véglegesített és archivált vizsgálati jegyzőkönyvek.</p>
+                    <div class="sm:flex sm:items-center cursor-pointer select-none" onclick="document.getElementById('finalized-reports-content').classList.toggle('hidden'); document.getElementById('finalized-reports-chevron').classList.toggle('rotate-180');">
+                        <div class="sm:flex-auto flex items-center gap-2">
+                             <h1 class="text-2xl font-semibold text-white">Véglegesített Jegyzőkönyvek</h1>
+                             <i id="finalized-reports-chevron" class="fas fa-chevron-down text-gray-400 transition-transform duration-200"></i>
                         </div>
                     </div>
-                    <div class="mt-4 flex flex-col">
+                    <p class="mt-2 text-sm text-gray-300 px-4 sm:px-6 lg:px-8">A partnerhez tartozó, véglegesített és archivált vizsgálati jegyzőkönyvek.</p>
+                    
+                    <div id="finalized-reports-content" class="hidden mt-4 flex flex-col transition-all duration-300">
                         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
                             <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
                                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">

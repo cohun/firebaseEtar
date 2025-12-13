@@ -15,18 +15,20 @@ import { auth, db } from './firebase.js';
         effectiveLength: ['Méret', 'Hasznos hossz'],
         manufacturer: ['Gyártó'],
         operatorId: ['Üzemeltetői azonosító', 'Helyszín', 'Felhasználó', 'Operátor ID'],
-        yearOfManufacture: ['Gyártás éve']
+        yearOfManufacture: ['Gyártás éve'],
+        comment: ['Állapot']
     };
 
     const inspectionMapping = {
-        kovetkezoIdoszakosVizsgalat: ['Következő időszakos vizsgálat', 'Érvényes'],
-        vizsgalatEredmenye: ['Eredmény', 'Megállapítások'],
-        felhasznaltAnyagok: ['Felhasznált anyagok'],
-        feltartHiba: ['Feltárt hiba'],
-        kovetkezoTerhelesiProba: ['Következő terhelési próba'],
+        kovetkezoIdoszakosVizsgalat: ['Következő időszakos vizsgálat', 'Érvényes', 'Utolsó vizsgálat - Köv. Időszakos'],
+        vizsgalatEredmenye: ['Eredmény', 'Megállapítások', 'Utolsó vizsgálat - Eredmény'],
+        felhasznaltAnyagok: ['Felhasznált anyagok', 'Utolsó vizsgálat - Felhasznált anyagok'],
+        feltartHiba: ['Feltárt hiba', 'Utolsó vizsgálat - Feltárt hiba'],
+        kovetkezoTerhelesiProba: ['Következő terhelési próba', 'Utolsó vizsgálat - Köv. Terhelési'],
         vizsgalatHelye: ['Vizsgálat helye'],
-        vizsgalatIdopontja: ['Vizsgálat időpontja', 'vizsgalatIdopontja'],
-        vizsgalatJellege: ['Vizsgálat jellege', 'vizsgalatJellege']
+        vizsgalatIdopontja: ['Vizsgálat időpontja', 'vizsgalatIdopontja', 'Utolsó vizsgálat - Dátum'],
+        vizsgalatJellege: ['Vizsgálat jellege', 'vizsgalatJellege', 'Utolsó vizsgálat - Típus'],
+        szakerto: ['Utolsó vizsgálat - Szakértő']   
     };
 
     if (uploadButton) {
