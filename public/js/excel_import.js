@@ -14,7 +14,7 @@ import { auth, db } from './firebase.js';
         chip: ['NFC kód', 'ETAR kód'],
         effectiveLength: ['Méret', 'Hasznos hossz'],
         manufacturer: ['Gyártó'],
-        operatorId: ['Üzemeltetői azonosító', 'Helyszín', 'Felhasználó'],
+        operatorId: ['Üzemeltetői azonosító', 'Helyszín', 'Felhasználó', 'Operátor ID'],
         yearOfManufacture: ['Gyártás éve']
     };
 
@@ -25,8 +25,8 @@ import { auth, db } from './firebase.js';
         feltartHiba: ['Feltárt hiba'],
         kovetkezoTerhelesiProba: ['Következő terhelési próba'],
         vizsgalatHelye: ['Vizsgálat helye'],
-        vizsgalatIdopontja: ['Vizsgálat időpontja'],
-        vizsgalatJellege: ['Vizsgálat jellege']
+        vizsgalatIdopontja: ['Vizsgálat időpontja', 'vizsgalatIdopontja'],
+        vizsgalatJellege: ['Vizsgálat jellege', 'vizsgalatJellege']
     };
 
     if (uploadButton) {
