@@ -64,7 +64,111 @@
             
             <div class="flex justify-center mt-8 space-x-4">
                 <button onclick="history.back()" class="btn btn-secondary">Vissza</button>
-                <button id="saveButton" class="btn btn-success hidden">Mentés az adatbázisba</button>
+                <button id="saveButton" class="btn btn-success hidden">Mentés újként</button>
+                <button id="updateButton" class="btn btn-warning hidden">Adatok Frissítése</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Bulk Update Preview Modal -->
+    <div id="bulk-update-modal" class="fixed inset-0 z-50 hidden overflow-auto bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">Adatfrissítés Előnézet</h3>
+                <button id="close-bulk-modal-btn" class="text-gray-400 hover:text-white focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-8">
+                
+                <!-- 1. MODIFIED DEVICES -->
+                <div id="section-modified" class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-lg font-semibold text-yellow-400">Módosuló Eszközök (<span id="count-modified">0</span>)</h4>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="chk-overwrite-modified" class="checkbox checkbox-warning" checked>
+                            <span class="text-sm font-medium text-gray-200">Módosítások felülírása?</span>
+                        </label>
+                    </div>
+                    <div class="overflow-x-auto max-h-64 border border-gray-700 rounded-lg">
+                        <table class="w-full text-sm text-left text-gray-400" id="table-modified">
+                            <thead class="text-xs text-gray-300 uppercase bg-gray-700 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">Gyári Szám</th>
+                                    <th class="px-4 py-2">Mező</th>
+                                    <th class="px-4 py-2">Régi Érték</th>
+                                    <th class="px-4 py-2">Új Érték</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. NEW DEVICES (NOT FOUND) -->
+                <div id="section-new" class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-lg font-semibold text-green-400">Új Eszközök - Nem található (<span id="count-new">0</span>)</h4>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="chk-upload-new" class="checkbox checkbox-success">
+                            <span class="text-sm font-medium text-gray-200">Ezen új eszközök feltöltése?</span>
+                        </label>
+                    </div>
+                    <div class="overflow-x-auto max-h-64 border border-gray-700 rounded-lg">
+                        <table class="w-full text-sm text-left text-gray-400" id="table-new">
+                            <thead class="text-xs text-gray-300 uppercase bg-gray-700 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">Gyári Szám</th>
+                                    <th class="px-4 py-2">Megnevezés</th>
+                                    <th class="px-4 py-2">Típus</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. DUPLICATES (CONFLICTS) -->
+                <div id="section-duplicates" class="space-y-3 hidden">
+                    <h4 class="text-lg font-semibold text-red-400">Duplikációk az Adatbázisban (<span id="count-duplicates">0</span>)</h4>
+                    <p class="text-xs text-red-300">FIGYELEM: Az alábbi gyári számok többször szerepelnek az adatbázisban. A rendszer biztonsági okokból ezeket <b>NEM módosítja</b>. Kérjük, javítsa őket manuálisan az Eszközök listában.</p>
+                    <div class="overflow-x-auto max-h-48 border border-red-900/50 rounded-lg bg-red-900/10">
+                        <table class="w-full text-sm text-left text-gray-400" id="table-duplicates">
+                            <thead class="text-xs text-gray-300 uppercase bg-red-900/50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">Gyári Szám</th>
+                                    <th class="px-4 py-2">Megnevezés</th>
+                                    <th class="px-4 py-2">Találatok Száma</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 4. UNCHANGED -->
+                <div id="section-unchanged" class="space-y-3">
+                    <h4 class="text-lg font-semibold text-gray-400">Változatlan (<span id="count-unchanged">0</span>)</h4>
+                    <p class="text-sm text-gray-500">Ezek az eszközök már léteznek és az adatok megegyeznek (vagy az Excel cellák üresek). Nem történik változás.</p>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-700 flex justify-end space-x-3 bg-gray-800 rounded-b-lg">
+                <button id="cancel-bulk-btn" class="btn btn-secondary">Mégse</button>
+                <button id="confirm-bulk-btn" class="btn btn-primary">Végrehajtás</button>
             </div>
         </div>
     </div>
