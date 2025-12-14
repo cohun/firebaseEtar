@@ -545,7 +545,30 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     let valA = a[currentSortField] || '';
                     let valB = b[currentSortField] || '';
                     
-                    // Handle dates specifically if needed, but string comparison works for YYYY.MM.DD
+                    // Specific handling for Date fields to be robust against format differences (dots, dashes etc)
+                    if (['vizsg_idopont', 'kov_vizsg'].includes(currentSortField)) {
+                        const parseDateForSort = (dateStr) => {
+                            if (!dateStr) return -Infinity; // Push empty/invalid to bottom (or top depending on asc/desc, handled by return comparison)
+                            // Remove non-digit chars to standardize YYYY.MM.DD, YYYY-MM-DD, YYYY/MM/DD -> YYYYMMDD
+                            // This comparison works for standard ISO-like ordering (Year-Month-Day)
+                            const simplified = dateStr.replace(/[^0-9]/g, ''); 
+                            // Check if it's 8 digits (YYYYMMDD) - if so, parse as number
+                            if (simplified.length === 8) {
+                                return parseInt(simplified, 10);
+                            }
+                            // Fallback to string comparison if format is weird
+                            return dateStr;
+                        };
+
+                        const parsedA = parseDateForSort(valA);
+                        const parsedB = parseDateForSort(valB);
+
+                        if (parsedA < parsedB) return currentSortDirection === 'asc' ? -1 : 1;
+                        if (parsedA > parsedB) return currentSortDirection === 'asc' ? 1 : -1;
+                        return 0;
+                    }
+
+                    // Default string sort
                     if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
                     if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
                     return 0;
