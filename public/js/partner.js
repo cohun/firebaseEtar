@@ -1918,7 +1918,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                                 </select>
                                 <input name="kov_idoszakos_vizsgalat" type="date" class="input-field mt-2">
                             </div>
-                            <div>
+                            <div id="container-kov-terhelesi">
                                 <label class="block text-sm">Következő Terhelési próba</label>
                                 <select name="kov_terhelesi_proba_period" class="input-field">
                                     <option value="">Válasszon periódust</option>
@@ -1976,6 +1976,26 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 `;
 
                 deviceSearchResult.innerHTML = detailsHtml;
+
+                // --- VISIBILITY LOGIC FOR 'RÖGZÍTŐESZKÖZ VIZSGÁLAT' ---
+                const templateSelect = document.getElementById('templateSelectNewInspection');
+                const loadTestContainer = document.getElementById('container-kov-terhelesi');
+
+                if (templateSelect && loadTestContainer) {
+                    const handleTemplateChange = () => {
+                        if (templateSelect.value === 'Rögzítőeszköz vizsgálat') {
+                            loadTestContainer.style.display = 'none';
+                            // Opcionális: üríthetjük is a mezőket, ha elrejtjük
+                            const inputs = loadTestContainer.querySelectorAll('input, select');
+                            inputs.forEach(input => input.value = '');
+                        } else {
+                            loadTestContainer.style.display = 'block';
+                        }
+                    };
+
+                    templateSelect.addEventListener('change', handleTemplateChange);
+                    handleTemplateChange(); // Initial check
+                }
 
                 // --- DICTATION LOGIC START ---
                 const setupDictation = (btnId, inputName) => {
@@ -2170,6 +2190,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             uevmData: window.currentUevmData || null // Save UEVM data if exists
                         };
 
+                        // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden),
+                        // de a validáció miatt ne akadjon el, illetve ne mentsünk be hülyeséget.
+                        if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat') {
+                             inspectionData.kovetkezoTerhelesiProba = ''; // Clear it
+                        }
+
                         const dataToHash = `${inspectionData.deviceId}${inspectionData.szakerto}${inspectionData.vizsgalatIdopontja}`;
                         inspectionData.hash = await generateHash(dataToHash);
 
@@ -2180,9 +2206,13 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             inspectionData.vizsgalatHelye,
                             inspectionData.vizsgalatIdopontja,
                             inspectionData.kovetkezoIdoszakosVizsgalat,
-                            inspectionData.kovetkezoTerhelesiProba,
                             inspectionData.vizsgalatEredmenye
                         ];
+
+                        // Csak akkor kötelező a terhelési, ha NEM Rögzítőeszköz vizsgálat
+                        if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat') {
+                             requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
+                        }
 
                         if (requiredFields.some(field => !field || field.trim() === '')) {
                             alert('Kérjük, töltse ki az összes kötelező mezőt a vizsgálat mentéséhez! (A "Feltárt hiba" és a "Felhasznált anyagok" nem kötelező).');
@@ -2240,6 +2270,7 @@ function getNewInspectionScreenHtml(userData) {
                         <option>Fővizsgálat</option>
                         <option>Szerkezeti vizsgálat</option>
                         <option>Biztonsági Felülvizsgálat</option>
+                        <option>Rögzítőeszköz vizsgálat</option>
                     </select>
                 </div>
                 <div>

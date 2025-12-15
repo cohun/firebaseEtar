@@ -83,6 +83,19 @@ export async function getTemplateForDraft(draft) {
             // Let's fallback to ensure user sees something, but log error.
         }
     }
+
+    // NEW: Handle 'Rögzítőeszköz vizsgálat' specific template
+    if (draft.vizsgalatJellege === 'Rögzítőeszköz vizsgálat') {
+        try {
+            console.log("Loading specialized template: jkv_RLSK.html");
+            const response = await fetch('jkv_RLSK.html?v=' + new Date().getTime());
+            if (!response.ok) throw new Error(`Template 'jkv_RLSK.html' could not be loaded.`);
+            return await response.text();
+        } catch (error) {
+            console.error("Error loading jkv_RLSK.html:", error);
+            // Fallback to default?
+        }
+    }
     
     // Default template
     const response = await fetch('jkv.html?v=' + new Date().getTime());
