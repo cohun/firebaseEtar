@@ -12,7 +12,7 @@ import { auth, db } from './firebase.js';
         serialNumber: ['Gyári szám'],
         type: ['Típus'],
         chip: ['NFC kód', 'ETAR kód'],
-        effectiveLength: ['Méret', 'Hasznos hossz'],
+        effectiveLength: ['Méret', 'Hasznos hossz', 'Hossz'],
         manufacturer: ['Gyártó'],
         operatorId: ['Üzemeltetői azonosító', 'Helyszín', 'Felhasználó', 'Operátor ID'],
         yearOfManufacture: ['Gyártás éve'],
