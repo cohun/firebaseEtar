@@ -568,85 +568,90 @@ export function showPermissionManagementScreen(users, currentUserData) {
 
     const roleOptions = ['pending', 'admin', 'write', 'read', 'inspector', 'pending_inspector'];
     // ... render html ...
-    const userListHtml = users.map(user => {
-        // ... same mapping logic ... as before ...
-         const associationsHtml = user.associations.map(assoc => {
-            if (!assoc.partnerDetails) return '';
+    const renderUserList = (userList) => {
+        if (userList.length === 0) {
+            return '<p class="text-center text-gray-400">Nincsenek a feltételeknek megfelelő felhasználók.</p>';
+        }
 
-            const partnerId = assoc.partnerId;
-
-            // Szerepkör legördülő menü
-            let roleDropdownContent = '';
-            let isDisabled = false;
-            let displayRole = assoc.role;
-            let extraInfo = '';
-
-            // ENY logic handling
-            if (!currentUserData.isEjkUser) {
-                if (assoc.role === 'pending_inspector') {
-                    isDisabled = true;
-                    // Keep original value but it will be disabled
-                } else if (assoc.role === 'subcontractor') {
-                    isDisabled = true;
-                    displayRole = 'i-vizsgáló'; // Visually show as i-vizsgáló instead of inspector
-                    extraInfo = ''; 
-                } else if (assoc.role === 'subscriber') {
-                     // Subscriber can be changed to Inspector, so not disabled by default
+        return userList.map(user => {
+            const associationsHtml = user.associations.map(assoc => {
+                if (!assoc.partnerDetails) return '';
+    
+                const partnerId = assoc.partnerId;
+    
+                // Szerepkör legördülő menü
+                let roleDropdownContent = '';
+                let isDisabled = false;
+                let displayRole = assoc.role;
+                let extraInfo = '';
+    
+                // ENY logic handling
+                if (!currentUserData.isEjkUser) {
+                    if (assoc.role === 'pending_inspector') {
+                        isDisabled = true;
+                        // Keep original value but it will be disabled
+                    } else if (assoc.role === 'subcontractor') {
+                        isDisabled = true;
+                        displayRole = 'i-vizsgáló'; // Visually show as i-vizsgáló instead of inspector
+                        extraInfo = ''; 
+                    } else if (assoc.role === 'subscriber') {
+                         // Subscriber can be changed to Inspector, so not disabled by default
+                    }
                 }
-            }
-
-            const roleDropdown = `
-                <div>
-                    <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
-                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
-                        ${roleOptions.map(opt => {
-                            // If it's a subcontractor showing as inspector (or i-vizsgáló)
-                            if (assoc.role === 'subcontractor' && opt === 'inspector') {
-                                return `<option value="${assoc.role}" selected>${displayRole}</option>`;
-                            }
-                             // Standard matching
-                            return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
-                        }).join('')}
-                        ${!roleOptions.includes(assoc.role) && assoc.role !== 'subcontractor' ? `<option value="${assoc.role}" selected>${assoc.role}</option>` : ''}
-                        ${assoc.role === 'subcontractor' ? '' : `<option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>`}
-                    </select>
+    
+                const roleDropdown = `
+                    <div>
+                        <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                        <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
+                            ${roleOptions.map(opt => {
+                                // If it's a subcontractor showing as inspector (or i-vizsgáló)
+                                if (assoc.role === 'subcontractor' && opt === 'inspector') {
+                                    return `<option value="${assoc.role}" selected>${displayRole}</option>`;
+                                }
+                                 // Standard matching
+                                return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
+                            }).join('')}
+                            ${!roleOptions.includes(assoc.role) && assoc.role !== 'subcontractor' ? `<option value="${assoc.role}" selected>${assoc.role}</option>` : ''}
+                            ${assoc.role === 'subcontractor' ? '' : `<option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>`}
+                        </select>
+                    </div>
+                `;
+                
+                // Partner részleteinek megjelenítése
+                const partnerDetailsHtml = `
+                    <div class="flex-1">
+                        <p><strong>Cégnév:</strong> ${assoc.partnerDetails.name || 'N/A'}</p>
+                        <p><strong>Cím:</strong> ${assoc.partnerDetails.address || 'N/A'}</p>
+                        <p class="text-sm text-gray-400"><strong>Partner ID:</strong> ${partnerId}</p>
+                    </div>
+                `;
+    
+                // Mentés és Törlés gombok
+                const saveButtonHtml = `<button id="save-btn-${user.id}-${partnerId}" class="btn btn-primary w-full mt-2 hidden">Mentés</button>`;
+    
+                return `
+                <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-start">
+                    ${partnerDetailsHtml}
+                    <div class="flex flex-col gap-2">
+                        ${roleDropdown}
+                        ${saveButtonHtml}
+                    </div>
                 </div>
-            `;
-            
-            // Partner részleteinek megjelenítése
-            const partnerDetailsHtml = `
-                <div class="flex-1">
-                    <p><strong>Cégnév:</strong> ${assoc.partnerDetails.name || 'N/A'}</p>
-                    <p><strong>Cím:</strong> ${assoc.partnerDetails.address || 'N/A'}</p>
-                    <p class="text-sm text-gray-400"><strong>Partner ID:</strong> ${partnerId}</p>
-                </div>
-            `;
-
-            // Mentés és Törlés gombok
-            const saveButtonHtml = `<button id="save-btn-${user.id}-${partnerId}" class="btn btn-primary w-full mt-2 hidden">Mentés</button>`;
-
+                `;
+            }).join('');
+    
             return `
-            <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-start">
-                ${partnerDetailsHtml}
-                <div class="flex flex-col gap-2">
-                    ${roleDropdown}
-                    ${saveButtonHtml}
+                <div class="p-4 border border-blue-800 rounded-lg mb-4">
+                    <h3 class="text-xl font-bold text-blue-300">${user.name}</h3>
+                    <p class="text-gray-400">${user.email}</p>
+                    <div class="mt-4 space-y-2">
+                        <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
+                        ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
+                    </div>
                 </div>
-            </div>
             `;
         }).join('');
-
-        return `
-            <div class="p-4 border border-blue-800 rounded-lg mb-4">
-                <h3 class="text-xl font-bold text-blue-300">${user.name}</h3>
-                <p class="text-gray-400">${user.email}</p>
-                <div class="mt-4 space-y-2">
-                    <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
-                    ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
-                </div>
-            </div>
-        `;
-    }).join('');
+    };
 
     const screenHtml = `
         <div class="card max-w-4xl mx-auto">
@@ -654,16 +659,58 @@ export function showPermissionManagementScreen(users, currentUserData) {
                 <h1 class="text-3xl font-bold">Jogosultságok Kezelése</h1>
                 <button id="backToMainScreenBtn" class="btn btn-secondary">Vissza</button>
             </div>
-            <div class="max-h-[60vh] overflow-y-auto pr-2">
-                ${userListHtml.length > 0 ? userListHtml : '<p class="text-center text-gray-400">Nincsenek a feltételeknek megfelelő felhasználók.</p>'}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <input type="text" id="searchCompanyName" placeholder="Keresés cégnév alapján..." class="input-field">
+                </div>
+                <div>
+                    <input type="text" id="searchAdminName" placeholder="Keresés ENY admin neve alapján..." class="input-field">
+                </div>
+            </div>
+
+            <div id="permissionUserListContainer" class="max-h-[60vh] overflow-y-auto pr-2">
+                ${renderUserList(users)}
             </div>
         </div>
     `;
     screens.permissionManagement.innerHTML = screenHtml;
     showScreen('permissionManagement');
 
-    // Use shared function
-    // Use shared function
+    // Filter Logic
+    const searchCompanyNameInput = document.getElementById('searchCompanyName');
+    const searchAdminNameInput = document.getElementById('searchAdminName');
+    const userListContainer = document.getElementById('permissionUserListContainer');
+
+    const filterUsers = () => {
+        const companyTerm = searchCompanyNameInput.value.toLowerCase();
+        const adminTerm = searchAdminNameInput.value.toLowerCase();
+
+        const filteredUsers = users.filter(user => {
+            const nameMatch = user.name.toLowerCase().includes(adminTerm);
+            
+            // Check if ANY of the user's associated partners match the company search term
+            const companyMatch = user.associations.some(assoc => {
+                return assoc.partnerDetails && assoc.partnerDetails.name.toLowerCase().includes(companyTerm);
+            });
+
+            // If company search is empty, we don't filter by it (companyMatch is effectively true for "all")
+            // BUT strict logic: if companyTerm is present, we need at least one match.
+            const isCompanyMatchValid = companyTerm === '' || companyMatch;
+
+            return nameMatch && isCompanyMatchValid;
+        });
+
+        userListContainer.innerHTML = renderUserList(filteredUsers);
+        
+        // Re-attach listeners because we re-rendered the DOM
+        attachPermissionManagementListeners(filteredUsers, currentUserData); 
+    };
+
+    searchCompanyNameInput.addEventListener('input', filterUsers);
+    searchAdminNameInput.addEventListener('input', filterUsers);
+
+    // Initial attach
     attachPermissionManagementListeners(users, currentUserData);
 
     document.getElementById('backToMainScreenBtn').addEventListener('click', () => {
