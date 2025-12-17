@@ -1977,6 +1977,21 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
                 deviceSearchResult.innerHTML = detailsHtml;
 
+                // --- AUTO-DATE LOGIC FOR 'NEM FELELT MEG' ---
+                const vizsgalatEredmenyeSelect = document.querySelector('[name="vizsgalat_eredmenye"]');
+                if (vizsgalatEredmenyeSelect) {
+                    vizsgalatEredmenyeSelect.addEventListener('change', (e) => {
+                        if (e.target.value === 'Nem felelt meg') {
+                            const today = new Date().toISOString().slice(0, 10);
+                            const idoszakosDateInput = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
+                            const terhelesiDateInput = document.querySelector('[name="kov_terhelesi_proba"]');
+                            
+                            if (idoszakosDateInput) idoszakosDateInput.value = today;
+                            if (terhelesiDateInput) terhelesiDateInput.value = today;
+                        }
+                    });
+                }
+
                 // --- VISIBILITY LOGIC FOR 'RÖGZÍTŐESZKÖZ VIZSGÁLAT' ---
                 const templateSelect = document.getElementById('templateSelectNewInspection');
                 const loadTestContainer = document.getElementById('container-kov-terhelesi');
