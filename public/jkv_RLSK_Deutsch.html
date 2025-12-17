@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prüfprotokoll</title>
+    <style>
+        /* --- Basis-Stile (Für alle Ansichten) --- */
+        html {
+            box-sizing: border-box;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            line-height: 1.3;
+            background-color: #ffffff; /* Standardhintergrund für Druck */
+        }
+        
+        /* --- NEU: Bildschirm "Umschlag" --- */
+        /* Dies ist verantwortlich für den grauen Hintergrund und die Zentrierung auf dem Bildschirm */
+        .screen-view-wrapper {
+            background-color: #f4f4f4;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Der Dokumenten-Container (Für Bildschirm) --- */
+        .container {
+            width: 100%;
+            /* Etwas breiter, damit es auf Laptops besser aussieht */
+            max-width: 900px; 
+            background-color: #ffffff;
+            padding: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        /* --- Allgemeine Inhaltsstile --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header img {
+            max-height: 70px;
+            width: auto;
+        }
+
+        .document-header-section {
+            font-size: 0.75em;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        .document-header-section h1 {
+            font-size: 1.6em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        
+        .document-header-section h2 {
+            font-size: 1.1em;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 3px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .document-header-section p {
+            margin-bottom: 10px;
+            margin-left: 15px;
+            line-height: 1.4;
+        }
+
+        .title-with-sorszam {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            /* Umbruch in der mobilen Ansicht */
+            flex-wrap: wrap; 
+            gap: 10px; /* Kleiner Abstand zwischen Titel und Seriennummer beim Umbruch */
+        }
+
+        .serial-number-box {
+            border: 2px solid #333;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1.2em;
+            white-space: nowrap;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #000;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .data-grid {
+            display: grid;
+            /* Responsivere Spalten */
+            grid-template-columns: minmax(180px, 40%) 1fr; 
+            gap: 6px 0;
+            padding-left: 15px;
+        }
+
+        .data-label {
+            font-weight: normal;
+        }
+
+        .data-value {
+            font-weight: bold;
+            color: #222;
+        }
+
+        .data-grid-spacer {
+            grid-column: 1 / -1;
+            height: 20px;
+        }
+
+        .result-text {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            color: #000;
+            margin: 15px 0;
+        }
+        
+        .result-subtitle {
+            font-size: 0.8em;
+            color: #555;
+            text-align: center;
+            margin-top: -10px;
+            margin-bottom: 15px;
+        }
+
+        .signature-section {
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        
+        .signature-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            /* Umbruch in der mobilen Ansicht */
+            flex-wrap: wrap; 
+            gap: 20px; /* Platz zwischen den Elementen beim Umbruch */
+        }
+
+        .signature-block {
+            text-align: center;
+            /* Auf Mobilgeräten zentriert, wenn umgebrochen */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .signature-block .name {
+            font-weight: bold;
+            font-size: 1.1em;
+            padding-top: 5px;
+        }
+        
+        .signature-block .title {
+            font-size: 1em;
+            color: #333;
+        }
+        
+        .signature-block .id-number {
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 0.8em;
+            color: #777;
+        }
+        
+        .footer-note {
+            font-size: 0.7em;
+            color: #888;
+            margin-top: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* --- Responsive Stile (Mobile Ansicht) --- */
+        @media (max-width: 600px) {
+            .screen-view-wrapper {
+                /* Auf Mobilgeräten verschwindet der Wrapper, nur der Container bleibt */
+                padding: 0;
+            }
+
+            .container {
+                /* Auf Mobilgeräten füllt der Container den Bildschirm, kein Schatten/Rahmen */
+                max-width: 100%;
+                padding: 15px; /* Kleinerer Innenabstand */
+                border: none;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .data-grid {
+                /* Auf Mobilgeräten bricht das Datenraster untereinander um */
+                grid-template-columns: 1fr;
+                gap: 5px 0;
+                padding-left: 5px; /* Kleinere Einrückung */
+            }
+
+            .data-value {
+                /* Die fetten Daten werden unter das Label gesetzt */
+                padding-left: 10px;
+                margin-bottom: 10px; /* Abstand zwischen den Daten */
+            }
+
+            .header, .title-with-sorszam, .signature-container {
+                /* Wo sinnvoll, werden Flex-Elemente zentriert, wenn sie umbrechen */
+                justify-content: center;
+            }
+        }
+
+
+        /* --- Druckstile (Optimiert) --- */
+        @media print {
+            /* Seiteneinrichtung: A4, 1cm Rand */
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+
+            /* Den Bildschirm-Umschlag beim Drucken ausblenden */
+            .screen-view-wrapper {
+                /* STATTDESSEN: Stil zurücksetzen, aber Inhalt beibehalten */
+                display: block;
+                padding: 0;
+                margin: 0;
+                background-color: #ffffff !important;
+                min-height: auto; /* Bildschirmhöhe löschen */
+            }
+
+            html, body {
+                font-family: 'Times New Roman', Times, serif;
+                background-color: #ffffff !important;
+                margin: 0;
+                padding: 0;
+                /* --- ÄNDERUNG: Kleinere Schrift und Zeilenabstand --- */
+                font-size: 9.5pt;
+                line-height: 1.2;
+                color: #000;
+                /* --- NEU: Höhe einstellen --- */
+                height: 100%;
+            }
+
+            .container {
+                /* Der Container übernimmt die Rolle des Blattes */
+                width: 100%;
+                max-width: none;
+                /* --- ÄNDERUNG: Innenabstand hinzufügen --- */
+                padding: 0 5mm; /* 0 oben/unten, aber 5mm Rand links und rechts */
+                margin: 0;
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+                /* Flexbox, die die Seite füllt */
+                display: flex;
+                flex-direction: column;
+                /* --- ÄNDERUNG: Höhenverwaltung ersetzt --- */
+                min-height: 100%;
+            }
+
+            .header {
+                border-bottom: 2px solid #000;
+                /* --- ÄNDERUNG: Platz reduzieren --- */
+                margin-bottom: 10px;
+            }
+            .header img {
+                max-height: 1.2cm !important; /* Fixe Größe erzwungen */
+                width: auto;
+            }
+            
+            .serial-number-box {
+                border-color: #000;
+            }
+
+            /* --- NEU: Kopfbereich komprimieren --- */
+            .document-header-section {
+                margin-bottom: 15px;
+            }
+            .document-header-section h2 {
+                margin-top: 10px;
+                margin-bottom: 5px;
+            }
+            .document-header-section p {
+                margin-bottom: 5px;
+                line-height: 1.15; /* Separat für langen Text */
+            }
+
+            .section {
+                /* --- ÄNDERUNG: Platz reduzieren --- */
+                margin-bottom: 10px;
+                page-break-inside: avoid;
+            }
+
+            .section h2 {
+                border-color: #000;
+                page-break-after: avoid;
+                /* --- NEU: Platz reduzieren --- */
+                margin-bottom: 5px;
+            }
+            
+            /* --- NEU: Raster komprimieren --- */
+            .data-grid {
+                gap: 4px 0;
+            }
+            
+            /* --- NEU: Den größten Platzverschwender reduzieren --- */
+            .data-grid-spacer {
+                height: 5px;
+            }
+
+            .result-text {
+                /* --- ÄNDERUNG: Kleinere Schrift und Rand --- */
+                font-size: 1.2em;
+                margin: 10px 0;
+            }
+            
+            /* --- NEU: Untertitel komprimieren --- */
+            .result-subtitle {
+                margin-top: -5px;
+                margin-bottom: 10px;
+            }
+
+            /* Unterschriftsbereich an das Ende der Seite schieben */
+            .signature-section {
+                margin-top: auto; /* Dies schiebt es nach unten */
+                /* --- ÄNDERUNG: Platz reduzieren --- */
+                padding-top: 5px;
+                page-break-inside: avoid;
+            }
+
+            .section h2 {
+                border-color: #000;
+                page-break-after: avoid;
+            }
+            
+            .result-text {
+                font-size: 1.3em;
+            }
+            
+            .signature-container {
+                /* Beim Drucken soll der Unterschriftsblock nicht umbrechen */
+                flex-wrap: nowrap;
+            }
+
+            .footer {
+                /* --- ÄNDERUNG: Platz reduzieren --- */
+                margin-top: 15px;
+                padding-top: 5px;
+                border-top: 1px solid #000;
+            }
+            
+            .footer-note {
+                white-space: normal; /* Beim Drucken umbrechen, falls nötig */
+                overflow: visible;
+                text-overflow: clip;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NEU: Bildschirm "Umschlag" -->
+    <div class="screen-view-wrapper">
+
+        <!-- Dieser Teil blieb unverändert, ist jetzt aber innerhalb des 'Umschlags' -->
+        <div class="container">
+
+            <!-- 1. Logos -->
+            <div class="header">
+                <img src="images/H-ITB_Logo.jpg" alt="H-ITB Logo" onerror="this.onerror=null;this.src='https://placehold.co/150x70/EFEFEF/333333?text=H-ITB+Logo+Fehler';">
+                <img src="images/logo.jpg" alt="ETAR Logo" onerror="this.onerror=null;this.src='https://placehold.co/150x70/EFEFEF/333333?text=ETAR+Logo+Fehler';">
+            </div>
+
+            <!-- 2. Überschrift, Vorschriften, Normen (Kleinere Schrift) -->
+            <section class="document-header-section">
+                
+                <div class="title-with-sorszam">
+                    <h1>Prüfprotokoll für die wiederkehrende Prüfung von Ladungssicherungsmitteln</h1>
+                    <div class="serial-number-box">
+                        Laufende Nummer: {sorszam}
+                    </div>
+                </div>
+
+                <h2>Relevante Vorschriften:</h2>
+                <p>
+                    DIN EN 12195-3 Ladungssicherung auf Straßenfahrzeugen - Sicherheit - Teil 3: Zurrketten &nbsp; <br>
+                    Weitere Verkehrssicherheitsvorschriften.
+                </p>
+            </section>
+
+            <!-- 3. Betreiberdaten -->
+            <section class="section">
+                <h2>Betreiberdaten:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Firmenname:</div>
+                    <div class="data-value">{partner_nev}</div>
+                    <div class="data-label">Adresse:</div>
+                    <div class="data-value">{partner_cim}</div>
+                </div>
+            </section>
+
+            <!-- 4. Daten des geprüften Ladungssicherungsmittels -->
+            <section class="section">
+                <h2>Daten des geprüften Ladungssicherungsmittels:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Bezeichnung:</div>
+                    <div class="data-value">{eszkoz_megnevezes}</div>
+                    <div class="data-label">Operator-ID:</div>
+                    <div class="data-value">{eszkoz_azonosito}</div>
+                    <div class="data-label">Typ:</div>
+                    <div class="data-value">{eszkoz_tipus}</div>
+                    <div class="data-label">Nutzlänge:</div>
+                    <div class="data-value">{eszkoz_hossz}</div>
+                    <div class="data-label">Zurrkraft (LC):</div>
+                    <div class="data-value">{eszkoz_teherbiras}</div>
+                    <div class="data-label">Hersteller:</div>
+                    <div class="data-value">{eszkoz_gyarto}</div>
+                    <div class="data-label">Fabriknummer:</div>
+                    <div class="data-value">{eszkoz_gyari_szam}</div>
+                    <div class="data-label">Baujahr:</div>
+                    <div class="data-value">{eszkoz_gyartasi_ev}</div>
+                </div>
+            </section>
+
+            <!-- 5. Prüfdaten -->
+            <section class="section">
+                <h2>Prüfdaten:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Datum der Prüfung:</div>
+                    <div class="data-value">{vizsgalat_idopontja}</div>
+                    <div class="data-label">Ort der Prüfung:</div>
+                    <div class="data-value">{vizsgalat_helye}</div>
+                    <div class="data-label">Art der Prüfung:</div>
+                    <div class="data-value">Prüfung auf Verformungen, Verschleiß, Dehnung, Funktion des Spannelements, Aushängesicherungen. Belastungsprüfung</div>
+                </div>
+            </section>
+
+            <!-- 6. Prüfergebnis und Bewertung -->
+            <section class="section">
+                <h2>Prüfergebnis und Bewertung:</h2>
+                <div class="result-subtitle">(gemäß den zum Zeitpunkt der Prüfung geltenden Vorschriften)</div>
+                
+                <div class="result-text">
+                    {vizsgalat_eredmenye}
+                </div>
+
+                <div class="data-grid">
+                    <div class="data-label">Festgestellter Mangel:</div>
+                    <div class="data-value">{feltart_hiba}</div>
+                    <div class="data-grid-spacer"></div> <!-- Neue Leerzeile -->
+                    <div class="data-label">Verwendete Materialien:</div>
+                    <div class="data-value">{felhasznalt_anyagok}</div>
+                    <div class="data-grid-spacer"></div> <!-- Neue Leerzeile -->
+                </div>
+            </section>
+
+            <!-- 7. Fälligkeit der nächsten Prüfung -->
+            <section class="section">
+                <h2>Fälligkeit der nächsten Prüfung:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Nächste wiederkehrende Prüfung:</div>
+                    <div class="data-value">{kovetkezo_idoszakos}</div>
+                </div>
+            </section>
+
+            <!-- 8. Unterschrift -->
+            <section class="signature-section">
+                <div class="signature-container">
+                    <div class="kelt-datum">
+                        Datum: {kelt_datum}
+                    </div>
+                    <div class="signature-block">
+                        <div class="name">{szakerto_nev}</div>
+                        <div class="title">H-ITB Sachbearbeiter für Hebezeuge</div>
+                        <div class="id-number">({szakerto_bizonyitvanyszam})</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. Fußzeile -->
+            <footer class="footer">
+                Zeitstempel: {generalas_idobelyeg}
+                <div class="footer-note">Die Authentizität (Echtheit) des Dokuments wird durch den Zeitstempel-Dienst und den der laufenden Nummer des Dokuments zugeordneten eindeutigen kryptographischen Hash gewährleistet, auch ohne Unterschrift.</div>
+            </footer>
+
+        </div> <!-- /container -->
+
+    </div> <!-- /screen-view-wrapper -->
+
+</body>
+</html>

@@ -96,6 +96,20 @@ export async function getTemplateForDraft(draft) {
             // Fallback to default?
         }
     }
+
+    // NEW: Handle 'Prüfung von Ladungssicherungsmitteln' specific template
+    if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
+        try {
+            console.log("Loading specialized template: jkv_RLSK_Deutsch.html");
+            const response = await fetch('jkv_RLSK_Deutsch.html?v=' + new Date().getTime());
+            if (!response.ok) throw new Error(`Template 'jkv_RLSK_Deutsch.html' could not be loaded.`);
+            return await response.text();
+        } catch (error) {
+            console.error("Error loading jkv_RLSK_Deutsch.html:", error);
+        }
+    }
+
+
     
     // Default template
     const response = await fetch('jkv.html?v=' + new Date().getTime());

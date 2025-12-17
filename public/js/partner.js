@@ -2081,7 +2081,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 const vizsgalatEredmenyeSelect = document.querySelector('[name="vizsgalat_eredmenye"]');
                 if (vizsgalatEredmenyeSelect) {
                     vizsgalatEredmenyeSelect.addEventListener('change', (e) => {
-                        if (e.target.value === 'Nem felelt meg') {
+                        if (e.target.value === 'Nem felelt meg' || e.target.value === 'Nicht zugelassen') {
                             const today = new Date().toISOString().slice(0, 10);
                             const idoszakosDateInput = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
                             const terhelesiDateInput = document.querySelector('[name="kov_terhelesi_proba"]');
@@ -2098,13 +2098,29 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
                 if (templateSelect && loadTestContainer) {
                     const handleTemplateChange = () => {
-                        if (templateSelect.value === 'Rögzítőeszköz vizsgálat') {
+                        if (templateSelect.value === 'Rögzítőeszköz vizsgálat' || templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
                             loadTestContainer.style.display = 'none';
                             // Opcionális: üríthetjük is a mezőket, ha elrejtjük
                             const inputs = loadTestContainer.querySelectorAll('input, select');
                             inputs.forEach(input => input.value = '');
                         } else {
                             loadTestContainer.style.display = 'block';
+                        }
+
+                        // Update Result Dropdown Options
+                        if (vizsgalatEredmenyeSelect) {
+                            const currentVal = vizsgalatEredmenyeSelect.value;
+                            if (templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
+                                vizsgalatEredmenyeSelect.innerHTML = `
+                                    <option>Zugelassen</option>
+                                    <option>Nicht zugelassen</option>
+                                `;
+                            } else {
+                                vizsgalatEredmenyeSelect.innerHTML = `
+                                    <option>Megfelelt</option>
+                                    <option>Nem felelt meg</option>
+                                `;
+                            }
                         }
                     };
 
@@ -2307,7 +2323,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
                         // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden),
                         // de a validáció miatt ne akadjon el, illetve ne mentsünk be hülyeséget.
-                        if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat') {
+                        if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
                              inspectionData.kovetkezoTerhelesiProba = ''; // Clear it
                         }
 
@@ -2325,7 +2341,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                         ];
 
                         // Csak akkor kötelező a terhelési, ha NEM Rögzítőeszköz vizsgálat
-                        if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat') {
+                        if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln') {
                              requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
                         }
 
@@ -2387,6 +2403,7 @@ function getNewInspectionScreenHtml(userData) {
                         <option>Szerkezeti vizsgálat</option>
                         <option>Biztonsági Felülvizsgálat</option>
                         <option>Rögzítőeszköz vizsgálat</option>
+                        <option>Prüfung von Ladungssicherungsmitteln</option>
                     </select>
                 </div>
                 <div>
