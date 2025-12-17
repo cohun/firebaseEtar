@@ -143,6 +143,7 @@ export function showRegistrationScreen() {
     const registrationHtml = `
         <div class="card max-w-md mx-auto">
             <h1 class="text-3xl sm:text-4xl font-bold mb-6">Regisztráció</h1>
+            <p class="mb-4 text-blue-300">Az Ön személyes adatai:</p>
             <form id="registrationForm" novalidate>
                 <div class="space-y-4">
                     <input type="text" id="nameInput" placeholder="Teljes név" class="input-field" required>
@@ -180,7 +181,12 @@ export function showRegistrationScreen() {
 
     ekvCheckbox.addEventListener('change', () => {
         if (ekvCheckbox.checked) {
-            ekvFields.classList.remove('hidden');
+            if (confirm("Ön valóban szakértőként kíván regisztrálni?")) {
+                ekvFields.classList.remove('hidden');
+            } else {
+                ekvCheckbox.checked = false;
+                ekvFields.classList.add('hidden');
+            }
         } else {
             ekvFields.classList.add('hidden');
         }
