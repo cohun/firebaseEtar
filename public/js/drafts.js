@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (draft.isI !== true) return false;
                         
                         const role = userData.partnerRoles && draft.partnerId ? userData.partnerRoles[draft.partnerId] : null;
-                        return role === 'inspector' || role === 'subcontractor';
+                        return role === 'inspector' || role === 'subcontractor' || role === 'subscriber';
                     });
                 } else {
                     // EJK users only see isI: false (or undefined) drafts
@@ -195,6 +195,7 @@ function sortAndRender() {
         if (isExpertK && !showK) return false;
         if (!isExpertK && !showB) return false;
         
+
         return true;
     });
 
