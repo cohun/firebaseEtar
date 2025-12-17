@@ -43,6 +43,10 @@ function getEszkozListaHtml() {
                         <input type="search" id="main-search-input" class="input-field w-full mt-1 text-sm" placeholder="Keresés...">
                     </div>
                     <div class="flex-1 min-w-0">
+                        <label for="filter-operator-id" class="block text-xs font-medium text-gray-300 truncate">Operátor ID</label>
+                        <input type="search" id="filter-operator-id" class="input-field w-full mt-1 text-sm" placeholder="Keresés...">
+                    </div>
+                    <div class="flex-1 min-w-0">
                         <label for="filter-vizsg-idopont" class="block text-xs font-medium text-gray-300 truncate">Vizsgálat dátuma</label>
                         <input type="text" id="filter-vizsg-idopont" class="input-field w-full mt-1 text-sm" placeholder="ÉÉÉÉ.HH.NN" maxlength="10">
                     </div>
@@ -280,6 +284,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
     let currentSortField = 'description';
     let currentSortDirection = 'asc';
     let searchTerm = '';
+    let searchTermOperatorId = ''; // New variable for Operator ID filtering
     let filters = {
         vizsg_idopont: '',
         kov_vizsg: ''
@@ -344,6 +349,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
     const prevPageBtn = document.getElementById('prev-page-btn');
     const nextPageBtn = document.getElementById('next-page-btn');
     const searchInput = document.getElementById('main-search-input');
+    const operatorIdInput = document.getElementById('filter-operator-id'); // New input
     const vizsgIdopontInput = document.getElementById('filter-vizsg-idopont');
     const kovVizsgInput = document.getElementById('filter-kov-vizsg');
     const resetFiltersBtn = document.getElementById('reset-filters-btn');
@@ -411,17 +417,19 @@ export function initPartnerWorkScreen(partnerId, userData) {
             let query = db.collection('partners').doc(partnerId).collection('devices')
                 .where('comment', '==', currentView);
 
-            if (searchTerm) {
-                query = query.where('serialNumber', '==', searchTerm);
-            }
+            // Removed server-side searchTerm query to allow client-side partial matching
+            // if (searchTerm) {
+            //     query = query.where('serialNumber', '==', searchTerm);
+            // }
             
             // NOTE: Date filters are handled client-side below because the data is in a subcollection
 
-            // Determine if we need client-side handling (filtering OR sorting by date OR complex source filtering)
+            // Determine if we need client-side handling (filtering OR sorting by date OR complex source filtering OR search)
+            // Added searchTerm to client-side logic triggers to allow for partial/case-insensitive matching
             const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
             const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
             // We use client-side logic for 'h-itb' to robustly handle "false or missing" isI
-            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb';
+            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm;
 
             if (!useClientSideLogic) {
                 // Server-side filtering for 'external' (isI == true)
@@ -529,6 +537,18 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 if (filters.kov_vizsg) {
                     const filterDate = normalizeDate(filters.kov_vizsg);
                     devices = devices.filter(d => normalizeDate(d.kov_vizsg).includes(filterDate));
+                }
+
+                // Sorszám keresés (Client-Side, Case-Insensitive, Partial)
+                if (searchTerm) {
+                    const lowerTerm = searchTerm.toLowerCase();
+                    devices = devices.filter(d => (d.serialNumber || '').toLowerCase().includes(lowerTerm));
+                }
+
+                // Operátor ID szűrés (Client-Side)
+                if (searchTermOperatorId) {
+                    const lowerOpTerm = searchTermOperatorId.toLowerCase();
+                    devices = devices.filter(d => (d.operatorId || '').toLowerCase().includes(lowerOpTerm));
                 }
 
                 // Source Filtering (Client-Side)
@@ -1345,9 +1365,21 @@ export function initPartnerWorkScreen(partnerId, userData) {
         resetAndFetch();
     }, 300);
 
-    searchInput.addEventListener('keyup', (e) => {
+    // New debounced search for Operator ID
+    const debouncedSearchOperatorId = debounce((value) => {
+        searchTermOperatorId = value;
+        resetAndFetch();
+    }, 300);
+
+    searchInput.addEventListener('input', (e) => {
         debouncedSearch(e.target.value.trim());
     });
+
+    if (operatorIdInput) {
+        operatorIdInput.addEventListener('input', (e) => {
+            debouncedSearchOperatorId(e.target.value.trim());
+        });
+    }
 
     // Date formatting helper
     const handleDateInput = (e, filterKey) => {
@@ -1382,9 +1414,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
     resetFiltersBtn.addEventListener('click', () => {
         searchInput.value = '';
+        if (operatorIdInput) operatorIdInput.value = ''; // Reset new input
         vizsgIdopontInput.value = '';
         kovVizsgInput.value = '';
         searchTerm = '';
+        searchTermOperatorId = ''; // Reset new variable
         filters = { vizsg_idopont: '', kov_vizsg: '' };
         inactiveToggle.checked = false; // Kapcsoló visszaállítása
         currentView = 'active'; // Nézet visszaállítása
@@ -1764,9 +1798,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
     }
 
     // --- NEW INSPECTION LOGIC ---
+
+    // --- SEARCH LOGIC FOR NEW INSPECTION (Autocomplete) ---
     const searchDeviceForm = document.getElementById('searchDeviceForm');
     const serialNumberInput = document.getElementById('serialNumberInput');
     const deviceSearchResult = document.getElementById('deviceSearchResult');
+    const suggestionsList = document.getElementById('serialNumberSuggestions');
     let currentInspectedDevice = null;
 
     window.saveSerialAndRedirect = function() {
@@ -1777,6 +1814,69 @@ export function initPartnerWorkScreen(partnerId, userData) {
         sessionStorage.removeItem('editDeviceId');
         window.location.href = 'adatbevitel.html';
     }
+
+    // --- AUTOCOMPLETE LOGIC ---
+    let allPartnerDevices = [];
+
+    const fetchAllPartnerDevices = async () => {
+        try {
+            const snapshot = await db.collection('partners').doc(partnerId).collection('devices').get();
+            allPartnerDevices = snapshot.docs.map(doc => ({
+                id: doc.id,
+                serialNumber: doc.data().serialNumber || '',
+                name: doc.data().name || ''
+            }));
+            console.log("Devices loaded for autocomplete:", allPartnerDevices.length);
+        } catch (error) {
+            console.error("Error loading devices for autocomplete:", error);
+        }
+    };
+
+    if (searchDeviceForm) {
+        if (serialNumberInput) {
+            fetchAllPartnerDevices();
+
+            serialNumberInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                if (!suggestionsList) return;
+
+                suggestionsList.innerHTML = '';
+                if (query.length === 0) {
+                    suggestionsList.classList.add('hidden');
+                    return;
+                }
+
+                const matches = allPartnerDevices.filter(device => 
+                    (device.serialNumber || '').toLowerCase().includes(query)
+                );
+
+                if (matches.length > 0) {
+                    suggestionsList.classList.remove('hidden');
+                    matches.slice(0, 10).forEach(device => {
+                        const li = document.createElement('li');
+                        li.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0 flex justify-between';
+                        li.innerHTML = `
+                            <span class="font-bold text-white">${device.serialNumber}</span>
+                            <span class="text-sm text-gray-400 truncate ml-2">${device.name}</span>
+                        `;
+                        li.addEventListener('click', () => {
+                            serialNumberInput.value = device.serialNumber;
+                            suggestionsList.classList.add('hidden');
+                            searchDeviceForm.dispatchEvent(new Event('submit'));
+                        });
+                        suggestionsList.appendChild(li);
+                    });
+                } else {
+                    suggestionsList.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (suggestionsList && !serialNumberInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+                    suggestionsList.classList.add('hidden');
+                }
+            });
+        }
 
     const btnQrSearchNew = document.getElementById('btn-qr-search-start-new');
     if (btnQrSearchNew) {
@@ -2261,6 +2361,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
             deviceSearchResult.innerHTML = `<p class="text-red-400">Hiba történt a keresés során.</p>`;
         }
     });
+    }
 }
 
 
@@ -2310,8 +2411,13 @@ function getNewInspectionScreenHtml(userData) {
                 <!-- Option 1: Manual -->
                 <div class="w-full">
                     <label class="block text-sm text-gray-400 mb-1">1. Opció: Gyári szám megadása</label>
-                    <form id="searchDeviceForm" class="flex flex-col sm:flex-row items-center gap-4">
-                        <input type="text" id="serialNumberInput" placeholder="Gyári szám..." class="input-field flex-grow" required>
+                    <form id="searchDeviceForm" class="flex flex-col sm:flex-row items-center gap-4 relative">
+                        <div class="relative w-full flex-grow">
+                             <input type="text" id="serialNumberInput" placeholder="Gyári szám..." class="input-field w-full" autocomplete="off" required>
+                             <ul id="serialNumberSuggestions" class="absolute z-50 w-full bg-gray-800 border border-gray-600 rounded-md shadow-lg mt-1 hidden max-h-60 overflow-y-auto">
+                                <!-- Suggestions will be injected here -->
+                             </ul>
+                        </div>
                         <button id="searchDeviceBySerialBtn" class="btn btn-primary w-full sm:w-auto">Keresés</button>
                     </form>
                 </div>
