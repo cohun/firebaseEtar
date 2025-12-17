@@ -52,26 +52,42 @@ export async function showStatisticsScreen(user, userData) {
                 devices: []
             };
 
-            const devices = await Promise.all(devicesSnapshot.docs.map(async (doc) => {
+            // Helper to process items in chunks
+            async function processInChunks(items, chunkProcessor, chunkSize = 10) {
+                const results = [];
+                for (let i = 0; i < items.length; i += chunkSize) {
+                    const chunk = items.slice(i, i + chunkSize);
+                    const chunkResults = await Promise.all(chunk.map(chunkProcessor));
+                    results.push(...chunkResults);
+                }
+                return results;
+            }
+
+            const devices = await processInChunks(devicesSnapshot.docs, async (doc) => {
                 const deviceData = doc.data();
                 deviceData.id = doc.id; // Add ID for persistence
                 
                 // Fetch latest inspection
-                const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
-                    .collection('devices').doc(doc.id)
-                    .collection('inspections')
-                    .orderBy('createdAt', 'desc')
-                    .limit(1)
-                    .get();
-                
-                if (!latestInspectionSnapshot.empty) {
-                    const latestInspection = latestInspectionSnapshot.docs[0].data();
-                    deviceData.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
-                    deviceData.szakerto = latestInspection.szakerto;
+                try {
+                    const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
+                        .collection('devices').doc(doc.id)
+                        .collection('inspections')
+                        .orderBy('createdAt', 'desc')
+                        .limit(1)
+                        .get();
+                    
+                    if (!latestInspectionSnapshot.empty) {
+                        const latestInspection = latestInspectionSnapshot.docs[0].data();
+                        deviceData.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                        deviceData.szakerto = latestInspection.szakerto;
+                    }
+                } catch (err) {
+                    console.error(`Error fetching inspection for device ${doc.id}:`, err);
+                    // Continue even if one fails
                 }
                 
                 return deviceData;
-            }));
+            }, 10); // Process 10 devices at a time
 
             // Filter devices for EKV users (only isI: true)
             const statsDevices = (userData.isEkvUser) ? devices.filter(d => d.isI === true) : devices;

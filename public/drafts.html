@@ -79,7 +79,19 @@
             <div class="w-10"></div>
         </header>
         <div class="card rounded-t-none p-6">
-            <div class="sm:flex sm:items-center sm:justify-end">
+            <div class="sm:flex sm:items-center sm:justify-between">
+                <!-- Filter Checkboxes -->
+                <div id="expert-filter-container" class="flex gap-4 text-gray-300 bg-gray-900/50 p-2 rounded border border-gray-700 hidden mb-4 sm:mb-0">
+                    <label class="flex items-center cursor-pointer select-none">
+                        <input type="checkbox" id="filterK" class="form-checkbox h-4 w-4 text-blue-500 rounded focus:ring-0" checked>
+                        <span class="ml-2 text-sm font-medium">K (Gerőly/Szadlon)</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer select-none">
+                        <input type="checkbox" id="filterB" class="form-checkbox h-4 w-4 text-blue-500 rounded focus:ring-0" checked>
+                        <span class="ml-2 text-sm font-medium">B (Nagy/Bagyinszki)</span>
+                    </label>
+                </div>
+
                 <div class="mt-4 sm:mt-0 space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
                     <button id="deleteDraftsButton" class="btn btn-danger">Kijelöltek törlése</button>
                     <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok előnézete (HTML)</button>

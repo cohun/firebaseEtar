@@ -6,6 +6,14 @@ let allEnrichedDrafts = []; // Store all fetched drafts globally in this module
 let currentSortField = 'createdAt';
 let currentSortDirection = 'desc';
 
+// Filter state
+let showK = true;
+let showB = true;
+
+function isK(expertName) {
+    return expertName === 'Gerőly Iván' || expertName === 'Szadlon Norbert';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.getElementById('drafts-table-body');
     if (!tableBody) return; // Exit if not on drafts page
@@ -27,6 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (isEkvUser) {
                         document.body.classList.add('ekv-mode');
+                    } else {
+                        // Show filter container for EJK users
+                        const filterContainer = document.getElementById('expert-filter-container');
+                        if (filterContainer) filterContainer.classList.remove('hidden');
                     }
                     
                     // If user has EJK_read but NOT admin or write, AND is NOT an EKV user, hide dangerous buttons
@@ -138,6 +150,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Filter listeners
+    const filterK = document.getElementById('filterK');
+    const filterB = document.getElementById('filterB');
+    if (filterK) {
+        filterK.addEventListener('change', (e) => {
+            showK = e.target.checked;
+            sortAndRender();
+        });
+    }
+    if (filterB) {
+        filterB.addEventListener('change', (e) => {
+            showB = e.target.checked;
+            sortAndRender();
+        });
+    }
+
     // Add event listeners for sorting
     const headers = document.querySelectorAll('th.sortable');
     headers.forEach(header => {
@@ -155,7 +183,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function sortAndRender() {
-    const sortedDrafts = [...allEnrichedDrafts].sort((a, b) => {
+    let filteredDrafts = [];
+    
+    // Apply filters first
+    filteredDrafts = allEnrichedDrafts.filter(draft => {
+        // If we want to restrict this logic to ONLY EJK users, we can check a global flag or passed arg.
+        // Assuming this is fine for everyone who sees the controls (but we only show controls to EJK).
+        // For EKV users, controls are hidden, defaults are TRUE, so no impact.
+        
+        const isExpertK = isK(draft.szakerto);
+        if (isExpertK && !showK) return false;
+        if (!isExpertK && !showB) return false;
+        
+        return true;
+    });
+
+    const sortedDrafts = [...filteredDrafts].sort((a, b) => {
         const fieldA = a[currentSortField];
         const fieldB = b[currentSortField];
 
