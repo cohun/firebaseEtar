@@ -352,9 +352,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
                         height: 60px;
                     }
                     .serial-number {
-                        margin-top: 5px;
+                        margin-top: 2px;
                         font-weight: bold;
-                        font-size: 14px;
+                        font-size: 10px;
                         word-break: break-all;
                     }
                     @media print {
