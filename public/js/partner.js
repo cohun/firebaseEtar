@@ -24,6 +24,11 @@ function getEszkozListaHtml() {
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-semibold text-white">Szűrés és Keresés</h2>
                     
+                    <!-- QR Print Button (Shown for all) -->
+                    <button id="print-qr-btn" class="mr-4 px-3 py-1 rounded-md text-sm font-medium bg-gray-600 text-white hover:bg-gray-500 transition-colors">
+                        <i class="fas fa-print mr-2"></i>QR-kód nyomtatás
+                    </button>
+
                     <!-- 3-Way Filter Switch -->
                     <div id="source-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
                         <button data-value="all" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
@@ -301,6 +306,117 @@ export function initPartnerWorkScreen(partnerId, userData) {
         sourceFilter = 'h-itb';
     } else {
         sourceFilter = 'all';
+    }
+
+    // --- QR Print Logic ---
+    const printQrBtn = document.getElementById('print-qr-btn');
+
+    if (printQrBtn) {
+        printQrBtn.addEventListener('click', printSelectedQRCodes);
+    }
+
+    async function printSelectedQRCodes() {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy eszközt a QR-kód nyomtatáshoz!');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('A felugró ablakok tiltva vannak. Kérjük, engedélyezze őket a nyomtatáshoz!');
+            return;
+        }
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>QR-kód Nyomtatás</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        display: flex;
+                        flex-wrap: wrap;
+                        justify-content: flex-start;
+                        padding: 20px;
+                    }
+                    .qr-item {
+                        margin: 10px;
+                        padding: 10px;
+                        text-align: center;
+                        width: 150px;
+                        page-break-inside: avoid;
+                    }
+                    .qr-image {
+                        width: 60px;
+                        height: 60px;
+                    }
+                    .serial-number {
+                        margin-top: 5px;
+                        font-weight: bold;
+                        font-size: 14px;
+                        word-break: break-all;
+                    }
+                    @media print {
+                        @page { margin: 10mm; }
+                    }
+                </style>
+            </head>
+            <body>
+        `);
+
+        // Use currentDevices to ensure we get the latest data matching visual state
+        // Or fetch from DOM if currentDevices is not reliable for "checked" state (it is reliable for data)
+        const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        
+        // Iterate and generate QR codes
+        for (const checkbox of selectedCheckboxes) {
+            const deviceId = checkbox.dataset.id;
+            const device = currentDevices.find(d => d.id === deviceId);
+            if (!device) continue;
+
+            try {
+                // Find existing canvas in the row
+                const row = checkbox.closest('tr');
+                const canvas = row ? row.querySelector('.qr-code-canvas') : null;
+                
+                let dataUrl;
+                if (canvas) {
+                    dataUrl = canvas.toDataURL('image/png');
+                } else {
+                    throw new Error("Canvas element not found in row");
+                }
+
+                printWindow.document.write(`
+                    <div class="qr-item">
+                        <img src="${dataUrl}" class="qr-image" />
+                        <div class="serial-number">${device.serialNumber || 'N/A'}</div>
+                    </div>
+                `);
+            } catch (err) {
+                console.error(`Error retrieving QR for ${device.serialNumber}:`, err);
+                 printWindow.document.write(`
+                    <div class="qr-item">
+                        <div>QR Error</div>
+                        <div class="serial-number">${device.serialNumber || 'N/A'}</div>
+                    </div>
+                `);
+            }
+        }
+
+        printWindow.document.write(`
+            </body>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    window.onafterprint = function() {
+                        window.close();
+                    };
+                }
+            </script>
+            </html>
+        `);
+        printWindow.document.close();
     }
 
     const sourceFilterContainer = document.getElementById('source-filter-container');
