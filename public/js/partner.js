@@ -658,13 +658,13 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 // Sorszám keresés (Client-Side, Case-Insensitive, Partial)
                 if (searchTerm) {
                     const lowerTerm = searchTerm.toLowerCase();
-                    devices = devices.filter(d => (d.serialNumber || '').toLowerCase().includes(lowerTerm));
+                    devices = devices.filter(d => String(d.serialNumber || '').toLowerCase().includes(lowerTerm));
                 }
 
                 // Operátor ID szűrés (Client-Side)
                 if (searchTermOperatorId) {
                     const lowerOpTerm = searchTermOperatorId.toLowerCase();
-                    devices = devices.filter(d => (d.operatorId || '').toLowerCase().includes(lowerOpTerm));
+                    devices = devices.filter(d => String(d.operatorId || '').toLowerCase().includes(lowerOpTerm));
                 }
 
                 // Source Filtering (Client-Side)
