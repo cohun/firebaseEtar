@@ -1616,6 +1616,129 @@ export function initPartnerWorkScreen(partnerId, userData) {
     }
 
 
+
+    // --- DEVICE SEARCH AUTOCOMPLETE LOGIC ---
+    function initDeviceSearchAutocomplete(partnerId) {
+        // console.log("Device Search Autocomplete Initializing for Partner:", partnerId);
+        const serialInput = document.getElementById('serialNumberInput');
+        const suggestionsList = document.getElementById('serialNumberSuggestions');
+        
+        if (!serialInput || !suggestionsList) return;
+
+        // Local debounce to ensure availability
+        function localDebounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+
+        let cachedDevices = null;
+
+        const handleInput = localDebounce(async (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            
+            if (query.length === 0) {
+                suggestionsList.classList.add('hidden');
+                return;
+            }
+
+            // Lazy load devices on first input
+            if (!cachedDevices) {
+                try {
+                    const snapshot = await db.collection('partners').doc(partnerId).collection('devices').get();
+                    
+                    // Deduplicate by serialNumber
+                    const uniqueDevicesMap = new Map();
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        const serial = String(data.serialNumber || "").trim();
+                        if (serial && !uniqueDevicesMap.has(serial.toLowerCase())) {
+                            uniqueDevicesMap.set(serial.toLowerCase(), { id: doc.id, ...data });
+                        }
+                    });
+                    
+                    cachedDevices = Array.from(uniqueDevicesMap.values());
+                } catch (error) {
+                    console.error("Error fetching devices for autocomplete:", error);
+                    return; 
+                }
+            }
+
+            const matches = cachedDevices.filter(d => {
+                const serial = String(d.serialNumber || "").toLowerCase();
+                return serial.includes(query);
+            });
+
+            // Smart Sorting: Exact match > Starts with > Contains > Alphanumeric
+            matches.sort((a, b) => {
+                const serialA = String(a.serialNumber || "").toLowerCase();
+                const serialB = String(b.serialNumber || "").toLowerCase();
+
+                // 1. Exact match
+                if (serialA === query && serialB !== query) return -1;
+                if (serialB === query && serialA !== query) return 1;
+
+                // 2. Starts with
+                const aStarts = serialA.startsWith(query);
+                const bStarts = serialB.startsWith(query);
+                if (aStarts && !bStarts) return -1;
+                if (!aStarts && bStarts) return 1;
+
+                // 3. Alphanumeric sort
+                return serialA.localeCompare(serialB);
+            });
+
+            // Slice top 10 AFTER sorting
+            const topMatches = matches.slice(0, 10);
+
+            renderSuggestions(topMatches);
+        }, 300);
+
+        function renderSuggestions(matches) {
+            suggestionsList.innerHTML = '';
+            
+            if (matches.length === 0) {
+                suggestionsList.classList.add('hidden');
+                return;
+            }
+
+            matches.forEach(device => {
+                const li = document.createElement('li');
+                li.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 border-b border-gray-700 last:border-0';
+                li.textContent = `${device.serialNumber} (${device.description || 'Nincs név'})`;
+                
+                li.addEventListener('click', () => {
+                    serialInput.value = device.serialNumber;
+                    suggestionsList.classList.add('hidden');
+                    // Trigger search event logic 
+                    const searchBtn = document.getElementById('searchDeviceBySerialBtn');
+                    if (searchBtn) searchBtn.click();
+                });
+                
+                suggestionsList.appendChild(li);
+            });
+
+            suggestionsList.classList.remove('hidden');
+        }
+
+        // Event Listeners
+        serialInput.addEventListener('input', handleInput);
+        
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!serialInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+                suggestionsList.classList.add('hidden');
+            }
+        });
+    }
+
+    // Initialize the autocomplete
+    initDeviceSearchAutocomplete(partnerId);
+
+
     // --- DATABASE DOWNLOAD LOGIC ---
     const downloadDbBtn = document.getElementById('download-db-btn');
     const downloadDbBtnMobile = document.getElementById('download-db-btn-mobile');
@@ -2013,15 +2136,24 @@ export function initPartnerWorkScreen(partnerId, userData) {
         deviceSearchResult.innerHTML = `<p class="text-gray-400">Keresés...</p>`;
 
         try {
-            let query = db.collection('partners').doc(partnerId).collection('devices')
-                .where('serialNumber', '==', serialNumber);
+            // Base query
+            let baseQuery = db.collection('partners').doc(partnerId).collection('devices');
 
             // EKV users can only search for isI: true devices
             if (userData && userData.isEkvUser) {
-                query = query.where('isI', '==', true);
+                baseQuery = baseQuery.where('isI', '==', true);
             }
 
-            const querySnapshot = await query.limit(1).get();
+            // 1. Try string match
+            let querySnapshot = await baseQuery.where('serialNumber', '==', serialNumber).limit(1).get();
+
+            // 2. If not found and input is numeric, try number match
+            // Note: serialNumber is from input, so it's a string.
+            if (querySnapshot.empty && !isNaN(serialNumber) && serialNumber.trim() !== '') {
+                 // Convert to number for strict equality check in Firestore
+                 const numericSerial = Number(serialNumber);
+                 querySnapshot = await baseQuery.where('serialNumber', '==', numericSerial).limit(1).get();
+            }
 
             if (querySnapshot.empty) {
                 deviceSearchResult.innerHTML = `
