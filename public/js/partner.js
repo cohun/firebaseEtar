@@ -29,6 +29,13 @@ function getEszkozListaHtml() {
                         <i class="fas fa-print mr-2"></i>QR-kód nyomtatás
                     </button>
 
+                    <!-- Validity Filter Switch -->
+                    <div id="validity-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
+                        <button data-value="all" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
+                        <button data-value="valid" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Érvényes</button>
+                        <button data-value="invalid" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Érvénytelen</button>
+                    </div>
+
                     <!-- 3-Way Filter Switch -->
                     <div id="source-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
                         <button data-value="all" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
@@ -298,6 +305,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
     // --- SOURCE FILTER LOGIC ---
     let sourceFilter = 'all'; // 'all', 'h-itb', 'external'
     
+    // --- VALIDITY FILTER LOGIC ---
+    let validityFilter = 'all'; // 'all', 'valid', 'invalid'
+    
     // Determine default filter based on user type
     
     if (isEkvUser) {
@@ -443,6 +453,44 @@ export function initPartnerWorkScreen(partnerId, userData) {
         }
     }
 
+    const validityFilterContainer = document.getElementById('validity-filter-container');
+    const validityFilterButtons = document.querySelectorAll('.validity-filter-btn');
+
+    if (validityFilterContainer) {
+        // Initialize UI
+        updateValidityFilterButtonsUI();
+
+        validityFilterButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                validityFilter = e.target.dataset.value;
+                updateValidityFilterButtonsUI();
+                currentPage = 1; // Reset pagination
+                // Reset pagination cursors when changing filters
+                firstVisibleDoc = null;
+                lastVisibleDoc = null;
+                fetchDevices();
+            });
+        });
+    }
+
+    function updateValidityFilterButtonsUI() {
+        validityFilterButtons.forEach(btn => {
+            if (btn.dataset.value === validityFilter) {
+                btn.classList.remove('text-gray-300', 'hover:text-white');
+                if (validityFilter === 'valid') {
+                    btn.classList.add('bg-green-600', 'text-white');
+                } else if (validityFilter === 'invalid') {
+                    btn.classList.add('bg-red-600', 'text-white');
+                } else {
+                    btn.classList.add('bg-blue-600', 'text-white'); // Fallback/All color
+                }
+            } else {
+                btn.classList.add('text-gray-300', 'hover:text-white');
+                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'text-white');
+            }
+        });
+    }
+
     function updateFilterButtonsUI() {
         filterButtons.forEach(btn => {
             if (btn.dataset.value === sourceFilter) {
@@ -544,8 +592,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
             // Added searchTerm to client-side logic triggers to allow for partial/case-insensitive matching
             const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
             const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
-            // We use client-side logic for 'h-itb' to robustly handle "false or missing" isI
-            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm;
+            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm || validityFilter !== 'all';
 
             if (!useClientSideLogic) {
                 // Server-side filtering for 'external' (isI == true)
@@ -674,6 +721,29 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 } else if (sourceFilter === 'external') {
                     // isI is true
                     devices = devices.filter(d => d.isI === true);
+                }
+
+                // Validity Filtering (Client-Side)
+                if (validityFilter !== 'all') {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    const isValid = (d) => {
+                         const statusOk = d.status === 'Megfelelt';
+                         let futureDate = false;
+                         if (d.kov_vizsg) {
+                             const kovVizsgDate = new Date(d.kov_vizsg.replace(/[\/\-]/g, '.')); // Handle various date formats including dot separator
+                             kovVizsgDate.setHours(0, 0, 0, 0);
+                             futureDate = kovVizsgDate > today;
+                         }
+                         return statusOk && futureDate;
+                    };
+
+                    if (validityFilter === 'valid') {
+                        devices = devices.filter(d => isValid(d));
+                    } else if (validityFilter === 'invalid') {
+                        devices = devices.filter(d => !isValid(d));
+                    }
                 }
 
                 // 2. Sorting
