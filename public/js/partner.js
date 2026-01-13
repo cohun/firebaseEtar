@@ -50,6 +50,26 @@ function getEszkozListaHtml() {
                     </button>
                 </div>
                 <div id="filter-menu" class="hidden xl:flex xl:flex-nowrap xl:items-end xl:gap-2 space-y-4 xl:space-y-0">
+                    <!-- Mobile Filters (Validity & Source) -->
+                    <div class="flex flex-col space-y-2 xl:hidden p-2 bg-gray-800 rounded">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-gray-300">Érvényesség:</span>
+                            <div class="flex bg-gray-700 rounded-lg p-1">
+                                <button data-value="all" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
+                                <button data-value="valid" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Érvényes</button>
+                                <button data-value="invalid" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Érvénytelen</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-gray-300">Forrás:</span>
+                            <div class="flex bg-gray-700 rounded-lg p-1">
+                                <button data-value="all" class="filter-switch-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
+                                <button data-value="h-itb" class="filter-switch-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">H-ITB</button>
+                                <button data-value="external" class="filter-switch-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">I-vizsgáló</button>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="flex-1 min-w-0">
                         <label for="main-search-input" class="block text-xs font-medium text-gray-300 truncate">Gyári szám</label>
                         <input type="search" id="main-search-input" class="input-field w-full mt-1 text-sm" placeholder="Keresés...">
