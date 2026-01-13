@@ -137,6 +137,24 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { window.location.href = 'app.html'; }, 2000);
         }
     });
+    
+    // Scroll Preservation: Handle Navigation Type
+    try {
+        const navEntries = performance.getEntriesByType("navigation");
+        if (navEntries.length > 0 && navEntries[0].type === 'navigate') {
+            console.log('Fresh navigation detected. Resetting scroll position.');
+            sessionStorage.removeItem('draftsScrollY');
+        } else {
+             console.log('Reload or Back/Forward detected. Keeping scroll position.');
+        }
+    } catch (err) {
+        console.warn('Navigation Timing API not supported or error:', err);
+    }
+
+    // Scroll Preservation: Save
+    window.addEventListener('scroll', () => {
+        sessionStorage.setItem('draftsScrollY', window.scrollY);
+    });
 
     // Event listener for the "select all" checkbox
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
@@ -147,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             rowCheckboxes.forEach(checkbox => {
                 checkbox.checked = isChecked;
             });
+            updateFloatingBarVisibility();
         });
     }
 
@@ -260,6 +279,46 @@ function renderTable(drafts) {
             </tr>
         `;
     }).join('');
+
+    // Attach event listeners to new row checkboxes
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    rowCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateFloatingBarVisibility);
+    });
+
+    // Restore scroll position if previously saved
+    const savedScrollY = sessionStorage.getItem('draftsScrollY');
+    if (savedScrollY) {
+        setTimeout(() => {
+            window.scrollTo(0, parseInt(savedScrollY));
+            // Optional: convert to int and check validity
+        }, 100); 
+    }
+}
+
+function updateFloatingBarVisibility() {
+    const selectedCount = document.querySelectorAll('.row-checkbox:checked').length;
+    console.log('Selection changed. Count:', selectedCount); // Debug log
+
+    const floatingBar = document.getElementById('floating-action-bar');
+    const selectedCountSpan = document.getElementById('selected-count');
+    
+    if (selectedCountSpan) {
+        selectedCountSpan.textContent = selectedCount;
+    }
+
+    if (floatingBar) {
+        if (selectedCount > 0) {
+            // Force visibility using inline style to ensure it overrides classes if needed
+            floatingBar.style.transform = 'translateY(0)';
+            floatingBar.classList.remove('translate-y-full');
+        } else {
+            floatingBar.style.transform = ''; // Revert to class-based (hidden)
+            floatingBar.classList.add('translate-y-full');
+        }
+    } else {
+        console.warn('Floating action bar element not found in DOM.');
+    }
 }
 
 const generateDraftsButton = document.getElementById('generateDraftsButton');

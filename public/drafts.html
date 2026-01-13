@@ -92,11 +92,7 @@
                     </label>
                 </div>
 
-                <div class="mt-4 sm:mt-0 space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
-                    <button id="deleteDraftsButton" class="btn btn-danger">Kijelöltek törlése</button>
-                    <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok előnézete (HTML)</button>
-                    <button id="finalizeDraftsButton" class="btn btn-success">Kijelöltek véglegesítése</button>
-                </div>
+                <!-- Buttons moved to floating action bar -->
             </div>
 
             <!-- Piszkozatok Táblázata -->
@@ -128,6 +124,21 @@
             </div>
         </div>
     </div>
+
+    <!-- Floating Action Bar -->
+     <div id="floating-action-bar" class="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-blue-800 p-4 shadow-2xl transform translate-y-full transition-transform duration-300 z-50">
+        <div class="container mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span class="text-white font-medium"><span id="selected-count">0</span> elem kijelölve</span>
+            <div class="space-y-2 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row">
+                <button id="deleteDraftsButton" class="btn btn-danger">Kijelöltek törlése</button>
+                <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok előnézete (HTML)</button>
+                <button id="finalizeDraftsButton" class="btn btn-success">Kijelöltek véglegesítése</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Spacer to prevent content from being hidden behind the bar -->
+    <div class="h-24"></div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
