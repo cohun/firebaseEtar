@@ -75,7 +75,7 @@ function getEszkozListaHtml() {
                         <input type="search" id="main-search-input" class="input-field w-full mt-1 text-sm" placeholder="Keresés...">
                     </div>
                     <div class="flex-1 min-w-0">
-                        <label for="filter-operator-id" class="block text-xs font-medium text-gray-300 truncate">Operátor ID</label>
+                        <label id="filter-operator-id-label" for="filter-operator-id" class="block text-xs font-medium text-gray-300 truncate">Operátor ID</label>
                         <input type="search" id="filter-operator-id" class="input-field w-full mt-1 text-sm" placeholder="Keresés...">
                     </div>
                     <div class="flex-1 min-w-0">
@@ -133,7 +133,17 @@ function getEszkozListaHtml() {
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Típus</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Hossz</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Gyári szám</th>
-                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Operátor ID</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">
+                                            <div class="flex flex-col items-center">
+                                                <div class="flex items-center space-x-1 mb-1">
+                                                    <span>Op. ID</span>
+                                                    <button id="add-operator-category-btn" class="text-xs bg-gray-700 hover:bg-gray-600 text-green-400 font-bold rounded px-1.5 py-0.5" title="Új kategória">+</button>
+                                                </div>
+                                                <select id="operator-category-select" class="block w-full text-xs bg-gray-700 border-gray-600 text-white rounded p-1 focus:ring-indigo-500 focus:border-indigo-500">
+                                                    <option value="Default">Alap.</option>
+                                                </select>
+                                            </div>
+                                        </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megállapítások</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Köv. Vizsg.</th>
                                         <th rowspan="2" class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">I<br><span class="text-xs font-normal">vizsgáló</span></th>
@@ -215,6 +225,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         console.log(`Redirecting to edit device: ${deviceId} for partner: ${partnerId}`);
         sessionStorage.setItem('editDeviceId', deviceId);
         sessionStorage.setItem('partnerIdForEdit', partnerId);
+        sessionStorage.setItem('currentOperatorCategory', currentOperatorCategory);
         window.location.href = 'adatbevitel.html';
     };
 
@@ -317,6 +328,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
     let currentSortDirection = 'asc';
     let searchTerm = '';
     let searchTermOperatorId = ''; // New variable for Operator ID filtering
+    
+    // Operator ID Category State
+    let currentOperatorCategory = 'Default';
+    let availableOperatorCategories = ['Default'];
+
     let filters = {
         vizsg_idopont: '',
         kov_vizsg: ''
@@ -546,17 +562,161 @@ export function initPartnerWorkScreen(partnerId, userData) {
     const decommissionBtn = document.getElementById('decommission-reactivate-btn');
     const decommissionBtnMobile = document.getElementById('decommission-reactivate-btn-mobile');
     const scanChipModalBtn = document.getElementById('scan-chip-modal-btn');
+    const filterHamburgerBtn = document.getElementById('filter-hamburger-btn');
+    const filterMenu = document.getElementById('filter-menu');
 
     if(scanChipModalBtn) {
         scanChipModalBtn.addEventListener('click', showDigitalScanSelectionModal);
     }
 
-    const filterHamburgerBtn = document.getElementById('filter-hamburger-btn');
-    const filterMenu = document.getElementById('filter-menu');
-
     if (filterHamburgerBtn && filterMenu) {
         filterHamburgerBtn.addEventListener('click', () => {
             filterMenu.classList.toggle('hidden');
+        });
+    }
+
+    // --- OPERATOR CATEGORY LOGIC ---
+    const operatorCategorySelect = document.getElementById('operator-category-select');
+    const addOperatorCategoryBtn = document.getElementById('add-operator-category-btn');
+
+    async function loadOperatorCategories() {
+        try {
+            const partnerDoc = await db.collection('partners').doc(partnerId).get();
+            if (partnerDoc.exists) {
+                const data = partnerDoc.data();
+                const categories = data.definedIdCategories || [];
+                availableOperatorCategories = ['Default', ...categories];
+                renderOperatorCategoryOptions();
+            }
+        } catch (error) {
+            console.error("Error loading operator categories:", error);
+        }
+    }
+
+    function renderOperatorCategoryOptions() {
+        if (!operatorCategorySelect) return;
+        operatorCategorySelect.innerHTML = availableOperatorCategories.map(cat => 
+            `<option value="${cat}" ${cat === currentOperatorCategory ? 'selected' : ''}>${cat === 'Default' ? 'Alap.' : cat}</option>`
+        ).join('');
+        
+        // Update styling immediately after rendering options (in case it's page load)
+        updateOperatorIdLabelStyle();
+    }
+
+    if (addOperatorCategoryBtn) {
+        addOperatorCategoryBtn.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent sorting trigger if bubble up
+            const newCategory = prompt("Adja meg az új kategória nevét (pl. Rendszám):");
+            if (newCategory && newCategory.trim() !== "") {
+                const sanitizedCat = newCategory.trim();
+                if (availableOperatorCategories.includes(sanitizedCat)) {
+                    alert("Ez a kategória már létezik!");
+                    return;
+                }
+
+                try {
+                    await db.collection('partners').doc(partnerId).update({
+                        definedIdCategories: firebase.firestore.FieldValue.arrayUnion(sanitizedCat)
+                    });
+                    availableOperatorCategories.push(sanitizedCat);
+                    renderOperatorCategoryOptions();
+                    
+                    // Auto-select the new category
+                    operatorCategorySelect.value = sanitizedCat;
+                    currentOperatorCategory = sanitizedCat;
+                    sessionStorage.setItem('currentOperatorCategory', currentOperatorCategory); // Save to session
+                    updateOperatorIdLabelStyle(); // Update style
+                    fetchDevices();
+                    
+                    alert(`"${sanitizedCat}" kategória sikeresen hozzáadva!`);
+                } catch (error) {
+                    console.error("Error adding category:", error);
+                    alert("Hiba történt a kategória hozzáadása közben.");
+                }
+            }
+        });
+    }
+
+    function updateOperatorIdLabelStyle() {
+        const label = document.getElementById('filter-operator-id-label');
+        if (label) {
+            label.textContent = currentOperatorCategory === 'Default' ? 'Operátor ID' : currentOperatorCategory;
+            if (currentOperatorCategory !== 'Default') {
+                label.classList.add('text-yellow-400');
+                label.classList.remove('text-gray-300');
+            } else {
+                label.classList.remove('text-yellow-400');
+                label.classList.add('text-gray-300');
+            }
+        }
+
+        const dropdown = document.getElementById('operator-category-select');
+        if (dropdown) {
+            if (currentOperatorCategory !== 'Default') {
+                dropdown.classList.add('text-yellow-400');
+                dropdown.classList.remove('text-white');
+            } else {
+                dropdown.classList.remove('text-yellow-400');
+                dropdown.classList.add('text-white');
+            }
+        }
+    }
+
+    if (operatorCategorySelect) {
+        operatorCategorySelect.addEventListener('change', (e) => {
+            currentOperatorCategory = e.target.value;
+            sessionStorage.setItem('currentOperatorCategory', currentOperatorCategory); // Save to session
+            
+            updateOperatorIdLabelStyle();
+            fetchDevices();
+        });
+        
+        // Load initial categories
+        // Restore from session if available
+        const savedCategory = sessionStorage.getItem('currentOperatorCategory');
+        if (savedCategory) {
+            currentOperatorCategory = savedCategory;
+        }
+        
+        loadOperatorCategories();
+    }
+    
+    // --- OPERATOR ID FILTER PERSISTENCE ---
+    // Restore saved filter value if exists
+    const savedOperatorIdFilter = sessionStorage.getItem('operatorIdFilterValue');
+    if (savedOperatorIdFilter) {
+        searchTermOperatorId = savedOperatorIdFilter;
+        if (operatorIdInput) {
+            operatorIdInput.value = savedOperatorIdFilter;
+        }
+    }
+
+    if (operatorIdInput) {
+        operatorIdInput.addEventListener('input', (e) => {
+            searchTermOperatorId = e.target.value.trim();
+            sessionStorage.setItem('operatorIdFilterValue', searchTermOperatorId); // Save on input
+            currentPage = 1;
+            fetchDevices();
+        });
+    }
+
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+            filters.vizsg_idopont = '';
+            filters.kov_vizsg = '';
+            
+            if (vizsgIdopontInput) vizsgIdopontInput.value = '';
+            if (kovVizsgInput) kovVizsgInput.value = '';
+            
+            searchTermOperatorId = '';
+            if (operatorIdInput) operatorIdInput.value = '';
+            sessionStorage.removeItem('operatorIdFilterValue'); // Clear stored value
+
+            // Optionally reset category too? User request didn't specify, but usually "Reset Filters" might be expected to.
+            // Requirement said: "User a Szűrők gombbal nem törli azt" -> implies this button should clear it.
+            // Keeping category selection as is, only clearing the text input value based on request.
+            
+            fetchDevices();
         });
     }
 
@@ -731,7 +891,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 // Operátor ID szűrés (Client-Side)
                 if (searchTermOperatorId) {
                     const lowerOpTerm = searchTermOperatorId.toLowerCase();
-                    devices = devices.filter(d => String(d.operatorId || '').toLowerCase().includes(lowerOpTerm));
+                    devices = devices.filter(d => {
+                        const val = currentOperatorCategory === 'Default' 
+                            ? (d.operatorId || '') 
+                            : (d.customIds?.[currentOperatorCategory] || '');
+                        return String(val).toLowerCase().includes(lowerOpTerm);
+                    });
                 }
 
                 // Source Filtering (Client-Side)
@@ -924,6 +1089,10 @@ export function initPartnerWorkScreen(partnerId, userData) {
             
             const chipButton = `<div class="${chipClass}" style="font-size: 1.0rem;" onclick="toggleChip(this, '${dev.id}', '${confirmMessage}')">CHIP</div>`;
 
+            const operatorIdVal = currentOperatorCategory === 'Default' 
+                    ? (dev.operatorId || '') 
+                    : (dev.customIds?.[currentOperatorCategory] || '');
+
             const checkboxDisabled = isEkvUser ? 'disabled' : '';
             const checkboxOpacity = isEkvUser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
 
@@ -935,7 +1104,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.type || ''}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.effectiveLength || ''}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.serialNumber || ''}</td>
-                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.operatorId || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">
+                    <span title="${currentOperatorCategory === 'Default' ? 'Alapértelmezett' : currentOperatorCategory}">${operatorIdVal}</span>
+                </td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass} text-center align-middle">${dev.status || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass} text-center align-middle">${dev.kov_vizsg || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-center align-middle">

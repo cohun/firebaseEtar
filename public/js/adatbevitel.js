@@ -73,7 +73,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     form.querySelector('[name="gyartas_eve"]').value = deviceData.yearOfManufacture || '';
                     form.querySelector('[name="eszkoz_teherbiras"]').value = deviceData.loadCapacity || '';
                     form.querySelector('[name="eszkoz_gyariszam"]').value = deviceData.serialNumber || '';
+
                     form.querySelector('[name="eszkoz_uzemeltetoi_azonosito"]').value = deviceData.operatorId || '';
+                    
+                    // Populate Custom IDs
+                    // Note: populateForm function is defined below, but we can reuse the logic or call it if we move it up.
+                    // Instead, let's just do it directly here for reliability.
+                    const populateCustomIdsEdit = () => {
+                         if (deviceData.customIds) {
+                            Object.entries(deviceData.customIds).forEach(([cat, val]) => {
+                                const input = form.querySelector(`input[data-category="${cat}"]`);
+                                if (input) input.value = val;
+                            });
+                        }
+                    };
+                    setTimeout(populateCustomIdsEdit, 500); // Wait for dynamic fields to render
 
                 } else {
                     console.error("Hiba: A szerkesztendő eszköz nem található!");
@@ -101,7 +115,83 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             sessionStorage.removeItem('newDeviceSerialNumber');
         }
+    }const customIdsContainer = document.getElementById('customIdsContainer');
+    let dynamicCategories = [];
+
+    async function loadDynamicFields() {
+        const partnerId = partnerIdForEdit || sessionStorage.getItem('lastPartnerId');
+        console.log("DEBUG: loadDynamicFields called. partnerId:", partnerId);
+        
+        if (!partnerId) {
+            console.error("DEBUG: No partnerId found for dynamic fields.");
+            return;
+        }
+
+        try {
+            const partnerDoc = await db.collection('partners').doc(partnerId).get();
+            if (partnerDoc.exists) {
+                const data = partnerDoc.data();
+                console.log("DEBUG: Partner data fetched:", data);
+                dynamicCategories = data.definedIdCategories || [];
+                console.log("DEBUG: dynamicCategories:", dynamicCategories);
+                renderDynamicFields();
+                // If in edit mode, we might need to populate values here if data was already fetched
+                // But data fetching happens in parallel. We'll handle population in populateForm.
+            } else {
+                console.warn("DEBUG: Partner document does not exist:", partnerId);
+            }
+        } catch (error) {
+            console.error("Error loading partner categories:", error);
+        }
     }
+
+    function highlightActiveCategoryField() {
+        const currentCategory = sessionStorage.getItem('currentOperatorCategory');
+        console.log("DEBUG: highlightActiveCategoryField called. Category:", currentCategory);
+        if (!currentCategory) return;
+
+        // Remove previous highlights if any (though usually fresh load)
+        const highlighted = form.querySelectorAll('.border-blue-500');
+        highlighted.forEach(el => el.classList.remove('border-blue-500', 'ring-2', 'ring-blue-500', 'ring-opacity-50'));
+
+        if (currentCategory === 'Default') {
+            const defaultInput = form.querySelector('[name="eszkoz_uzemeltetoi_azonosito"]');
+            if (defaultInput) {
+                defaultInput.classList.add('border-blue-500', 'ring-2', 'ring-blue-500', 'ring-opacity-50');
+                setTimeout(() => {
+                    defaultInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    defaultInput.focus();
+                }, 300);
+            }
+        } else {
+            const customInput = form.querySelector(`input[data-category="${currentCategory}"]`);
+            if (customInput) {
+                customInput.classList.add('border-blue-500', 'ring-2', 'ring-blue-500', 'ring-opacity-50');
+                setTimeout(() => {
+                    customInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    customInput.focus();
+                }, 300);
+            }
+        }
+    }
+
+    function renderDynamicFields() {
+        if (!customIdsContainer) return;
+        customIdsContainer.innerHTML = ''; // Clear existing
+        
+        dynamicCategories.forEach(cat => {
+            const div = document.createElement('div');
+            // Safe key generation for label
+            div.innerHTML = `<label class="block text-sm text-blue-300">${cat}</label><input name="customId_${cat}" class="input-field dynamic-custom-id" data-category="${cat}">`;
+            customIdsContainer.appendChild(div);
+        });
+
+        // Highlight the active field after render
+        highlightActiveCategoryField();
+    }
+
+    // Call this immediately
+    loadDynamicFields();
 
 
     // Function to populate form from an object
@@ -112,7 +202,32 @@ document.addEventListener('DOMContentLoaded', function () {
         form.querySelector('[name="eszkoz_hossz"]').value = data.effectiveLength || '';
         form.querySelector('[name="gyartas_eve"]').value = data.yearOfManufacture || '';
         form.querySelector('[name="eszkoz_teherbiras"]').value = data.loadCapacity || '';
+
         // Gyári szám és üzemeltetői azonosító szándékosan kihagyva
+        
+        // Populate Custom IDs if fields exist (wait for render?)
+        // Since loadDynamicFields is async, fields might not exist yet.
+        // But populateForm is called after fetch. Ideally we await loadDynamicFields first.
+        const populateCustomIds = () => {
+             if (data.customIds) {
+                Object.entries(data.customIds).forEach(([cat, val]) => {
+                    const input = form.querySelector(`input[data-category="${cat}"]`);
+                    if (input) input.value = val;
+                });
+            }
+        };
+        
+        // Try immediately, or set up a listener/promise? 
+        // Simple hack: check if dynamicCategories is populated using a small retry if needed, or mostly it will be fast enough or we re-call populate.
+        populateCustomIds();
+        
+        // Wait retry if fields not ready
+        if (dynamicCategories.length > 0 && customIdsContainer.children.length === 0) {
+             // Should not happen if we rendered.
+        } else {
+             // Retry once after a short delay just in case renderDynamicFields is pending
+             setTimeout(populateCustomIds, 500); 
+        }
     };
 
     // Load previous data button event listener
@@ -185,8 +300,21 @@ document.addEventListener('DOMContentLoaded', function () {
             serialNumber: serialNumber,
             yearOfManufacture: form.querySelector('[name="gyartas_eve"]').value ? parseInt(form.querySelector('[name="gyartas_eve"]').value) : null,
             comment: 'active',
+
             status: ''
         };
+
+        // Collect Custom IDs
+        const customInputs = document.querySelectorAll('.dynamic-custom-id');
+        if (customInputs.length > 0) {
+            deviceData.customIds = {};
+            customInputs.forEach(input => {
+                const cat = input.dataset.category;
+                if (input.value.trim() !== "") {
+                    deviceData.customIds[cat] = input.value.trim();
+                }
+            });
+        }
 
         // Check if we are in edit mode
         const editDeviceId = sessionStorage.getItem('editDeviceId');

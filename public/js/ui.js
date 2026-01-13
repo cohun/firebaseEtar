@@ -963,6 +963,8 @@ export function showPartnerSelectionScreen(partners, userData) {
 
     const backToMain = () => {
         sessionStorage.removeItem('lastPartnerId');
+        sessionStorage.removeItem('currentOperatorCategory'); // Clear category selection
+        sessionStorage.removeItem('operatorIdFilterValue'); // Clear filter value
         document.body.classList.remove('partner-mode-active');
         window.location.reload(); // Reload to go back to the main screen
     };
