@@ -316,6 +316,18 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
     const expertDetails = await getExpertDetails(draft.szakerto, draft.createdByUid);
 
     // 2. Create the data mapping object for the template
+    
+    // START: Bilingual Result Logic
+    let vizsgalatEredmenye = draft.vizsgalatEredmenye || '';
+    if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
+        if (vizsgalatEredmenye === 'Megfelelt') {
+            vizsgalatEredmenye = 'Zugelassen/Megfelelt';
+        } else if (vizsgalatEredmenye === 'Nem felelt meg') {
+            vizsgalatEredmenye = 'Nicht zugelassen/Nem felelt meg';
+        }
+    }
+    // END: Bilingual Result Logic
+
     const templateData = {
         partner_nev: partnerData.name || '',
         partner_cim: partnerData.address || '',
@@ -334,7 +346,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         kovetkezo_idoszakos: draft.kovetkezoIdoszakosVizsgalat || '',
         kovetkezo_terhelesi: draft.kovetkezoTerhelesiProba || '',
         szakerto_nev: draft.szakerto || '',
-        vizsgalat_eredmenye: draft.vizsgalatEredmenye || '',
+        vizsgalat_eredmenye: vizsgalatEredmenye,
         vizsgalat_helye: draft.vizsgalatHelye || '',
         vizsgalat_idopontja: draft.vizsgalatIdopontja || '',
         vizsgalat_jellege: draft.vizsgalatJellege || '',
@@ -431,6 +443,17 @@ export async function generateHtmlView(targetWindow, drafts) {
             const deviceData = deviceDoc.data();
             const expertDetails = await getExpertDetails(draft.szakerto, draft.createdByUid);
 
+            // START: Bilingual Result Logic due to preview
+            let vizsgalatEredmenye = draft.vizsgalatEredmenye || '-';
+            if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
+                if (vizsgalatEredmenye === 'Megfelelt') {
+                    vizsgalatEredmenye = 'Zugelassen/Megfelelt';
+                } else if (vizsgalatEredmenye === 'Nem felelt meg') {
+                    vizsgalatEredmenye = 'Nicht zugelassen/Nem felelt meg';
+                }
+            }
+            // END: Bilingual Result Logic
+
             const templateData = {
                 'partner_nev': partnerData.name || '-',
                 'partner_cim': partnerData.address || '-',
@@ -446,7 +469,7 @@ export async function generateHtmlView(targetWindow, drafts) {
                 'vizsgalat_idopontja': draft.vizsgalatIdopontja || '-',
                 'vizsgalat_helye': draft.vizsgalatHelye || '-',
                 'vizsgalat_jellege': draft.vizsgalatJellege || '-',
-                'vizsgalat_eredmenye': draft.vizsgalatEredmenye || '-',
+                'vizsgalat_eredmenye': vizsgalatEredmenye,
                 'feltart_hiba': draft.feltartHiba || 'Nem volt',
                 'felhasznalt_anyagok': draft.felhasznaltAnyagok || 'Nem volt',
                 'kovetkezo_idoszakos': draft.kovetkezoIdoszakosVizsgalat || '-',

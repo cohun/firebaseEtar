@@ -1034,9 +1034,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
         if (!status) {
             return 'text-gray-300';
         }
-        if (status === 'Megfelelt') {
+        if (status === 'Megfelelt' || status === 'Zugelassen/Megfelelt') {
             return 'text-green-400 font-semibold';
-        } else if (status === 'Nem felelt meg') {
+        } else if (status === 'Nem felelt meg' || status === 'Nicht zugelassen/Nem felelt meg') {
             return 'text-red-400 font-bold';
         }
         return 'text-gray-300';
@@ -2590,7 +2590,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 const vizsgalatEredmenyeSelect = document.querySelector('[name="vizsgalat_eredmenye"]');
                 if (vizsgalatEredmenyeSelect) {
                     vizsgalatEredmenyeSelect.addEventListener('change', (e) => {
-                        if (e.target.value === 'Nem felelt meg' || e.target.value === 'Nicht zugelassen') {
+                        if (e.target.value === 'Nem felelt meg' || e.target.value === 'Nicht zugelassen' || e.target.value === 'Nicht zugelassen/Nem felelt meg') {
                             const today = new Date().toISOString().slice(0, 10);
                             const idoszakosDateInput = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
                             const terhelesiDateInput = document.querySelector('[name="kov_terhelesi_proba"]');
@@ -2621,8 +2621,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             const currentVal = vizsgalatEredmenyeSelect.value;
                             if (templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
                                 vizsgalatEredmenyeSelect.innerHTML = `
-                                    <option>Zugelassen</option>
-                                    <option>Nicht zugelassen</option>
+                                    <option>Zugelassen/Megfelelt</option>
+                                    <option>Nicht zugelassen/Nem felelt meg</option>
                                 `;
                             } else {
                                 vizsgalatEredmenyeSelect.innerHTML = `
