@@ -109,6 +109,18 @@ export async function getTemplateForDraft(draft) {
         }
     }
 
+    // NEW: Handle 'Prüfung von Lastaufnahmemitteln' specific template
+    if (draft.vizsgalatJellege === 'Prüfung von Lastaufnahmemitteln') {
+        try {
+            console.log("Loading specialized template: jkv_Deutsch.html");
+            const response = await fetch('jkv_Deutsch.html?v=' + new Date().getTime());
+            if (!response.ok) throw new Error(`Template 'jkv_Deutsch.html' could not be loaded.`);
+            return await response.text();
+        } catch (error) {
+            console.error("Error loading jkv_Deutsch.html:", error);
+        }
+    }
+
 
     
     // Default template
@@ -319,7 +331,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
     
     // START: Bilingual Result Logic
     let vizsgalatEredmenye = draft.vizsgalatEredmenye || '';
-    if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
+    if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln' || draft.vizsgalatJellege === 'Prüfung von Lastaufnahmemitteln') {
         if (vizsgalatEredmenye === 'Megfelelt') {
             vizsgalatEredmenye = 'Zugelassen/Megfelelt';
         } else if (vizsgalatEredmenye === 'Nem felelt meg') {
@@ -445,7 +457,7 @@ export async function generateHtmlView(targetWindow, drafts) {
 
             // START: Bilingual Result Logic due to preview
             let vizsgalatEredmenye = draft.vizsgalatEredmenye || '-';
-            if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
+            if (draft.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln' || draft.vizsgalatJellege === 'Prüfung von Lastaufnahmemitteln') {
                 if (vizsgalatEredmenye === 'Megfelelt') {
                     vizsgalatEredmenye = 'Zugelassen/Megfelelt';
                 } else if (vizsgalatEredmenye === 'Nem felelt meg') {

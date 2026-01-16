@@ -2640,7 +2640,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                         // Update Result Dropdown Options
                         if (vizsgalatEredmenyeSelect) {
                             const currentVal = vizsgalatEredmenyeSelect.value;
-                            if (templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
+                            if (templateSelect.value === 'Prüfung von Ladungssicherungsmitteln' || templateSelect.value === 'Prüfung von Lastaufnahmemitteln') {
                                 vizsgalatEredmenyeSelect.innerHTML = `
                                     <option>Zugelassen/Megfelelt</option>
                                     <option>Nicht zugelassen/Nem felelt meg</option>
@@ -2853,7 +2853,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
                         // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden),
                         // de a validáció miatt ne akadjon el, illetve ne mentsünk be hülyeséget.
-                        if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') {
+                        if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') { // Note: Lastaufnahmemitteln DOES need load test, so we exclude it here
                              inspectionData.kovetkezoTerhelesiProba = ''; // Clear it
                         }
 
@@ -2870,7 +2870,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             inspectionData.vizsgalatEredmenye
                         ];
 
-                        // Csak akkor kötelező a terhelési, ha NEM Rögzítőeszköz vizsgálat
+                        // Csak akkor kötelező a terhelési, ha NEM Rögzítőeszköz vizsgálat (és nem a német változata)
+                        // A Lastaufnahmemitteln (Lastfelvétel) viszont IGÉNYEL terhelésit.
                         if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln') {
                              requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
                         }
@@ -2934,6 +2935,7 @@ function getNewInspectionScreenHtml(userData) {
                         <option>Biztonsági Felülvizsgálat</option>
                         <option>Rögzítőeszköz vizsgálat</option>
                         <option>Prüfung von Ladungssicherungsmitteln</option>
+                        <option>Prüfung von Lastaufnahmemitteln</option>
                     </select>
                 </div>
                 <div>
