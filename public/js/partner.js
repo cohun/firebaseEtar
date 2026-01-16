@@ -1879,6 +1879,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
 
     // --- DEVICE SEARCH AUTOCOMPLETE LOGIC ---
+    let selectedAutocompleteDeviceId = null;
+
     function initDeviceSearchAutocomplete(partnerId) {
         // console.log("Device Search Autocomplete Initializing for Partner:", partnerId);
         const serialInput = document.getElementById('serialNumberInput');
@@ -1899,6 +1901,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         let cachedDevices = null;
 
         const handleInput = localDebounce(async (e) => {
+            selectedAutocompleteDeviceId = null;
             const query = e.target.value.trim().toLowerCase();
             
             if (query.length === 0) {
@@ -1911,17 +1914,15 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 try {
                     const snapshot = await db.collection('partners').doc(partnerId).collection('devices').get();
                     
-                    // Deduplicate by serialNumber
-                    const uniqueDevicesMap = new Map();
-                    snapshot.docs.forEach(doc => {
-                        const data = doc.data();
-                        const serial = String(data.serialNumber || "").trim();
-                        if (serial && !uniqueDevicesMap.has(serial.toLowerCase())) {
-                            uniqueDevicesMap.set(serial.toLowerCase(), { id: doc.id, ...data });
-                        }
-                    });
-                    
-                    cachedDevices = Array.from(uniqueDevicesMap.values());
+                    // Deduplication REMOVED to show all devices with same serial number
+                    // We map all docs directly
+                    cachedDevices = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        serialNumber: doc.data().serialNumber || "",
+                        description: doc.data().description || "",
+                        name: doc.data().name || "",
+                        operatorId: doc.data().operatorId || ""
+                    }));
                 } catch (error) {
                     console.error("Error fetching devices for autocomplete:", error);
                     return; 
@@ -1969,10 +1970,13 @@ export function initPartnerWorkScreen(partnerId, userData) {
             matches.forEach(device => {
                 const li = document.createElement('li');
                 li.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 border-b border-gray-700 last:border-0';
-                li.textContent = `${device.serialNumber} (${device.description || 'Nincs név'})`;
+                const operatorIdDisplay = device.operatorId ? ` (${device.operatorId})` : '';
+                const descDisplay = device.description || device.name || 'Nincs név';
+                li.textContent = `${device.serialNumber} (${descDisplay})${operatorIdDisplay}`;
                 
                 li.addEventListener('click', () => {
                     serialInput.value = device.serialNumber;
+                    selectedAutocompleteDeviceId = device.id;
                     suggestionsList.classList.add('hidden');
                     // Trigger search event logic 
                     const searchBtn = document.getElementById('searchDeviceBySerialBtn');
@@ -2324,7 +2328,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
             allPartnerDevices = snapshot.docs.map(doc => ({
                 id: doc.id,
                 serialNumber: doc.data().serialNumber || '',
-                name: doc.data().name || ''
+                name: doc.data().name || doc.data().description || '',
+                operatorId: doc.data().operatorId || ''
             }));
             console.log("Devices loaded for autocomplete:", allPartnerDevices.length);
         } catch (error) {
@@ -2355,9 +2360,10 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     matches.slice(0, 10).forEach(device => {
                         const li = document.createElement('li');
                         li.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0 flex justify-between';
+                        const operatorIdDisplay = device.operatorId ? ` (${device.operatorId})` : '';
                         li.innerHTML = `
                             <span class="font-bold text-white">${device.serialNumber}</span>
-                            <span class="text-sm text-gray-400 truncate ml-2">${device.name}</span>
+                            <span class="text-sm text-gray-400 truncate ml-2">${device.name}${operatorIdDisplay}</span>
                         `;
                         li.addEventListener('click', () => {
                             serialNumberInput.value = device.serialNumber;
@@ -2405,15 +2411,28 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 baseQuery = baseQuery.where('isI', '==', true);
             }
 
-            // 1. Try string match
-            let querySnapshot = await baseQuery.where('serialNumber', '==', serialNumber).limit(1).get();
+            let querySnapshot;
 
-            // 2. If not found and input is numeric, try number match
-            // Note: serialNumber is from input, so it's a string.
-            if (querySnapshot.empty && !isNaN(serialNumber) && serialNumber.trim() !== '') {
-                 // Convert to number for strict equality check in Firestore
-                 const numericSerial = Number(serialNumber);
-                 querySnapshot = await baseQuery.where('serialNumber', '==', numericSerial).limit(1).get();
+            if (selectedAutocompleteDeviceId) {
+                const docRef = db.collection('partners').doc(partnerId).collection('devices').doc(selectedAutocompleteDeviceId);
+                const doc = await docRef.get();
+                if (doc.exists) {
+                     querySnapshot = { empty: false, docs: [doc] };
+                     selectedAutocompleteDeviceId = null;
+                } else {
+                     querySnapshot = { empty: true, docs: [] };
+                }
+            } else {
+                // 1. Try string match
+                querySnapshot = await baseQuery.where('serialNumber', '==', serialNumber).limit(1).get();
+
+                // 2. If not found and input is numeric, try number match
+                // Note: serialNumber is from input, so it's a string.
+                if (querySnapshot.empty && !isNaN(serialNumber) && serialNumber.trim() !== '') {
+                     // Convert to number for strict equality check in Firestore
+                     const numericSerial = Number(serialNumber);
+                     querySnapshot = await baseQuery.where('serialNumber', '==', numericSerial).limit(1).get();
+                }
             }
 
             if (querySnapshot.empty) {
