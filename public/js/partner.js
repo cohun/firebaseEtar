@@ -1915,14 +1915,16 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     const snapshot = await db.collection('partners').doc(partnerId).collection('devices').get();
                     
                     // Deduplication REMOVED to show all devices with same serial number
-                    // We map all docs directly
-                    cachedDevices = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        serialNumber: doc.data().serialNumber || "",
-                        description: doc.data().description || "",
-                        name: doc.data().name || "",
-                        operatorId: doc.data().operatorId || ""
-                    }));
+                    // We map all docs directly, filtering out 'deleted' ones
+                    cachedDevices = snapshot.docs
+                        .filter(doc => doc.data().comment !== 'deleted')
+                        .map(doc => ({
+                            id: doc.id,
+                            serialNumber: doc.data().serialNumber || '',
+                            description: doc.data().description || '',
+                            name: doc.data().name || '',
+                            operatorId: doc.data().operatorId || ''
+                        }));
                 } catch (error) {
                     console.error("Error fetching devices for autocomplete:", error);
                     return; 
