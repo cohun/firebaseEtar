@@ -30,14 +30,14 @@ function getEszkozListaHtml() {
                     </button>
 
                     <!-- Validity Filter Switch -->
-                    <div id="validity-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
+                    <div id="validity-filter-container" class="hidden xl:flex bg-gray-700 rounded-lg p-1 mx-4">
                         <button data-value="all" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
                         <button data-value="valid" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Érvényes</button>
                         <button data-value="invalid" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Érvénytelen</button>
                     </div>
 
                     <!-- 3-Way Filter Switch -->
-                    <div id="source-filter-container" class="hidden sm:flex bg-gray-700 rounded-lg p-1 mx-4">
+                    <div id="source-filter-container" class="hidden xl:flex bg-gray-700 rounded-lg p-1 mx-4">
                         <button data-value="all" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
                         <button data-value="h-itb" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">H-ITB</button>
                         <button data-value="external" class="filter-switch-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">I-vizsgáló</button>
