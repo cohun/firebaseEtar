@@ -572,7 +572,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
     // ... existing content ...
     const isAdminEJK = currentUserData.isEjkUser;
 
-    const roleOptions = ['pending', 'admin', 'write', 'read', 'inspector', 'pending_inspector'];
+    const roleOptions = ['pending', 'admin', 'pendingAdmin', 'write', 'read', 'inspector', 'pending_inspector'];
     // ... render html ...
     const renderUserList = (userList) => {
         if (userList.length === 0) {
@@ -659,11 +659,59 @@ export function showPermissionManagementScreen(users, currentUserData) {
         }).join('');
     };
 
+    const roleCounts = {
+        'admin': 0,
+        'write': 0,
+        'read': 0,
+        'pending': 0,
+        'inspector': 0,
+        'pending_inspector': 0
+    };
+
+    users.forEach(user => {
+        if (user.associations) {
+            user.associations.forEach(assoc => {
+                const role = assoc.role;
+                if (role) {
+                    if (roleCounts.hasOwnProperty(role)) {
+                        roleCounts[role]++;
+                    } else {
+                        roleCounts[role] = 1;
+                    }
+                }
+            });
+        }
+    });
+
+    const roleLabels = {
+        'admin': 'Admin',
+        'write': 'Write',
+        'read': 'Read',
+        'pending': 'Pending',
+        'inspector': 'Inspector',
+        'pending_inspector': 'Pending Inspector',
+        'subcontractor': 'Alvállalkozó',
+        'subscriber': 'Előfizető'
+    };
+
+     const statsHtml = Object.entries(roleCounts)
+        .filter(([_, count]) => count > 0 || ['admin', 'write', 'read', 'pending'].includes(_)) // Show main ones even if 0, others only if > 0
+        .map(([role, count]) => {
+            const label = roleLabels[role] || role;
+            return `<span class="mr-3 whitespace-nowrap">${label}: <span class="text-blue-300 font-bold">${count} db</span></span>`;
+        })
+        .join('');
+
     const screenHtml = `
         <div class="card max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-3xl font-bold">Jogosultságok Kezelése</h1>
-                <button id="backToMainScreenBtn" class="btn btn-secondary">Vissza</button>
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold">Jogosultságok Kezelése</h1>
+                     <div class="text-gray-300 mt-2 text-sm flex flex-wrap gap-y-1">
+                        ${statsHtml}
+                    </div>
+                </div>
+                <button id="backToMainScreenBtn" class="btn btn-secondary mt-4 md:mt-0">Vissza</button>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
