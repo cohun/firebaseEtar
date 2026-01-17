@@ -908,18 +908,37 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     devices = devices.filter(d => d.isI === true);
                 }
 
-                // Validity Filtering (Client-Side)
+                // Robust date parser for Safari/Mobile compatibility
+                const parseDateSafe = (dateStr) => {
+                    if (!dateStr) return null;
+                    // Split by any non-digit character (., -, /)
+                    const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+                    if (parts.length >= 3) {
+                        const year = parseInt(parts[0], 10);
+                        const month = parseInt(parts[1], 10) - 1; // 0-indexed
+                        const day = parseInt(parts[2], 10);
+                        const d = new Date(year, month, day);
+                        // Check if valid date
+                        if (!isNaN(d.getTime())) {
+                            d.setHours(0, 0, 0, 0);
+                            return d;
+                        }
+                    }
+                    return null;
+                };
+
                 if (validityFilter !== 'all') {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
 
                     const isValid = (d) => {
-                         const statusOk = d.status === 'Megfelelt';
+                         const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt';
                          let futureDate = false;
                          if (d.kov_vizsg) {
-                             const kovVizsgDate = new Date(d.kov_vizsg.replace(/[\/\-]/g, '.')); // Handle various date formats including dot separator
-                             kovVizsgDate.setHours(0, 0, 0, 0);
-                             futureDate = kovVizsgDate > today;
+                             const kovVizsgDate = parseDateSafe(d.kov_vizsg);
+                             if (kovVizsgDate) {
+                                 futureDate = kovVizsgDate > today;
+                             }
                          }
                          return statusOk && futureDate;
                     };
