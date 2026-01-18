@@ -200,6 +200,30 @@ async function generateHash(data) {
 }
 
 /**
+ * Robust date parser for Safari/Mobile compatibility.
+ * Parses strings like "2025.12.01", "2025-12-01", "2025/12/01".
+ * @param {string} dateStr 
+ * @returns {Date|null}
+ */
+function parseDateSafe(dateStr) {
+    if (!dateStr) return null;
+    // Split by any non-digit character (., -, /)
+    const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
+    if (parts.length >= 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        // Check if valid date
+        if (!isNaN(d.getTime())) {
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+    }
+    return null;
+}
+
+/**
  * Initializes the device list logic (state, event listeners, initial fetch).
  * @param {string} partnerId The ID of the partner whose devices to display.
  */
@@ -908,25 +932,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     devices = devices.filter(d => d.isI === true);
                 }
 
-                // Robust date parser for Safari/Mobile compatibility
-                const parseDateSafe = (dateStr) => {
-                    if (!dateStr) return null;
-                    // Split by any non-digit character (., -, /)
-                    const parts = dateStr.split(/[^0-9]/).filter(p => p.length > 0);
-                    if (parts.length >= 3) {
-                        const year = parseInt(parts[0], 10);
-                        const month = parseInt(parts[1], 10) - 1; // 0-indexed
-                        const day = parseInt(parts[2], 10);
-                        const d = new Date(year, month, day);
-                        // Check if valid date
-                        if (!isNaN(d.getTime())) {
-                            d.setHours(0, 0, 0, 0);
-                            return d;
-                        }
-                    }
-                    return null;
-                };
-
+                // Validity Filtering (Client-Side)
                 if (validityFilter !== 'all') {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
@@ -1034,8 +1040,10 @@ export function initPartnerWorkScreen(partnerId, userData) {
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Normalize today's date
 
-        const vizsgDate = new Date(kovVizsgDate);
-        vizsgDate.setHours(0, 0, 0, 0); // Normalize inspection date
+        const vizsgDate = parseDateSafe(kovVizsgDate);
+        if (!vizsgDate) return 'text-gray-300'; // Fallback if parse fails
+
+        // vizsgDate is already normalized to 00:00:00 by parseDateSafe
 
         const diffTime = vizsgDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
