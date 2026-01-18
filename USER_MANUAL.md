@@ -1,187 +1,116 @@
 # 🚀 ETAR Felhasználói Kézikönyv
 
-**Az Emelőgép Törzskönyv és Adatnyilvántartó Rendszer (ETAR)** a modern ipari nyilvántartás csúcsa. Felejtse el a papírhalmokat és az átláthatatlan táblázatokat! Az ETAR egy felhőalapú, biztonságos és villámgyors megoldást kínál eszközei kezelésére, vizsgálatára és nyomon követésére.
+**Az Emelőgép Törzskönyv és Adatnyilvántartó Rendszer (ETAR)** egy kifejezetten **emelőgépek és teherfelvevő eszközök** (daruk, targoncák, függesztékek, stb.) kezelésére kifejlesztett nyilvántartó rendszer.
+
+> 🎁 **INGYENES HASZNÁLAT:** Az ETAR platformot a **H-ITB Kft.** ingyenesen bocsátja partnerei rendelkezésére, amennyiben az eszközeik időszakos vizsgálatát a H-ITB végzi.
 
 ---
 
-## 🌟 Miért válassza az ETAR-t?
+## 👥 Válasszon Felhasználói Típust
 
-*   **Azonnali Átláthatóság:** Minden eszköz adata, története és állapota egy helyen.
-*   **Digitális Forradalom:** QR kódos és NFC chipes azonosítás a másodperc töredéke alatt.
-*   **Papírmentes Iroda:** A jegyzőkönyvek azonnal, online elérhetőek és letölthetőek.
-*   **Könnyű Áttérés:** Meglévő Excel nyilvántartását percek alatt importálhatja.
+A rendszer funkciói a felhasználói szerepkörétől függően változnak. Kérjük, válassza ki az Önre vonatkozó szakaszt:
 
----
-
-## 📥 Pofonegyszerű Adatimportálás (Excel)
-
-Már rendelkezik nyilvántartással? Nem kell kézzel felvinnie semmit! Ha Excel táblázata tartalmazza az alábbi oszlopneveket (a fejlécben), a rendszer automatikusan felismeri és betölti az adatokat.
-
-**Kötelező és Javasolt Oszlopnevek:**
-
-| Adat Típusa | Elfogadott Oszlopnevek (Fejléc) |
-| :--- | :--- |
-| **Megnevezés** | `Megnevezés` |
-| **Teherbírás** | `Teherbírás`, `Teherbírás (WLL)` |
-| **Gyári szám** | `Gyári szám` |
-| **Típus** | `Típus` |
-| **NFC / Chip** | `NFC kód`, `ETAR kód` |
-| **Méret / Hossz** | `Méret`, `Hasznos hossz` |
-| **Gyártó** | `Gyártó` |
-| **Helyszín / ID** | `Üzemeltetői azonosító`, `Helyszín`, `Felhasználó` |
-| **Gyártás éve** | `Gyártás éve` |
-
-**Vizsgálati Adatok (Opcionális, de ajánlott):**
-
-| Adat Típusa | Elfogadott Oszlopnevek (Fejléc) |
-| :--- | :--- |
-| **Következő vizsga** | `Következő időszakos vizsgálat`, `Érvényes` |
-| **Eredmény** | `Eredmény`, `Megállapítások` |
-| **Vizsgálat ideje** | `Vizsgálat időpontja` |
-| **Vizsgálat helye** | `Vizsgálat helye` |
-
-> 💡 **Tipp:** Az importálás során a rendszer ellenőrzi az adatokat, és jelzi, ha valami hiányzik. Hibás sorok esetén dönthet a javításról vagy a kihagyásról.
+1.  [**ENY - Emelőgép Nyilvántartó (Üzemeltető)**](#-1-eny-felhasználók-üzemeltetők): Cégek, akik saját eszközeiket kezelik.
+2.  [**EJK - Emelőgép Javító/Karbantartó (H-ITB)**](#-2-ejk-felhasználók-h-itb-karbantartás): A H-ITB munkatársai, akik a vizsgálatokat és karbantartást végzik.
+3.  [**EKV - Emelőgép Külsős Vizsgáló**](#-3-ekv-felhasználók-független-szakértők): Független szakértők, akik megbízás alapján dolgoznak.
 
 ---
 
-## 🚀 Indulás: Login és Onboarding
+## 🏭 1. ENY Felhasználók (Üzemeltetők)
 
-Az ETAR használata regisztrációhoz kötött, mely gyors és biztonságos.
+Az **ENY (Emelőgép Nyilvántartó)** felhasználók azok a cégvezetők, EHS szakemberek vagy adminisztrátorok, akik a saját cégük emelőgépeinek nyilvántartásáért felelnek, és kapcsolatban állnak a H-ITB-vel.
 
-### 1. Regisztráció
-A nyitóképernyőn kattintson a **"Regisztráció"** gombra. Adja meg nevét, email címét és válasszon jelszót.
+### Indulás
+*   **Új cég regisztrációja:** Ha Ön az első a cégnél, válassza az "Új cég" opciót. Ezzel Ön lesz a cég **Adminisztrátora**. A rendszer generál egy ETAR Kódot (pl. `X7Y2Z9`), amit megoszthat kollégáival.
+*   **Csatlakozás:** Ha már van ETAR kódja, a "Csatlakozás" gombbal kérhet felvételt a céghez.
 
-### 2. Csatlakozás vagy Új Cég
-Belépés után két lehetőség közül választhat:
+### Szerepkörök és Jogosultságok
+A jogosultságok egymásra épülnek: a magasabb szintű hozzáférés magában foglalja az alacsonyabb szintek minden funkcióját.
 
-*   **🅰️ Új cég regisztrációja:** Ha Ön az első a cégnél.
-    *   Adja meg a cég nevét és címét.
-    *   A rendszer generál egy egyedi **ETAR Kódot** (pl. `X7Y2Z9`).
-    *   **Ezt a kódot adja meg kollégáinak**, hogy csatlakozhassanak!
-    *   Ön automatikusan **Admin** jogosultságot kap (jóváhagyás után).
+*   **READ (Olvasás):** Alapszintű hozzáférés.
+    *   ✅ Listák megtekintése, szűrése, keresés.
+    *   ✅ Elkészült jegyzőkönyvek letöltése és nyomtatása.
+*   **WRITE (Írás):** Operatív munkatárs (**Mindent tud, amit a READ**).
+    *   ✅ Új eszközök felvitele az adatbázisba.
+    *   ✅ Meglévő eszközök adatainak módosítása.
+    *   ⛔ *Nem törölhet eszközt és nem kezelhet felhasználókat.*
+*   **ADMIN:** Teljes körű hozzáférés (**Mindent tud, amit a WRITE**).
+    *   ✅ Felhasználók meghívása, jóváhagyása és törlése.
+    *   ✅ Eszközök végleges törlése vagy selejtezése.
+    *   ✅ Teljes adatbázis exportálása Excelbe.
 
-*   **🅱️ Csatlakozás meglévő céghez:** Ha már van ETAR kódja.
-    *   Válassza a "Csatlakozás céghez" opciót.
-    *   Írja be a kapott **ETAR Kódot**.
-    *   A csatlakozási kérelme elküldésre kerül az adminisztrátornak.
-    *   Amíg nem hagyják jóvá, "Függőben lévő" státuszban lesz.
+### Főbb Funkciók
+1.  **Eszközlista kezelése:**
+    *   **Szűrés és Keresés:** Használja a fejlécben lévő szűrőket (Gyári szám, Következő vizsga ideje).
+    *   **Státusz kapcsoló:** Váltson az "Összes", "Megfelelt" (Zöld) vagy "Nem megfelelt" (Piros) eszközök között a gyors áttekintéshez.
+    *   **Forrás szűrő:** Külön listázhatja a saját (H-ITB/Belső) és a külsős (I-vizsgáló) által vizsgált eszközöket.
+    *   **Mobil nézet:** Mobilon a bal felső sarokban található menü ikonnal (hamburger menü) érheti el a szűrőket.
 
----
+2.  **Adatimportálás (Excel):**
+    *   Admin és Write joggal rendelkezők tömegesen tölthetnek fel eszközöket Excelből.
+    *   **Tipp:** Használja a letölthető sablont az oszlopnevek helyes megadásához (pl. `Megnevezés`, `Teherbírás`, `Gyári szám`).
 
-## 🛡️ Jogosultságok és Szerepkörök
-
-Az adatbiztonság érdekében az ETAR szigorú jogosultsági rendszert használ.
-
-| Jogosultság | Leírás | Mit tehet? | Mit NEM tehet? |
-| :--- | :--- | :--- | :--- |
-| **ADMIN** | Teljes körű hozzáférés | ✅ Új eszközök felvitele, szerkesztése, törlése<br>✅ Vizsgálatok rögzítése<br>✅ Felhasználók kezelése (jóváhagyás, törlés)<br>✅ Adatbázis exportálása | - |
-| **WRITE (Írás)** | Operatív munkatárs | ✅ Új eszközök felvitele, szerkesztése<br>✅ Vizsgálatok rögzítése<br>✅ Piszkozatok kezelése | ❌ Eszközök törlése<br>❌ Felhasználók kezelése |
-| **READ (Olvasás)** | Megtekintő | ✅ Eszközök listázása, keresése<br>✅ Jegyzőkönyvek megtekintése<br>✅ Piszkozatok előnézete | ❌ Adatok módosítása<br>❌ Új vizsgálat indítása<br>❌ Piszkozatok törlése/véglegesítése |
-
-> **EJK Felhasználók:** Speciális, emelőgép szakértői jogosultságok, melyek hasonlóan (Admin/Write/Read) épülnek fel, de kiegészülnek szakértői funkciókkal.
-
----
-
-## 📱 Funkciók és Képernyők Bemutatása
-
-Az ETAR felülete letisztult, modern és intuitív.
-
-### 🏠 Főképernyő (Dashboard)
-Itt látja azokat a cégeket, amelyekhez hozzáférése van. Egy kattintással beléphet a kiválasztott partner munkaterületére.
-
-### 🛠️ Partner Munkaterület
-Ez a rendszer szíve.
-*   **Eszközlista:** Minden eszköz egy átlátható táblázatban.
-*   **Szűrés és Keresés:** Keressen gyári számra, vagy szűrjön a vizsgálat lejárati dátuma szerint. A "szem" ikonnal azonnal látja a státuszt (🟢 Megfelelt, 🔴 Lejárt).
-*   **Digitális Beolvasás:**
-    *   📷 **QR Kód:** A kamera segítségével olvassa be az eszközön lévő QR kódot az azonnali azonosításhoz.
-    *   📡 **NFC Chip:** Érintse a telefont a chiphez a villámgyors találatért.
-
-### 📝 Új Vizsgálat Rögzítése
-1.  Keresse meg az eszközt (vagy vigye fel újként).
-2.  Töltse ki a vizsgálati űrlapot (Eredmény, Következő vizsga, stb.).
-3.  **"Ajánlat menjen?"**: Jelölje be, ha az eszköz javításra vagy cserére szorul, és ajánlatot szeretne küldeni.
-4.  Mentés után az adat **Piszkozatba** kerül.
-
-### 📑 Piszkozatok és Véglegesítés
-A rögzített vizsgálatok először piszkozatként jelennek meg.
-*   Itt még módosíthatja az adatokat.
-*   A **"Piszkozatok előnézete"** gombbal egyben láthatja a generálandó jegyzőkönyvet.
-*   A **"Véglegesítés"** gombbal (csak Admin/Write) a jegyzőkönyv PDF formátumban létrejön, bekerül az archívumba, és az eszköz adatai frissülnek.
-
-### ☁️ Online Jegyzőkönyvek
-A véglegesített jegyzőkönyvek **bárhol, bármikor elérhetőek**. A QR kód beolvasásával (vagy a listából kattintva) a jegyzőkönyv azonnal megnyílik a böngészőben. Nincs több elkeveredett papír!
+3.  **Jegyzőkönyvek:**
+    *   A vizsgálatok után készült jegyzőkönyvek PDF-ben azonnal elérhetőek a "Jegyzőkönyv" gombra kattintva.
 
 ---
 
-## 📖 Részletes Funkcióleírás (ENY Felhasználóknak)
+## 🔧 2. EJK Felhasználók (H-ITB Karbantartás)
 
-Itt találja a rendszer legfontosabb funkcióinak részletes bemutatását és a használatukhoz szükséges jogosultságokat.
+Az **EJK (Emelőgép Javító/Karbantartó)** felhasználók a **H-ITB Kft.** munkatársai, akik a szerződött partnerek eszközein végzik az időszakos vizsgálatokat, karbantartásokat és javításokat.
 
-### 1. 📥 Adatbázis letöltés
-Egy kattintással exportálhatja az összes eszközének adatát és a legutolsó vizsgálati eredményeket egy Excel fájlba.
-*   **Mire jó?** Saját mentés készítése, offline munka, vagy további elemzések készítése Excelben.
-*   **Szükséges jogosultság:** Mindenki (Read, Write, Admin)
+### Szerepük a Rendszerben
+*   A H-ITB szakemberei felelnek a partnerek eszközeinek naprakész állapotáért.
+*   Teljes körű rálátásuk van a partner eszközeire a karbantartási feladatok ellátásához.
+*   Ők készítik el a hivatalos vizsgálati jegyzőkönyveket és teszik meg a javítási ajánlatokat.
 
-### 2. 📤 Új eszköz feltöltés
-Új emelőgép vagy eszköz rögzítése a rendszerben.
-*   **Hogyan működik?** A gombra kattintva egy űrlap jelenik meg, ahol megadhatja az eszköz alapadatait (Megnevezés, Gyári szám, Teherbírás, stb.).
-*   **Szükséges jogosultság:** **Csak Write és Admin** (Read jogosultsággal nem elérhető)
+### Vizsgálat és Karbantartás
+1.  **Új vizsgálat indítása:**
+    *   Jelölje ki az eszközt és kattintson az "Új vizsgálat" gombra.
+    *   **"Ajánlat menjen?"**: Ha javítás szükséges, jelölje be ezt az opciót. Az ilyen tételek sárga háttérrel jelennek meg a piszkozatokban.
 
-### 3. 🗑️ Törlés
-Eszköz végleges eltávolítása a rendszerből.
-*   **Fontos:** Csak olyan eszköz törölhető, amelyhez **még nem készült véglegesített jegyzőkönyv**. Ha már van jegyzőkönyv, az eszköz nem törölhető, csak leselejtezhető (az előzmények megőrzése miatt).
-*   **Szükséges jogosultság:** **Csak Write és Admin**
+2.  **Piszkozatok (Drafts):**
+    *   A vizsgálatok először piszkozatként jönnek létre. Itt még módosíthatók.
+    *   **Véglegesítés:** Ez a lépés **helyettesíti az aláírást**. A rendszer időbélyeggel és egyedi digitális ujjlenyomattal (hash kód) látja el a dokumentumot, amely ezután **megmásíthatatlanul archiválásra kerül** az adatbázisban.
 
-### 4. 🚫 Leselejtezés
-Az eszköz "Inaktív" státuszba helyezése.
-*   **Mire jó?** Ha egy eszköz tönkrement, elveszett vagy kivonták a forgalomból, de a történetét meg kell őrizni. A leselejtezett eszközök eltűnnek az aktív listából, de az "Inaktívak" szűrővel bármikor visszakereshetőek.
-*   **Szükséges jogosultság:** **Csak Write és Admin**
-
-### 5. 📄 Jegyzőkönyvek
-A kiválasztott eszközök véglegesített jegyzőkönyveinek tömeges megtekintése.
-*   **Hogyan működik?** Jelöljön ki egy vagy több eszközt a listában (a sor elején lévő jelölőnégyzettel), majd kattintson a gombra. A rendszer egy új lapon nyitja meg az összes kapcsolódó jegyzőkönyvet, készen a nyomtatásra.
-*   **Szükséges jogosultság:** Mindenki (Read, Write, Admin)
-
-### 6. 🔍 Keresés gyári számra
-Gyorskereső mező a lista tetején.
-*   **Hogyan működik?** Kezdje el gépelni a gyári számot. A lista azonnal szűkül a találatokra. Nem kell a teljes számot beírni, töredékre is keres.
-*   **Szükséges jogosultság:** Mindenki
-
-### 7. 📅 Vizsgálat dátuma (Szűrő)
-Szűrés az utolsó vizsgálat időpontja szerint.
-*   **Formátum:** ÉÉÉÉ.HH.NN (pl. 2023.10.15).
-*   **Mire jó?** Megkeresni, hogy mely eszközöket vizsgálták egy adott napon.
-*   **Szükséges jogosultság:** Mindenki
-
-### 8. ⏳ Következő vizsga (Szűrő)
-A legfontosabb szűrő a karbantartáshoz.
-*   **Mire jó?** Listázhatja azokat az eszközöket, amelyek vizsgálata hamarosan lejár.
-*   **Tipp:** Írja be csak az évet és hónapot (pl. 2024.11) az adott hónapban esedékes eszközök listázásához.
-*   **Szükséges jogosultság:** Mindenki
-
-### 9. 🧹 Szűrők törlése
-Minden beállított keresési feltétel és szűrő alaphelyzetbe állítása.
-*   **Mikor használja?** Ha újra a teljes, szűretlen eszközlistát szeretné látni.
-*   **Szükséges jogosultság:** Mindenki
-
-### 10. 👁️ Inaktívak (Kapcsoló)
-A leselejtezett vagy törölt (inaktív) eszközök megjelenítése.
-*   **Alapállapot:** Kikapcsolva (csak az aktív eszközök látszanak).
-*   **Bekapcsolva:** Csak a leselejtezett/inaktív eszközök jelennek meg a listában.
-*   **Szükséges jogosultság:** Mindenki
-
-### 11. 🔄 Lista frissítése
-Az adatok újratöltése az adatbázisból.
-*   **Mikor használja?** Ha úgy gondolja, hogy kollégája időközben módosított valamit, vagy ha a szinkronizációban bizonytalan.
-*   **Szükséges jogosultság:** Mindenki
-
-### 12. 📱 Digitális beolvasás
-Az eszközök azonosítása kamera vagy NFC olvasó segítségével.
-*   **QR Kód:** A telefon kamerájával olvassa be az eszközön lévő QR kódot. A rendszer azonnal a megfelelő sorhoz ugrik vagy megnyitja az adatlapot.
-*   **NFC Chip:** Ha az eszköz rendelkezik chippel, csak érintse hozzá a telefonját. Ez a leggyorsabb és legbiztosabb azonosítási mód (koszos, sérült QR kód esetén is működik).
-*   **Szükséges jogosultság:** Mindenki
+3.  **Szűrési beállítások mentése:**
+    *   A rendszer megjegyzi a kiválasztott szűrőket (pl. Üzemeltetői ID kategória), így oldalfrissítés után is ott folytathatja a munkát, ahol abbahagyta.
 
 ---
 
-**ETAR - Az Ön megbízható partnere a biztonságos üzemeltetésben.**
+## 🕵️ 3. EKV Felhasználók (Független Szakértők)
+
+Az **EKV (Emelőgép Külsős Vizsgáló)** olyan független, akkreditált szakértők, akik időszakos biztonsági felülvizsgálatokat végeznek, de nem a H-ITB állományába tartoznak.
+
+### Megbízás és Hozzáférés
+Az EKV felhasználók hozzáférése attól függ, kinek a megbízásából dolgoznak:
+
+1.  **H-ITB Megbízásából:**
+    *   Ha a H-ITB bíz meg egy külsős szakértőt (pl. speciális daruk vizsgálatára), a szakértő **INGYENES** hozzáférést kap az adott partner munkaterületéhez és a kijelölt eszközökhöz.
+2.  **Partner (Ügyfél) Megbízásából:**
+    *   Ha maga a partner kér fel egy külsős szakértőt, a szakértő **ELŐFIZETÉSI DÍJ** (Subscriber szerepkör) ellenében használhatja az ETAR rendszer minden képességét az adott partnernél (jegyzőkönyv generálás, nyilvántartás).
+
+### Munkavégzés
+*   **Vizsgálati Jog:** Az EKV felhasználók általában nem az összes eszközt vizsgálják, csak azokat, amelyekre megbízást kaptak (pl. csak a híddaruk, vagy csak a targoncák).
+*   **Adatok:** A jegyzőkönyveken a szakértő saját adatai (Cégnév, Kamarai szám) szerepelnek, nem a H-ITB adatai.
+
+### Előfizetés és Szerepkörök
+*   `Subscriber` (Előfizető): Teljes jogú hozzáférés a partner eszközeihez (előfizetéses modell).
+*   `Inspector` / `Subcontractor`: Korlátozott, eseti megbízás.
+*   **Előfizetés lejárata:** A felületen színkódolt számláló jelzi a lejárat idejét (🟢 >10 nap, 🔴 <10 nap). Lejárat után a hozzáférés korlátozódik.
+
+---
+
+## 📱 Közös Funkciók (Minden Felhasználónak)
+
+### 🚀 Gyors Azonosítás
+*   **QR Kód:** Olvassa be a telefon kamerájával az eszközön lévő kódot az adatlap azonnali megnyitásához.
+*   **NFC Chip:** Érintse telefonját az NFC matricához a villámgyors azonosításért (koszos környezetben is működik).
+
+### 🔍 Keresés és Szűrés
+*   **Gyári szám kereső:** Nem kell a teljes számot tudnia, elég egy részletet beírni.
+*   **Érvényesség szűrő:** A "Zugelassen/Megfelelt" státuszú eszközök is "Megfelelt" kategóriába esnek.
+
+### 📥 Adatbiztonság
+*   A rendszer felhőalapú, biztonsági mentésekkel védett.
+**Kérdése van?** Forduljon a rendszer adminisztrátorához vagy a fejlesztői csapathoz.
