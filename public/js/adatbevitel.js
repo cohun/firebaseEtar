@@ -329,12 +329,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 await db.collection('partners').doc(partnerIdForEdit).collection('devices').doc(editDeviceId).update(deviceData);
-                alert('Eszköz sikeresen frissítve!');
+                // alert('Eszköz sikeresen frissítve!');
+                showSuccessModal(`Eszköz sikeresen frissítve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${deviceData.serialNumber}</span>`);
                 
                 // Clean up session storage and redirect
                 sessionStorage.removeItem('editDeviceId');
                 sessionStorage.removeItem('partnerIdForEdit');
-                window.location.href = 'app.html'; // Redirect to partner page
+                
+                // Add a small delay before redirect so user can see the modal
+                document.getElementById('modal-success-ok-btn').addEventListener('click', () => {
+                   window.location.href = 'app.html';
+                }, { once: true });
 
             } catch (error) {
                 console.error("Hiba az eszköz frissítésekor:", error);
@@ -383,7 +388,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 await db.collection('partners').doc(partnerId).collection('devices').add(deviceData);
-                alert('Eszköz sikeresen mentve!');
+
+                // alert('Eszköz sikeresen mentve!');
+                showSuccessModal(`Eszköz sikeresen mentve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${deviceData.serialNumber}</span>`);
                 form.reset();
                 // window.location.href = 'app.html'; // Redirect to partner page for consistency
             } catch (error) {
@@ -392,4 +399,42 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    // Custom Success Modal Function
+    function showSuccessModal(messageHtml) {
+        let modal = document.getElementById('custom-success-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'custom-success-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 border border-orange-500 rounded-lg p-6 max-w-sm w-full shadow-2xl transform transition-all">
+                    <div class="text-center">
+                        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-900/50 mb-4 ring-2 ring-green-500">
+                            <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Siker!</h3>
+                        <div class="mt-2 mb-6">
+                            <p class="text-gray-300" id="modal-success-message"></p>
+                        </div>
+                        <div>
+                            <button id="modal-success-ok-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:text-sm">
+                                Rendben
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            document.getElementById('modal-success-ok-btn').addEventListener('click', () => {
+                 modal.classList.add('hidden');
+            });
+        }
+        
+        document.getElementById('modal-success-message').innerHTML = messageHtml;
+        modal.classList.remove('hidden');
+    }
 });

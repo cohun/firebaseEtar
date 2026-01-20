@@ -2917,7 +2917,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             // 2. Az eszköz dokumentum azonnali frissítése eltávolítva.
                             //    Ez majd a véglegesítéskor fog megtörténni.
 
-                            alert('Vizsgálati piszkozat sikeresen mentve!');
+                            // alert('Vizsgálati piszkozat sikeresen mentve!');
+                            showSuccessModal(`Vizsgálati piszkozat sikeresen mentve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${currentInspectedDevice.serialNumber}</span>`);
                             // A felület ürítése és visszajelzés a felhasználónak
                             deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálati piszkozat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
                             serialNumberInput.value = ''; // Gyári szám mező ürítése
@@ -2935,6 +2936,43 @@ export function initPartnerWorkScreen(partnerId, userData) {
             deviceSearchResult.innerHTML = `<p class="text-red-400">Hiba történt a keresés során.</p>`;
         }
     });
+    // Custom Success Modal Function
+    function showSuccessModal(messageHtml) {
+        let modal = document.getElementById('custom-success-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'custom-success-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 border border-orange-500 rounded-lg p-6 max-w-sm w-full shadow-2xl transform transition-all">
+                    <div class="text-center">
+                        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-900/50 mb-4 ring-2 ring-green-500">
+                            <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Siker!</h3>
+                        <div class="mt-2 mb-6">
+                            <p class="text-gray-300" id="modal-success-message"></p>
+                        </div>
+                        <div>
+                            <button id="modal-success-ok-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:text-sm">
+                                Rendben
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            document.getElementById('modal-success-ok-btn').addEventListener('click', () => {
+                 modal.classList.add('hidden');
+            });
+        }
+        
+        document.getElementById('modal-success-message').innerHTML = messageHtml;
+        modal.classList.remove('hidden');
+    }
     }
 }
 
