@@ -121,6 +121,18 @@ export async function getTemplateForDraft(draft) {
         }
     }
 
+    // NEW: Handle 'Inspection of Lifting Accessories' (Bilingual HU/EN) specific template
+    if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories') {
+        try {
+            console.log("Loading specialized template: jkv_Bilingual.html");
+            const response = await fetch('jkv_Bilingual.html?v=' + new Date().getTime());
+            if (!response.ok) throw new Error(`Template 'jkv_Bilingual.html' could not be loaded.`);
+            return await response.text();
+        } catch (error) {
+            console.error("Error loading jkv_Bilingual.html:", error);
+        }
+    }
+
 
     
     // Default template
@@ -337,6 +349,12 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         } else if (vizsgalatEredmenye === 'Nem felelt meg') {
             vizsgalatEredmenye = 'Nicht zugelassen/Nem felelt meg';
         }
+    } else if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories') {
+        if (vizsgalatEredmenye === 'Megfelelt') {
+            vizsgalatEredmenye = 'Megfelelt / Suitable';
+        } else if (vizsgalatEredmenye === 'Nem felelt meg') {
+            vizsgalatEredmenye = 'Nem felelt meg / Not suitable';
+        }
     }
     // END: Bilingual Result Logic
 
@@ -462,6 +480,12 @@ export async function generateHtmlView(targetWindow, drafts) {
                     vizsgalatEredmenye = 'Zugelassen/Megfelelt';
                 } else if (vizsgalatEredmenye === 'Nem felelt meg') {
                     vizsgalatEredmenye = 'Nicht zugelassen/Nem felelt meg';
+                }
+            } else if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories') {
+                if (vizsgalatEredmenye === 'Megfelelt') {
+                    vizsgalatEredmenye = 'Megfelelt / Suitable';
+                } else if (vizsgalatEredmenye === 'Nem felelt meg') {
+                    vizsgalatEredmenye = 'Nem felelt meg / Not suitable';
                 }
             }
             // END: Bilingual Result Logic

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vizsgálati Jegyzőkönyv / Inspection Report</title>
+    <style>
+        /* --- Alapstílusok (Minden nézetre) --- */
+        html {
+            box-sizing: border-box;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            line-height: 1.3;
+            background-color: #ffffff;
+        }
+        
+        /* --- Képernyős nézet (Boríték) --- */
+        .screen-view-wrapper {
+            background-color: #f4f4f4;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px; 
+            background-color: #ffffff;
+            padding: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        /* --- Tartalmi Stílusok --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px; /* Csökkentve */
+            margin-bottom: 15px; /* Csökkentve */
+        }
+
+        .header img {
+            max-height: 60px; /* Csökkentve képernyőn is */
+            width: auto;
+        }
+
+        .document-header-section {
+            font-size: 0.8em; /* Kicsit kisebb alapból */
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .document-header-section h1 {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: left;
+            line-height: 1.2;
+        }
+        
+        .document-header-section h2 {
+            font-size: 1em;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 2px;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .document-header-section p {
+            margin-bottom: 5px;
+            margin-left: 0; /* Helytakarékosság miatt balra húzva */
+            line-height: 1.3;
+        }
+
+        .title-with-sorszam {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            flex-wrap: wrap; 
+            gap: 10px;
+        }
+
+        .serial-number-box {
+            border: 2px solid #333;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1.1em;
+            white-space: nowrap;
+        }
+
+        .section {
+            margin-bottom: 15px; /* Csökkentve */
+        }
+
+        .section h2 {
+            font-size: 1em;
+            font-weight: bold;
+            color: #000;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
+            margin-bottom: 8px;
+            background-color: #eee; /* Kiemelés a sűrű szöveg miatt */
+            padding-left: 5px;
+        }
+
+        .data-grid {
+            display: grid;
+            /* Szélesebb címke oszlop a két nyelv miatt */
+            grid-template-columns: minmax(220px, 45%) 1fr; 
+            gap: 4px 0;
+            padding-left: 5px;
+        }
+
+        .data-label {
+            font-weight: normal;
+            font-size: 0.95em;
+            color: #444;
+        }
+        
+        /* Angol szöveg halványabb/dőltebb stílusa opcionális, de itt sima / jellel oldjuk meg */
+
+        .data-value {
+            font-weight: bold;
+            color: #000;
+            padding-left: 10px;
+        }
+
+        .data-grid-spacer {
+            grid-column: 1 / -1;
+            height: 10px; /* Csökkentve */
+        }
+
+        .result-text {
+            font-size: 1.3em;
+            font-weight: bold;
+            text-align: center;
+            color: #000;
+            margin: 10px 0;
+            text-transform: uppercase;
+        }
+        
+        .result-subtitle {
+            font-size: 0.75em;
+            color: #555;
+            text-align: center;
+            margin-top: -5px;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        .signature-section {
+            margin-top: 15px;
+            padding-top: 10px;
+        }
+        
+        .signature-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap; 
+            gap: 20px;
+        }
+
+        .signature-block {
+            text-align: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .signature-block .name {
+            font-weight: bold;
+            font-size: 1.1em;
+            padding-top: 5px;
+            border-top: 1px solid #ccc; /* Aláírás vonal */
+            min-width: 200px;
+            margin-top: 30px; /* Hely az aláírásnak */
+        }
+        
+        .signature-block .title {
+            font-size: 0.9em;
+            color: #333;
+        }
+        
+        .signature-block .id-number {
+            font-size: 0.8em;
+            color: #555;
+        }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 0.7em;
+            color: #777;
+        }
+        
+        .footer-note {
+            margin-top: 5px;
+        }
+
+        /* --- Mobil nézet --- */
+        @media (max-width: 600px) {
+            .screen-view-wrapper { padding: 0; }
+            .container { padding: 15px; border: none; }
+            .data-grid { grid-template-columns: 1fr; }
+            .data-value { padding-left: 0; margin-bottom: 8px; border-bottom: 1px dotted #eee; }
+            .header, .title-with-sorszam, .signature-container { justify-content: center; }
+        }
+
+        /* --- Nyomtatási stílusok (Szigorúan A4-re optimalizálva) --- */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.8cm; /* Szűkebb margó */
+            }
+
+            .screen-view-wrapper {
+                display: block;
+                padding: 0;
+                margin: 0;
+                background-color: #fff !important;
+            }
+
+            html, body {
+                font-family: 'Times New Roman', Times, serif;
+                background-color: #fff !important;
+                margin: 0;
+                padding: 0;
+                /* --- KRITIKUS: Betűméret csökkentése, hogy kiférjen --- */
+                font-size: 8.5pt; 
+                line-height: 1.15;
+                color: #000;
+                height: 100%;
+            }
+
+            .container {
+                width: 100%;
+                max-width: none;
+                padding: 0;
+                margin: 0;
+                border: none;
+                box-shadow: none;
+            }
+
+            .header {
+                border-bottom: 2px solid #000;
+                margin-bottom: 5px;
+                padding-bottom: 5px;
+            }
+            .header img {
+                max-height: 1.0cm !important;
+            }
+
+            .document-header-section h1 {
+                font-size: 14pt;
+                margin-bottom: 5px;
+            }
+            .document-header-section h2 {
+                margin-top: 5px;
+                margin-bottom: 2px;
+                font-size: 9.5pt;
+            }
+            .document-header-section p {
+                margin-bottom: 4px;
+            }
+
+            .serial-number-box {
+                font-size: 10pt;
+                padding: 4px 8px;
+                border: 1px solid #000;
+            }
+
+            .section {
+                margin-bottom: 6px; /* Nagyon szűk térköz */
+                page-break-inside: avoid;
+            }
+
+            .section h2 {
+                font-size: 9.5pt;
+                margin-bottom: 3px;
+                padding-bottom: 1px;
+                background-color: transparent;
+                border-bottom: 1px solid #000;
+                padding-left: 0;
+            }
+
+            .data-grid {
+                gap: 2px 0; /* Szinte semmi rés */
+            }
+
+            .data-grid-spacer {
+                height: 2px;
+            }
+
+            .result-text {
+                font-size: 11pt;
+                margin: 5px 0;
+            }
+            .result-subtitle {
+                margin-bottom: 5px;
+            }
+
+            /* Aláírás szekció */
+            .signature-section {
+                margin-top: auto; /* Aljára tolás, ha van hely */
+                padding-top: 5px;
+                page-break-inside: avoid;
+            }
+            
+            .signature-block .name {
+                margin-top: 20px;
+                border-top: 1px solid #000;
+            }
+
+            .footer {
+                margin-top: 5px;
+                padding-top: 2px;
+                border-top: 1px solid #000;
+                font-size: 7pt;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="screen-view-wrapper">
+        <div class="container">
+
+            <!-- 1. Logók -->
+            <div class="header">
+                <img src="images/H-ITB_Logo.jpg" alt="H-ITB Logo" onerror="this.onerror=null;this.src='https://placehold.co/150x60/EFEFEF/333333?text=H-ITB';">
+                <img src="images/logo.jpg" alt="ETAR Logo" onerror="this.onerror=null;this.src='https://placehold.co/150x60/EFEFEF/333333?text=ETAR';">
+            </div>
+
+            <!-- 2. Címsor, Jogszabályok -->
+            <section class="document-header-section">
+                <div class="title-with-sorszam">
+                    <h1>Teherfelvevő Eszköz Időszakos Vizsgálati Jegyzőkönyve<br>
+                    <span style="font-size: 0.8em; font-weight: normal;">Periodic Inspection Report of Lifting Accessories</span></h1>
+                    <div class="serial-number-box">
+                        Sorszám / Serial No: {sorszam}
+                    </div>
+                </div>
+
+                <h2>Vonatkozó Jogszabályok / Applicable Regulations:</h2>
+                <p>
+                    47/1999. (VIII. 4.) GM rendelet az Emelőgép Biztonsági Szabályzat (EBSZ) kiadásáról.<br>
+                    1993. évi XCIII. törvény a munkavédelemről (Mvt.) / Act XCIII of 1993 on Occupational Safety.
+                </p>
+
+                <h2>Vonatkozó Szabványok / Applicable Standards:</h2>
+                <p>
+                    MSZ 9721-1:2020 Emelőgépek időszakos vizsgálata. Általános előírások. (Periodic inspection of lifting appliances. General requirements.)<br>
+                    További eszközspecifikus szabványok / Additional equipment-specific standards
+                </p>
+            </section>
+
+            <!-- 3. Üzemeltető -->
+            <section class="section">
+                <h2>Üzemeltető adatai / Operator Details:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Cégnév / Company Name:</div>
+                    <div class="data-value">{partner_nev}</div>
+                    <div class="data-label">Cím / Address:</div>
+                    <div class="data-value">{partner_cim}</div>
+                </div>
+            </section>
+
+            <!-- 4. Eszköz adatai -->
+            <section class="section">
+                <h2>A vizsgált teherfelvevő eszköz adatai / Equipment Details:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Megnevezés / Designation:</div>
+                    <div class="data-value">{eszkoz_megnevezes}</div>
+                    <div class="data-label">Operátor ID / Operator ID:</div>
+                    <div class="data-value">{eszkoz_azonosito}</div>
+                    <div class="data-label">Típus / Type:</div>
+                    <div class="data-value">{eszkoz_tipus}</div>
+                    <div class="data-label">Hasznos hossz / Working Length:</div>
+                    <div class="data-value">{eszkoz_hossz}</div>
+                    <div class="data-label">Teherbírás (WLL) / Working Load Limit:</div>
+                    <div class="data-value">{eszkoz_teherbiras}</div>
+                    <div class="data-label">Gyártó / Manufacturer:</div>
+                    <div class="data-value">{eszkoz_gyarto}</div>
+                    <div class="data-label">Gyári szám / Serial Number:</div>
+                    <div class="data-value">{eszkoz_gyari_szam}</div>
+                    <div class="data-label">Gyártás éve / Year of Manufacture:</div>
+                    <div class="data-value">{eszkoz_gyartasi_ev}</div>
+                </div>
+            </section>
+
+            <!-- 5. Vizsgálat adatai -->
+            <section class="section">
+                <h2>A vizsgálat adatai / Inspection Data:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Vizsgálat időpontja / Date of Inspection:</div>
+                    <div class="data-value">{vizsgalat_idopontja}</div>
+                    <div class="data-label">Vizsgálat helye / Place of Inspection:</div>
+                    <div class="data-value">{vizsgalat_helye}</div>
+                    <div class="data-label">Vizsgálat jellege / Type of Inspection:</div>
+                    <div class="data-value">{vizsgalat_jellege}</div>
+                </div>
+            </section>
+
+            <!-- 6. Eredmény -->
+            <section class="section">
+                <h2>A vizsgálat eredménye és minősítés / Inspection Result and Assessment:</h2>
+                <div class="result-subtitle">
+                    (a vizsgálat időpontjában a vonatkozó előírásoknak / according to regulations at time of inspection)
+                </div>
+                
+                <div class="result-text">
+                    {vizsgalat_eredmenye}
+                </div>
+
+                <div class="data-grid">
+                    <div class="data-label">Feltárt hiba / Defects Found:</div>
+                    <div class="data-value">{feltart_hiba}</div>
+                    <div class="data-grid-spacer"></div>
+                    <div class="data-label">Felhasznált anyagok / Materials Used:</div>
+                    <div class="data-value">{felhasznalt_anyagok}</div>
+                </div>
+            </section>
+
+            <!-- 7. Esedékesség -->
+            <section class="section">
+                <h2>Következő vizsgálat esedékessége / Due Date of Next Inspection:</h2>
+                <div class="data-grid">
+                    <div class="data-label">Időszakos vizsgálat / Periodic Inspection:</div>
+                    <div class="data-value">{kovetkezo_idoszakos}</div>
+                    <div class="data-label">Terhelési próba / Load Test:</div>
+                    <div class="data-value">{kovetkezo_terhelesi}</div>
+                </div>
+            </section>
+
+            <!-- 8. Aláírás -->
+            <section class="signature-section">
+                <div class="signature-container">
+                    <div class="kelt-datum">
+                        Kelt / Date: {kelt_datum}
+                    </div>
+                    <div class="signature-block">
+                        <div class="name">{szakerto_nev}</div>
+                        <div class="title">H-ITB emelőgép ügyintéző<br>Lifting Equipment Specialist</div>
+                        <div class="id-number">({szakerto_bizonyitvanyszam})</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. Lábléc -->
+            <footer class="footer">
+                Időbélyeg / Timestamp: {generalas_idobelyeg}
+                <div class="footer-note">
+                    A dokumentum hitelességét az időbélyeg és a sorszámhoz rendelt hash biztosítja. / Authenticity ensured by timestamp and unique hash assigned to serial number.
+                </div>
+            </footer>
+
+        </div>
+    </div>
+
+</body>
+</html>

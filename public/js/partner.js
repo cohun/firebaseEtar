@@ -938,7 +938,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     today.setHours(0, 0, 0, 0);
 
                     const isValid = (d) => {
-                         const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt';
+                         const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt' || d.status === 'Megfelelt / Suitable';
                          let futureDate = false;
                          if (d.kov_vizsg) {
                              const kovVizsgDate = parseDateSafe(d.kov_vizsg);
@@ -1061,9 +1061,9 @@ export function initPartnerWorkScreen(partnerId, userData) {
         if (!status) {
             return 'text-gray-300';
         }
-        if (status === 'Megfelelt' || status === 'Zugelassen/Megfelelt') {
+        if (status === 'Megfelelt' || status === 'Zugelassen/Megfelelt' || status === 'Megfelelt / Suitable') {
             return 'text-green-400 font-semibold';
-        } else if (status === 'Nem felelt meg' || status === 'Nicht zugelassen/Nem felelt meg') {
+        } else if (status === 'Nem felelt meg' || status === 'Nicht zugelassen/Nem felelt meg' || status === 'Nem felelt meg / Not suitable') {
             return 'text-red-400 font-bold';
         }
         return 'text-gray-300';
@@ -1085,7 +1085,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         let colorClass = "text-red-400";
 
         // "Megfelelt" vagy "Zugelassen/Megfelelt" ellenőrzése
-        const isMegfelelt = status === 'Megfelelt' || status === 'Zugelassen/Megfelelt';
+        const isMegfelelt = status === 'Megfelelt' || status === 'Zugelassen/Megfelelt' || status === 'Megfelelt / Suitable';
         
         if (isMegfelelt) {
             if (kovVizsgDate) {
@@ -2773,6 +2773,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
                                     <option>Zugelassen/Megfelelt</option>
                                     <option>Nicht zugelassen/Nem felelt meg</option>
                                 `;
+                            } else if (templateSelect.value === 'Inspection of Lifting Accessories') {
+                                vizsgalatEredmenyeSelect.innerHTML = `
+                                    <option>Megfelelt / Suitable</option>
+                                    <option>Nem felelt meg / Not suitable</option>
+                                `;
                             } else {
                                 vizsgalatEredmenyeSelect.innerHTML = `
                                     <option>Megfelelt</option>
@@ -3102,6 +3107,7 @@ function getNewInspectionScreenHtml(userData) {
                         <option>Rögzítőeszköz vizsgálat</option>
                         <option>Prüfung von Ladungssicherungsmitteln</option>
                         <option>Prüfung von Lastaufnahmemitteln</option>
+                        <option>Inspection of Lifting Accessories</option>
                     </select>
                 </div>
                 <div>
