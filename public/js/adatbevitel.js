@@ -270,6 +270,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     saveButton.addEventListener('click', async function () {
+        // Hide keyboard on mobile
+        if (document.activeElement) {
+            document.activeElement.blur();
+        }
+
         const user = auth.currentUser;
         if (!user) {
             alert('Nincs bejelentkezett felhasználó. Kérjük, jelentkezzen be!');

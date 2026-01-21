@@ -2940,6 +2940,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 const saveInspectionButton = document.getElementById('saveInspectionButton');
                 if (saveInspectionButton) {
                     saveInspectionButton.addEventListener('click', async () => {
+                        // Hide keyboard on mobile
+                        if (document.activeElement) {
+                            document.activeElement.blur();
+                        }
+
                         const user = auth.currentUser;
                         if (!user || !currentInspectedDevice) {
                             alert('Hiba: Nincs bejelentkezett felhasználó vagy kiválasztott eszköz.');
@@ -3028,7 +3033,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                             // A felület ürítése és visszajelzés a felhasználónak
                             deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálati piszkozat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
                             serialNumberInput.value = ''; // Gyári szám mező ürítése
-                            serialNumberInput.focus(); // Fókusz vissza a gyári szám mezőre
+                            // serialNumberInput.focus(); // Fókusz vissza a gyári szám mezőre - REMOVED to prevent keyboard from reopening on mobile
 
                         } catch (error) {
                             console.error("Hiba a vizsgálati piszkozat mentésekor: ", error);
