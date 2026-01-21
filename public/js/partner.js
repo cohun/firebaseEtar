@@ -1069,6 +1069,107 @@ export function initPartnerWorkScreen(partnerId, userData) {
         return 'text-gray-300';
     }
 
+
+    // --- Custom Tooltip Logic ---
+    window.createTooltipElement = function() {
+        if (document.getElementById('custom-tooltip')) return;
+        const tooltip = document.createElement('div');
+        tooltip.id = 'custom-tooltip';
+        tooltip.className = 'custom-tooltip';
+        document.body.appendChild(tooltip);
+    };
+
+    window.getTooltipData = function(status, kovVizsgDate) {
+        // Alapértelmezett: Érvénytelen
+        let text = "Érvénytelen";
+        let colorClass = "text-red-400";
+
+        // "Megfelelt" vagy "Zugelassen/Megfelelt" ellenőrzése
+        const isMegfelelt = status === 'Megfelelt' || status === 'Zugelassen/Megfelelt';
+        
+        if (isMegfelelt) {
+            if (kovVizsgDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const vizsgDate = parseDateSafe(kovVizsgDate);
+                if (vizsgDate) {
+                    const diffTime = vizsgDate.getTime() - today.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays < 0) {
+                        // Piros: Lejárt (> Érvénytelen)
+                        text = "Érvénytelen";
+                        colorClass = "text-red-400";
+                    } else if (diffDays <= 45) {
+                        // Narancs: Hamarosan lejár
+                        text = "Hamarosan lejár";
+                        colorClass = "text-orange-400";
+                    } else {
+                        // Zöld: Érvényes
+                        text = "Érvényes";
+                        colorClass = "text-green-400";
+                    }
+                }
+            }
+        }
+        
+        return { text, colorClass };
+    };
+
+
+    window.showCustomTooltip = function(event, status, kovVizsgDate) {
+        window.createTooltipElement();
+        const tooltip = document.getElementById('custom-tooltip');
+        const data = window.getTooltipData(status, kovVizsgDate);
+        
+        tooltip.textContent = data.text;
+        tooltip.className = `custom-tooltip visible ${data.colorClass}`; // Reset class and add dynamic color
+        
+        // Positioning Logic
+        // Find the "status-cell" in the current row
+        let targetCell = null;
+        
+        // event.target could be the TD or an element inside it.
+        // We find the parent TR first.
+        const row = event.target.closest('tr');
+        if (row) {
+            targetCell = row.querySelector('.status-cell');
+        }
+
+        if (targetCell) {
+            const rect = targetCell.getBoundingClientRect();
+            
+            // Center horizontally on the cell
+            const x = rect.left + (rect.width / 2);
+            
+            // Center vertically on the cell (overlaying the text)
+            // This ensures it stays "in the row" visually
+            const y = rect.top + (rect.height / 2);
+            
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+            
+            // Center the tooltip on x,y
+            tooltip.style.transform = "translate(-50%, -50%)";
+            
+        } else {
+             // Fallback to mouse
+             const x = event.clientX;
+             const y = event.clientY - 20;
+             tooltip.style.left = `${x}px`;
+             tooltip.style.top = `${y}px`;
+             tooltip.style.transform = "translate(-50%, -100%)";
+        }
+    };
+
+    window.hideCustomTooltip = function() {
+        const tooltip = document.getElementById('custom-tooltip');
+        if (tooltip) {
+            tooltip.classList.remove('visible');
+        }
+    };
+
     function renderTable(devices) {
         currentDevices = devices; // Store the currently rendered devices
         if (!devices || devices.length === 0) {
@@ -1134,8 +1235,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">
                     <span title="${currentOperatorCategory === 'Default' ? 'Alapértelmezett' : currentOperatorCategory}">${operatorIdVal}</span>
                 </td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass} text-center align-middle">${dev.status || 'N/A'}</td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass} text-center align-middle">${dev.kov_vizsg || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${statusColorClass} text-center align-middle status-cell" onmouseenter="window.showCustomTooltip(event, '${dev.status || ''}', '${dev.kov_vizsg || ''}')" onmouseleave="window.hideCustomTooltip()">${dev.status || 'N/A'}</td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${kovVizsgColorClass} text-center align-middle" onmouseenter="window.showCustomTooltip(event, '${dev.status || ''}', '${dev.kov_vizsg || ''}')" onmouseleave="window.hideCustomTooltip()">${dev.kov_vizsg || 'N/A'}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-center align-middle">
                     <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ${checkboxOpacity}" ${dev.isI ? 'checked' : ''} ${checkboxDisabled} onchange="window.toggleIsI(this, '${dev.id}')">
                 </td>
