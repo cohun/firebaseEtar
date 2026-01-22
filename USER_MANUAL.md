@@ -42,6 +42,10 @@ A jogosultságok egymásra épülnek: a magasabb szintű hozzáférés magában 
 ### Főbb Funkciók
 1.  **Eszközlista kezelése:**
     *   **Szűrés és Keresés:** Használja a fejlécben lévő szűrőket (Gyári szám, Következő vizsga ideje).
+    *   **Megnevezés Szűrő:** Kattintson a **Megnevezés** oszlop fejlécére a gyorsszűrő legördítése hez. Itt kiválaszthat egy konkrét eszköztípust (pl. Emelőheveder), így csak azokat listázza a rendszer.
+    *   **Operátor ID Kategóriák:**
+        *   **Hozzáadás (+):** Az "Op. ID" oszlopban a `+` gombbal hozhat létre új, egyedi azonosító kategóriákat (pl. Rendszám, Leltári szám).
+        *   **Törlés (Kuka):** A kiválasztott egyedi kategóriát a kuka ikonnal törölheti. **Fontos:** A törlés csak "elrejti" a kategóriát a listából, a bevitt adatok nem vesznek el. Ha újra létrehozza ugyanazt a kategóriát, az adatok visszatérnek.
     *   **Státusz kapcsoló:** Váltson az "Összes", "Megfelelt" (Zöld) vagy "Nem megfelelt" (Piros) eszközök között a gyors áttekintéshez.
     *   **Forrás szűrő:** Külön listázhatja a saját (H-ITB/Belső) és a külsős (I-vizsgáló) által vizsgált eszközöket.
     *   **Mobil nézet:** Mobilon a bal felső sarokban található menü ikonnal (hamburger menü) érheti el a szűrőket.
@@ -74,7 +78,7 @@ Az **EJK (Emelőgép Javító/Karbantartó)** felhasználók a **H-ITB Kft.** mu
     *   **Véglegesítés:** Ez a lépés **helyettesíti az aláírást**. A rendszer időbélyeggel és egyedi digitális ujjlenyomattal (hash kód) látja el a dokumentumot, amely ezután **megmásíthatatlanul archiválásra kerül** az adatbázisban.
 
 3.  **Szűrési beállítások mentése:**
-    *   A rendszer megjegyzi a kiválasztott szűrőket (pl. Üzemeltetői ID kategória), így oldalfrissítés után is ott folytathatja a munkát, ahol abbahagyta.
+    *   A rendszer megjegyzi a kiválasztott szűrőket (pl. Üzemeltetői ID kategória, beírt keresőszavak), így oldalfrissítés után vagy visszalépéskor is ott folytathatja a munkát, ahol abbahagyta.
 
 ---
 
