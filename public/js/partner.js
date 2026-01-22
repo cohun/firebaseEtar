@@ -138,6 +138,7 @@ function getEszkozListaHtml() {
                                                 <div class="flex items-center space-x-1 mb-1">
                                                     <span>Op. ID</span>
                                                     <button id="add-operator-category-btn" class="text-xs bg-gray-700 hover:bg-gray-600 text-green-400 font-bold rounded px-1.5 py-0.5" title="Új kategória">+</button>
+                                                    <button id="delete-operator-category-btn" class="text-xs bg-gray-700 hover:bg-gray-600 text-red-400 font-bold rounded px-1.5 py-0.5 ml-1 hidden" title="Kategória törlése"><i class="fas fa-trash-alt"></i></button>
                                                 </div>
                                                 <select id="operator-category-select" class="block w-full text-xs bg-gray-700 border-gray-600 text-white rounded p-1 focus:ring-indigo-500 focus:border-indigo-500">
                                                     <option value="Default">Alap.</option>
@@ -602,6 +603,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
     // --- OPERATOR CATEGORY LOGIC ---
     const operatorCategorySelect = document.getElementById('operator-category-select');
     const addOperatorCategoryBtn = document.getElementById('add-operator-category-btn');
+    const deleteOperatorCategoryBtn = document.getElementById('delete-operator-category-btn');
 
     async function loadOperatorCategories() {
         try {
@@ -661,6 +663,42 @@ export function initPartnerWorkScreen(partnerId, userData) {
         });
     }
 
+    if (deleteOperatorCategoryBtn) {
+        deleteOperatorCategoryBtn.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent sorting
+            
+            if (currentOperatorCategory === 'Default') return;
+
+            const confirmMessage = `Biztosan törölni szeretné a(z) "${currentOperatorCategory}" kategóriát?\n\nFIGYELEM:\n1. A kategória eltűnik a listából.\n2. A hozzá tartozó adatok NEM törlődnek az eszközökről, csak elrejtésre kerülnek.\n3. Ha később újra létrehozza ugyanezt a kategóriát, az adatok újra láthatóvá válnak.`;
+
+            if (confirm(confirmMessage)) {
+                try {
+                    await db.collection('partners').doc(partnerId).update({
+                        definedIdCategories: firebase.firestore.FieldValue.arrayRemove(currentOperatorCategory)
+                    });
+
+                    // Update local state
+                    availableOperatorCategories = availableOperatorCategories.filter(c => c !== currentOperatorCategory);
+                    
+                    // Reset to Default
+                    currentOperatorCategory = 'Default';
+                    sessionStorage.setItem('currentOperatorCategory', currentOperatorCategory);
+                    
+                    renderOperatorCategoryOptions();
+                    operatorCategorySelect.value = 'Default'; // Ensure stored value matches prompt
+                    updateOperatorIdLabelStyle();
+                    fetchDevices();
+
+                    alert("Kategória sikeresen törölve/elrejtve.");
+
+                } catch (error) {
+                    console.error("Error deleting category:", error);
+                    alert("Hiba történt a kategória törlése közben.");
+                }
+            }
+        });
+    }
+
     function updateOperatorIdLabelStyle() {
         const label = document.getElementById('filter-operator-id-label');
         if (label) {
@@ -675,13 +713,17 @@ export function initPartnerWorkScreen(partnerId, userData) {
         }
 
         const dropdown = document.getElementById('operator-category-select');
+        const deleteBtn = document.getElementById('delete-operator-category-btn');
+
         if (dropdown) {
             if (currentOperatorCategory !== 'Default') {
                 dropdown.classList.add('text-yellow-400');
                 dropdown.classList.remove('text-white');
+                if (deleteBtn) deleteBtn.classList.remove('hidden'); // Show delete button
             } else {
                 dropdown.classList.remove('text-yellow-400');
                 dropdown.classList.add('text-white');
+                if (deleteBtn) deleteBtn.classList.add('hidden'); // Hide delete button
             }
         }
     }
