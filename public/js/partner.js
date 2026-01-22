@@ -129,7 +129,15 @@ function getEszkozListaHtml() {
                                     <tr>
                                         <th rowspan="2" class="p-3 relative"><input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Vizsg. Időp.</th>
-                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megnevezés</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap relative">
+                                            <div id="header-description-title" class="cursor-pointer hover:text-blue-300 inline-flex items-center group">
+                                                Megnevezés <i class="fas fa-filter ml-1 text-xs opacity-50 group-hover:opacity-100"></i>
+                                            </div>
+                                            <!-- Dropdown Menu -->
+                                            <div id="description-filter-dropdown" class="hidden absolute top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-left max-h-60 overflow-y-auto">
+                                                <!-- Populated by JS -->
+                                            </div>
+                                        </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Típus</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Hossz</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Gyári szám</th>
@@ -360,7 +368,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
     let filters = {
         vizsg_idopont: '',
-        kov_vizsg: ''
+        kov_vizsg: '',
+        description: '' // New filter
     };
     
     // --- SOURCE FILTER LOGIC ---
@@ -770,6 +779,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         resetFiltersBtn.addEventListener('click', () => {
             filters.vizsg_idopont = '';
             filters.kov_vizsg = '';
+            filters.description = ''; // Reset description filter
             
             if (vizsgIdopontInput) vizsgIdopontInput.value = '';
             if (kovVizsgInput) kovVizsgInput.value = '';
@@ -778,12 +788,123 @@ export function initPartnerWorkScreen(partnerId, userData) {
             if (operatorIdInput) operatorIdInput.value = '';
             sessionStorage.removeItem('operatorIdFilterValue'); // Clear stored value
 
+            updateDescriptionHeaderStyle(); // Reset header style
+
             // Optionally reset category too? User request didn't specify, but usually "Reset Filters" might be expected to.
             // Requirement said: "User a Szűrők gombbal nem törli azt" -> implies this button should clear it.
             // Keeping category selection as is, only clearing the text input value based on request.
             
             fetchDevices();
         });
+    }
+
+    // --- DESCRIPTION FILTER LOGIC ---
+    const descriptionHeader = document.getElementById('header-description-title');
+    const descriptionDropdown = document.getElementById('description-filter-dropdown');
+    
+    if (descriptionHeader && descriptionDropdown) {
+        descriptionHeader.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            
+            // Toggle visibility
+            const isHidden = descriptionDropdown.classList.contains('hidden');
+            if (!isHidden) {
+                descriptionDropdown.classList.add('hidden');
+                return;
+            }
+
+            // Close other dropdowns if any (not implemented generic here, but good practice)
+            
+            // Show loading or cached
+            descriptionDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">Megnevezések betöltése...</div>';
+            descriptionDropdown.classList.remove('hidden');
+
+            try {
+                // Fetch ALL active devices to get unique descriptions
+                // Optimization: We could cache this or use a separate stats collection. 
+                // For now, fetching all (lightweight) is the most robust way to get accurate current list.
+                
+                // Use a simplified query just for descriptions? Firestore doesn't support "distinct" easily without reading docs.
+                // We'll trust that fetching all for the partner isn't too massive (few thousands is ok).
+                const snapshot = await db.collection('partners').doc(partnerId).collection('devices')
+                    .where('comment', '==', currentView) // active or inactive
+                    .orderBy('description') 
+                    .get();
+
+                const uniqueDescriptions = new Set();
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    if (d.description) uniqueDescriptions.add(d.description.trim());
+                });
+
+                const sortedDescriptions = Array.from(uniqueDescriptions).sort();
+                
+                // Render List
+                let html = `
+                    <div class="description-filter-item px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 ${filters.description === '' ? 'bg-blue-900/50 font-bold' : ''}" data-value="">
+                        Összes megjelenítése
+                    </div>
+                `;
+                
+                sortedDescriptions.forEach(desc => {
+                    const isSelected = filters.description === desc;
+                    html += `
+                        <div class="description-filter-item px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 ${isSelected ? 'bg-blue-900/50 font-bold' : ''}" data-value="${desc.replace(/"/g, '&quot;')}">
+                            ${desc}
+                        </div>
+                    `;
+                });
+                
+                descriptionDropdown.innerHTML = html;
+                
+                // Add listeners to items
+                const items = descriptionDropdown.querySelectorAll('.description-filter-item');
+                items.forEach(item => {
+                    item.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        filters.description = item.dataset.value;
+                        updateDescriptionHeaderStyle();
+                        descriptionDropdown.classList.add('hidden');
+                        
+                        // Reset pagination
+                        currentPage = 1;
+                        fetchDevices();
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error fetching descriptions:", error);
+                descriptionDropdown.innerHTML = '<div class="p-2 text-red-400 text-xs text-center">Hiba a betöltéskor</div>';
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!descriptionHeader.contains(e.target) && !descriptionDropdown.contains(e.target)) {
+                 descriptionDropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    function updateDescriptionHeaderStyle() {
+        if (!descriptionHeader) return;
+        const icon = descriptionHeader.querySelector('i');
+        
+        if (filters.description) {
+            descriptionHeader.classList.add('text-yellow-400');
+            descriptionHeader.classList.remove('hover:text-blue-300');
+            if (icon) {
+                 icon.classList.remove('opacity-50');
+                 icon.classList.add('opacity-100', 'text-yellow-400');
+            }
+        } else {
+            descriptionHeader.classList.remove('text-yellow-400');
+            descriptionHeader.classList.add('hover:text-blue-300');
+             if (icon) {
+                 icon.classList.add('opacity-50');
+                 icon.classList.remove('opacity-100', 'text-yellow-400');
+            }
+        }
     }
 
     function debounce(func, delay) {
@@ -838,7 +959,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
             // Added searchTerm to client-side logic triggers to allow for partial/case-insensitive matching
             const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
             const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
-            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm || validityFilter !== 'all';
+            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm || validityFilter !== 'all' || !!filters.description;
 
             if (!useClientSideLogic) {
                 // Server-side filtering for 'external' (isI == true)
@@ -946,6 +1067,11 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 if (filters.kov_vizsg) {
                     const filterDate = normalizeDate(filters.kov_vizsg);
                     devices = devices.filter(d => normalizeDate(d.kov_vizsg).includes(filterDate));
+                }
+
+                // Description Filtering (New)
+                if (filters.description) {
+                    devices = devices.filter(d => d.description === filters.description);
                 }
 
                 // Sorszám keresés (Client-Side, Case-Insensitive, Partial)
