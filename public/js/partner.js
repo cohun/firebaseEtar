@@ -1989,26 +1989,100 @@ export function initPartnerWorkScreen(partnerId, userData) {
         const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
 
         try {
-            const checkPromises = deviceIds.map(id => 
-                db.collection('partners').doc(partnerId)
-                  .collection('devices').doc(id)
-                  .collection('inspections').where('status', '!=', 'draft')
-                  .limit(1).get().then(snap => !snap.empty)
-            );
+            // Determine user type for delete logic
+            // ENY users are those who are NEITHER EJK NOR EKV (assuming EKV is passed in validly, otherwise check role)
+            // 'isEjkUser' and 'isEkvUser' are available in the closure from initPartnerWorkScreen
+            // Note: isEkvUser was defined as: const isEkvUser = (userData && userData.isEkvUser) || false;
+            
+            const isEnyUser = !isEjkUser && !isEkvUser;
 
-            const results = await Promise.all(checkPromises);
-            const hasFinalizedInspection = results.some(res => res === true);
+            if (isEnyUser) {
+                // --- ENY USER LOGIC: STRICT BLOCK ON ANY INSPECTION ---
+                const checkPromises = deviceIds.map(id => 
+                    db.collection('partners').doc(partnerId)
+                      .collection('devices').doc(id)
+                      .collection('inspections')
+                      .limit(1).get().then(snap => !snap.empty)
+                );
 
-            if (hasFinalizedInspection) {
-                alert('A kiválasztott eszköz nem törölhető, mert már rendelkezik véglegesített vizsgálattal. Ilyen eszköz csak leselejtezhető.');
+                const results = await Promise.all(checkPromises);
+                const hasInspection = results.some(res => res === true);
+
+                if (hasInspection) {
+                    alert('A kiválasztott eszköz(ök) nem törölhető(k), mert tartozik hozzá(juk) vizsgálat (akár piszkozat, akár végleges).\n\nPartnerként csak olyan eszközt törölhet, amelyhez még nem készült semmilyen vizsgálat.\nKérjük, forduljon az üzemeltetőhöz/adminisztrátorhoz.');
+                    return;
+                }
+
+            } else {
+                // --- PRIVILEGED USER LOGIC (EJK/EKV): GRANULAR CHECKS ---
+                
+                // 1. Check for FINALIZED inspections
+                const finalizedPromises = deviceIds.map(id => 
+                    db.collection('partners').doc(partnerId)
+                      .collection('devices').doc(id)
+                      .collection('inspections').where('status', '!=', 'draft')
+                      .limit(1).get().then(snap => !snap.empty)
+                );
+
+                const finalizedResults = await Promise.all(finalizedPromises);
+                const hasFinalized = finalizedResults.some(res => res === true);
+
+                if (hasFinalized) {
+                    alert('A kiválasztott eszköz nem törölhető, mert már rendelkezik véglegesített vizsgálattal. Ilyen eszköz csak leselejtezhető.');
+                    return;
+                }
+
+                // 2. Check for ANY inspections (implies Drafts)
+                const anyPromises = deviceIds.map(id => 
+                    db.collection('partners').doc(partnerId)
+                      .collection('devices').doc(id)
+                      .collection('inspections')
+                      .limit(1).get().then(snap => !snap.empty)
+                );
+
+                const anyResults = await Promise.all(anyPromises);
+                const hasDrafts = anyResults.some(res => res === true);
+
+                if (hasDrafts) {
+                    alert('A kiválasztott eszközhöz piszkozat (draft) vizsgálat tartozik.\n\nKérjük, először törölje a piszkozatot a "Vizsgálatok" menüpontban, és csak utána törölje az eszközt.');
+                    return;
+                }
+            }
+
+            // --- COMMON HARD DELETE EXECUTION (For Clean Devices) ---
+
+            // Double confirmation check
+            if (!confirm(`Biztosan VÉGLEGESEN törölni szeretné a kiválasztott ${deviceIds.length} eszközt?`)) {
                 return;
             }
 
-            updateSelectedDevicesComment('deleted');
+            if (!confirm(`FIGYELEM! Ez a művelet NEM VISSZAVONHATÓ!\n\nAz adatok véglegesen törlődnek az adatbázisból.\n\nBiztosan folytatja?`)) {
+                return;
+            }
+
+            const batch = db.batch();
+            deviceIds.forEach(id => {
+                const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(id);
+                batch.delete(deviceRef);
+            });
+
+            await batch.commit();
+
+            alert(`A kiválasztott eszközök sikeresen és véglegesen törölve lettek.`);
+            
+            // Remove from local list
+            const checks = Array.from(selectedCheckboxes);
+            checks.forEach(cb => {
+                const row = cb.closest('tr');
+                if (row) row.remove();
+            });
+
+            // Refresh list to be sure
+            fetchDevices(); 
 
         } catch (error) {
-            console.error("Hiba a törlési ellenőrzés során:", error);
-            alert("Hiba történt a törlési feltételek ellenőrzése közben.");
+            console.error("Hiba a törlés során:", error);
+            alert("Hiba történt a törlés közben.");
         }
     };
 
