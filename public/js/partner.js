@@ -239,6 +239,19 @@ function parseDateSafe(dateStr) {
 export function initPartnerWorkScreen(partnerId, userData) {
     console.log("initPartnerWorkScreen called", { partnerId, userData });
     
+    // --- RESTORE INSPECTION STATE LOGIC ---
+    // Check if we are returning from "New Device" creation to "New Inspection"
+    const shouldReturnToInspection = sessionStorage.getItem('returnToNewInspection') === 'true';
+    if (shouldReturnToInspection) {
+        // We will handle the UI switch after screen definitions (moved down) or we can set a flag to trigger it later.
+        // Let's set a timeout/callback to run after DOM is fully ready or just run it at the end of this init function?
+        // Since this function initializes everything, running it at the end is better.
+        // But we need to ensure the elements exist (they should be static in HTML).
+        
+        console.log("Restoring Inspection State...");
+    }
+
+    
     // Robust handling for missing userData
     const partnerRoles = (userData && userData.partnerRoles) ? userData.partnerRoles : {};
     const role = partnerRoles[partnerId] || null;
@@ -2683,12 +2696,38 @@ export function initPartnerWorkScreen(partnerId, userData) {
     let currentInspectedDevice = null;
 
     window.saveSerialAndRedirect = function() {
-        const serialNumber = serialNumberInput.value.trim();
-        if (serialNumber) {
-            sessionStorage.setItem('newDeviceSerialNumber', serialNumber);
+        try {
+            console.log("saveSerialAndRedirect called");
+            const serialInput = document.getElementById('serialNumberInput');
+            const serialNumber = serialInput ? serialInput.value.trim() : '';
+            console.log("Saving serial:", serialNumber);
+            
+            if (serialNumber) {
+                sessionStorage.setItem('newDeviceSerialNumber', serialNumber);
+            }
+            
+            // --- Save Inspection Header Data persistence ---
+            const templateSelect = document.getElementById('templateSelectNewInspection');
+            const expertSelect = document.getElementById('expertSelectNewInspection');
+            const placeInput = document.getElementById('inspectionLocationInput');
+            const dateInput = document.getElementById('inspectionDateInput');
+
+            if (templateSelect) sessionStorage.setItem('persist_return_template', templateSelect.value);
+            if (expertSelect) sessionStorage.setItem('persist_return_expert', expertSelect.value);
+            if (placeInput) sessionStorage.setItem('persist_return_place', placeInput.value);
+            if (dateInput) sessionStorage.setItem('persist_return_date', dateInput.value);
+            
+            // Set flag to indicate we want to return here
+            console.log("Setting returnToNewInspection flag to true");
+            sessionStorage.setItem('returnToNewInspection', 'true');
+            // -----------------------------------------------
+
+            sessionStorage.removeItem('editDeviceId');
+            window.location.href = 'adatbevitel.html';
+        } catch (e) {
+            console.error("Error in saveSerialAndRedirect:", e);
+            alert("Hiba történt az átirányítás során: " + e.message);
         }
-        sessionStorage.removeItem('editDeviceId');
-        window.location.href = 'adatbevitel.html';
     }
 
     // --- AUTOCOMPLETE LOGIC ---
@@ -3326,6 +3365,104 @@ export function initPartnerWorkScreen(partnerId, userData) {
         document.getElementById('modal-success-message').innerHTML = messageHtml;
         modal.classList.remove('hidden');
     }
+    }
+    // --- RETURNING FROM NEW DEVICE CREATION ---
+    if (sessionStorage.getItem('returnToNewInspection') === 'true') {
+        sessionStorage.removeItem('returnToNewInspection'); // Clear flag immediately
+
+        // 1. Switch to New Inspection Screen
+        const newInspectionScreen = document.getElementById('newInspectionScreen');
+        if (newInspectionScreen) {
+             // We need to access showScreen which is defined inside this scope.
+             // showScreen is defined at line 275.
+             showScreen(newInspectionScreen);
+        }
+
+        // 2. Restore Header Values
+        const savedTemplate = sessionStorage.getItem('persist_return_template');
+        const savedExpert = sessionStorage.getItem('persist_return_expert');
+        const savedPlace = sessionStorage.getItem('persist_return_place');
+        const savedDate = sessionStorage.getItem('persist_return_date');
+
+        // We need to wait for select options to populate (loadExperts/loadProtocols is async)
+        // A simple timeout or polling mechanism is needed for the selects.
+        // For inputs it's instant.
+        
+        if (document.getElementById('inspectionLocationInput') && savedPlace) {
+             console.log("Restoration: Restoring place", savedPlace);
+             document.getElementById('inspectionLocationInput').value = savedPlace;
+        } else {
+             console.log("Restoration: Place not restored", { element: !!document.getElementById('inspectionLocationInput'), savedPlace });
+        }
+        
+        if (document.getElementById('inspectionDateInput') && savedDate) {
+             document.getElementById('inspectionDateInput').value = savedDate;
+        }
+
+        const restoreSelects = () => {
+            const tmplSel = document.getElementById('templateSelectNewInspection');
+            const expSel = document.getElementById('expertSelectNewInspection');
+            
+            console.log("Restoration: restoring selects...", { 
+                savedTemplate, 
+                savedExpert, 
+                tmplSel: !!tmplSel, 
+                expSel: !!expSel,
+                expOptions: expSel ? expSel.options.length : 0 
+            });
+
+            if (tmplSel && savedTemplate) tmplSel.value = savedTemplate;
+            
+            // Expert/Protocol select might need time to load options
+            // Basic retry logic
+            if (expSel && savedExpert) {
+                if (expSel.options.length > 1) {
+                    expSel.value = savedExpert;
+                    console.log("Restoration: Expert restored to", savedExpert);
+                } else {
+                    console.log("Restoration: Expert options not loaded yet, retrying...");
+                    setTimeout(restoreSelects, 200);
+                    return;
+                }
+            }
+            
+            // Clean up stored values
+            console.log("Restoration: Cleaning up persistent storage");
+            sessionStorage.removeItem('persist_return_template');
+            sessionStorage.removeItem('persist_return_expert');
+            sessionStorage.removeItem('persist_return_place');
+            sessionStorage.removeItem('persist_return_date');
+        };
+
+        // Start trying to restore selects
+        setTimeout(restoreSelects, 500);
+
+        // 3. Auto-populate and Search for the new device
+        // 3. Auto-populate and Search for the new device
+        const newSerial = sessionStorage.getItem('lastCreatedDeviceSerial');
+        console.log("Restoration: Checking for newSerial", newSerial);
+
+        if (newSerial) {
+            const serialInput = document.getElementById('serialNumberInput');
+            if (serialInput) {
+                console.log("Restoration: Setting serial input to", newSerial);
+                serialInput.value = newSerial;
+                sessionStorage.removeItem('lastCreatedDeviceSerial'); // Only remove if successful
+                
+                // Trigger search
+                setTimeout(() => {
+                    console.log("Restoration: Triggering search...");
+                    const form = document.getElementById('searchDeviceForm');
+                    if (form) {
+                         form.dispatchEvent(new Event('submit'));
+                    } else {
+                        console.error("Restoration: searchDeviceForm not found!");
+                    }
+                }, 1000);
+            } else {
+                console.error("Restoration: serialNumberInput not found!");
+            }
+        }
     }
 }
 

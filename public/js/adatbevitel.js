@@ -395,9 +395,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 await db.collection('partners').doc(partnerId).collection('devices').add(deviceData);
 
                 // alert('Eszköz sikeresen mentve!');
-                showSuccessModal(`Eszköz sikeresen mentve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${deviceData.serialNumber}</span>`);
+                // Check if we need to return to New Inspection
+                const returnFlag = sessionStorage.getItem('returnToNewInspection');
+                console.log("DEBUG: check returnToNewInspection flag:", returnFlag);
+                
+                let shouldRedirectBack = false;
+                if (returnFlag === 'true') {
+                    console.log("DEBUG: Saving lastCreatedDeviceSerial:", deviceData.serialNumber);
+                    sessionStorage.setItem('lastCreatedDeviceSerial', deviceData.serialNumber);
+                    console.log("DEBUG: sessionStorage after set:", {
+                        returnToNewInspection: sessionStorage.getItem('returnToNewInspection'),
+                        lastCreatedDeviceSerial: sessionStorage.getItem('lastCreatedDeviceSerial')
+                    });
+                    shouldRedirectBack = true;
+                } else {
+                     console.log("DEBUG: Not returning to new inspection, flag is:", returnFlag);
+                }
+
+                showSuccessModal(`Eszköz sikeresen mentve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${deviceData.serialNumber}</span>`, shouldRedirectBack);
+
                 form.reset();
-                // window.location.href = 'app.html'; // Redirect to partner page for consistency
             } catch (error) {
                 console.error("Hiba az eszköz mentésekor:", error);
                 alert('Hiba történt az eszköz mentésekor: ' + error.message);
@@ -406,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Custom Success Modal Function
-    function showSuccessModal(messageHtml) {
+    function showSuccessModal(messageHtml, shouldRedirect = false) {
         let modal = document.getElementById('custom-success-modal');
         if (!modal) {
             modal = document.createElement('div');
@@ -433,13 +450,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
             document.body.appendChild(modal);
-            
-            document.getElementById('modal-success-ok-btn').addEventListener('click', () => {
-                 modal.classList.add('hidden');
-            });
         }
         
         document.getElementById('modal-success-message').innerHTML = messageHtml;
         modal.classList.remove('hidden');
+
+        // Handle OK button click
+        const okBtn = document.getElementById('modal-success-ok-btn');
+        // Clone button to remove old listeners
+        const newOkBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+        newOkBtn.addEventListener('click', () => {
+             modal.classList.add('hidden');
+             if (shouldRedirect) {
+                 console.log("DEBUG: Redirecting to app.html via showSuccessModal");
+                 window.location.href = 'app.html';
+             }
+        });
     }
 });
