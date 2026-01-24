@@ -130,7 +130,7 @@ function getEszkozListaHtml() {
                                         <th rowspan="2" class="p-3 relative"><input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"></th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Vizsg. Időp.</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap relative">
-                                            <div id="header-description-title" class="cursor-pointer hover:text-blue-300 inline-flex items-center group">
+                                            <div id="header-description-title" class="cursor-pointer text-blue-300 hover:text-blue-200 inline-flex items-center group">
                                                 Megnevezés <i class="fas fa-filter ml-1 text-xs opacity-50 group-hover:opacity-100"></i>
                                             </div>
                                             <!-- Dropdown Menu -->
@@ -154,7 +154,15 @@ function getEszkozListaHtml() {
                                             </div>
                                         </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megállapítások</th>
-                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Köv. Vizsg.</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap relative">
+                                            <div id="header-kov-vizsg-title" class="cursor-pointer text-blue-300 hover:text-blue-200 inline-flex items-center group">
+                                                Köv. Vizsg. <i class="fas fa-filter ml-1 text-xs opacity-50 group-hover:opacity-100"></i>
+                                            </div>
+                                            <!-- Dropdown Menu for Next Inspection -->
+                                            <div id="kov-vizsg-filter-dropdown" class="hidden absolute top-full right-0 mt-1 w-48 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-left max-h-60 overflow-y-auto">
+                                                <!-- Populated by JS -->
+                                            </div>
+                                        </th>
                                         <th rowspan="2" class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">I<br><span class="text-xs font-normal">vizsgáló</span></th>
                                         <th rowspan="2" class="p-3"></th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">CHIP</th>
@@ -801,7 +809,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
             if (operatorIdInput) operatorIdInput.value = '';
             sessionStorage.removeItem('operatorIdFilterValue'); // Clear stored value
 
-            updateDescriptionHeaderStyle(); // Reset header style
+            updateDescriptionHeaderStyle(); // Reset description header style
+            updateKovVizsgHeaderStyle(); // Reset kov vizsg header style
+
+            // Close dropdowns if open
+            if (descriptionDropdown) descriptionDropdown.classList.add('hidden');
+            if (kovVizsgDropdown) kovVizsgDropdown.classList.add('hidden');
 
             // Optionally reset category too? User request didn't specify, but usually "Reset Filters" might be expected to.
             // Requirement said: "User a Szűrők gombbal nem törli azt" -> implies this button should clear it.
@@ -899,20 +912,129 @@ export function initPartnerWorkScreen(partnerId, userData) {
         });
     }
 
+    // --- NEXT INSPECTION FILTER LOGIC ---
+    const kovVizsgHeader = document.getElementById('header-kov-vizsg-title');
+    const kovVizsgDropdown = document.getElementById('kov-vizsg-filter-dropdown');
+
+    if (kovVizsgHeader && kovVizsgDropdown) {
+        kovVizsgHeader.addEventListener('click', async (e) => {
+            e.stopPropagation();
+
+            // Toggle visibility
+            const isHidden = kovVizsgDropdown.classList.contains('hidden');
+            if (!isHidden) {
+                kovVizsgDropdown.classList.add('hidden');
+                return;
+            }
+
+            // Close other dropdowns
+            if (descriptionDropdown) descriptionDropdown.classList.add('hidden');
+
+            // Show loading
+            kovVizsgDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">Dátumok betöltése...</div>';
+            kovVizsgDropdown.classList.remove('hidden');
+
+            try {
+                // Fetch ALL devices with inspections to get unique dates
+                const devices = await getAllDevicesWithInspections();
+
+                const uniqueDates = new Set();
+                devices.forEach(d => {
+                    const date = d.kov_vizsg; // Ensure this property is populated in getAllDevicesWithInspections
+                    if (date) uniqueDates.add(date.trim());
+                });
+
+                // Sort dates
+                const sortedDates = Array.from(uniqueDates).sort((a, b) => {
+                    // Simple string sort works for YYYY.MM.DD, but let's be safe
+                    return a.localeCompare(b);
+                });
+
+                // Render List
+                let html = `
+                    <div class="kov-vizsg-filter-item px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 ${filters.kov_vizsg === '' ? 'bg-blue-900/50 font-bold' : ''}" data-value="">
+                        Összes megjelenítése
+                    </div>
+                `;
+
+                sortedDates.forEach(dateStr => {
+                    const isSelected = filters.kov_vizsg === dateStr;
+                    html += `
+                        <div class="kov-vizsg-filter-item px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 ${isSelected ? 'bg-blue-900/50 font-bold' : ''}" data-value="${dateStr}">
+                            ${dateStr}
+                        </div>
+                    `;
+                });
+
+                kovVizsgDropdown.innerHTML = html;
+
+                // Add listeners
+                const items = kovVizsgDropdown.querySelectorAll('.kov-vizsg-filter-item');
+                items.forEach(item => {
+                    item.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        const val = item.dataset.value;
+                        filters.kov_vizsg = val;
+                        
+                        // Update text input
+                        if (kovVizsgInput) kovVizsgInput.value = val;
+                        
+                        updateKovVizsgHeaderStyle();
+                        kovVizsgDropdown.classList.add('hidden');
+
+                        currentPage = 1;
+                        fetchDevices();
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error fetching dates:", error);
+                kovVizsgDropdown.innerHTML = '<div class="p-2 text-red-400 text-xs text-center">Hiba a betöltéskor</div>';
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!kovVizsgHeader.contains(e.target) && !kovVizsgDropdown.contains(e.target)) {
+                 kovVizsgDropdown.classList.add('hidden');
+            }
+        });
+    }
+
+    function updateKovVizsgHeaderStyle() {
+        if (!kovVizsgHeader) return;
+        const icon = kovVizsgHeader.querySelector('i');
+        
+        if (filters.kov_vizsg) {
+            kovVizsgHeader.classList.add('text-yellow-400');
+            kovVizsgHeader.classList.remove('text-blue-300', 'hover:text-blue-200');
+            if (icon) {
+                 icon.classList.remove('opacity-50');
+                 icon.classList.add('opacity-100', 'text-yellow-400');
+            }
+        } else {
+            kovVizsgHeader.classList.remove('text-yellow-400');
+            kovVizsgHeader.classList.add('text-blue-300', 'hover:text-blue-200');
+             if (icon) {
+                 icon.classList.add('opacity-50');
+                 icon.classList.remove('opacity-100', 'text-yellow-400');
+            }
+        }
+    }
     function updateDescriptionHeaderStyle() {
         if (!descriptionHeader) return;
         const icon = descriptionHeader.querySelector('i');
         
         if (filters.description) {
             descriptionHeader.classList.add('text-yellow-400');
-            descriptionHeader.classList.remove('hover:text-blue-300');
+            descriptionHeader.classList.remove('text-blue-300', 'hover:text-blue-200');
             if (icon) {
                  icon.classList.remove('opacity-50');
                  icon.classList.add('opacity-100', 'text-yellow-400');
             }
         } else {
             descriptionHeader.classList.remove('text-yellow-400');
-            descriptionHeader.classList.add('hover:text-blue-300');
+            descriptionHeader.classList.add('text-blue-300', 'hover:text-blue-200');
              if (icon) {
                  icon.classList.add('opacity-50');
                  icon.classList.remove('opacity-100', 'text-yellow-400');
@@ -2393,30 +2515,46 @@ export function initPartnerWorkScreen(partnerId, userData) {
     const downloadDbBtn = document.getElementById('download-db-btn');
     const downloadDbBtnMobile = document.getElementById('download-db-btn-mobile');
 
-    async function fetchAllDevicesForExport() {
+    async function getAllDevicesWithInspections() {
         try {
-            let query = db.collection('partners').doc(partnerId).collection('devices');
+            let query = db.collection('partners').doc(partnerId).collection('devices')
+                .where('comment', '==', currentView); // Respect Active/Inactive view
             
-            // Filter for EKV users
+            // Filter for EKV users (Base restriction)
             if (userData && userData.isEkvUser) {
                 query = query.where('isI', '==', true);
             }
 
             const snapshot = await query.get();
-            const devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            let devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Apply Source Filter (in-memory, matching fetchDevices logic)
+            // This ensures we don't show dates for devices hidden by the source switch (H-ITB / I-vizsgáló)
+            if (sourceFilter === 'h-itb') {
+                 devices = devices.filter(d => !d.isI);
+            } else if (sourceFilter === 'external') {
+                 devices = devices.filter(d => d.isI === true);
+            }
 
             const inspectionPromises = devices.map(device => {
-                return db.collection('partners').doc(partnerId)
+                let inspQuery = db.collection('partners').doc(partnerId)
                          .collection('devices').doc(device.id)
                          .collection('inspections')
                          .orderBy('createdAt', 'desc')
-                         .limit(1)
-                         .get()
+                         .limit(1);
+
+                // Consistency with fetchDevices for EKV users: only show their own inspections
+                if (userData && userData.isEkvUser) {
+                     inspQuery = inspQuery.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                }
+
+                return inspQuery.get()
                          .then(inspectionSnapshot => {
                              if (!inspectionSnapshot.empty) {
                                  const latestInspection = inspectionSnapshot.docs[0].data();
                                  // Add inspection data to the device object
                                  device.latestInspection = latestInspection;
+                                 device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat; // Enrich direct property for filter reuse
                              }
                          });
             });
@@ -2425,8 +2563,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
             return devices;
 
         } catch (error) {
-            console.error("Hiba az összes eszköz exportáláshoz való lekérésekor:", error);
-            alert("Hiba történt az adatok exportáláshoz való előkészítése közben.");
+            console.error("Hiba az összes eszköz lekérésekor:", error);
+            alert("Hiba történt az adatok lekérése közben.");
             return [];
         }
     }
@@ -2437,7 +2575,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         button.innerHTML = '<span>Generálás...</span><div class="loader-small"></div>';
         button.disabled = true;
 
-        const devices = await fetchAllDevicesForExport();
+        const devices = await getAllDevicesWithInspections();
 
         if (devices.length === 0) {
             alert('Nincsenek adatok az exportáláshoz.');
@@ -2457,6 +2595,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
             'Teherbírás (WLL)': dev.loadCapacity,
             'Hasznos hossz': dev.effectiveLength,
             'Állapot': dev.comment,
+            'H-ITB vizsgálta': dev.isI ? 'nem' : 'igen',
             'Utolsó vizsgálat - Típus': dev.latestInspection?.vizsgalatJellege,
             'Utolsó vizsgálat - Dátum': dev.latestInspection?.vizsgalatIdopontja,
             'Utolsó vizsgálat - Eredmény': dev.latestInspection?.vizsgalatEredmenye,
