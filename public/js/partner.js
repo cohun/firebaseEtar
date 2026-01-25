@@ -139,7 +139,10 @@ function getEszkozListaHtml() {
                                             </div>
                                         </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Típus</th>
-                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Hossz</th>
+                                        <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap group relative">
+                                            Hossz 
+                                            <i class="fas fa-weight-hanging text-gray-500 ml-1 group-hover:text-yellow-400 transition-colors duration-200" title="Teherbírás (WLL) megtekintéséhez húzza az egeret az érték fölé"></i>
+                                        </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Gyári szám</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">
                                             <div class="flex flex-col items-center">
@@ -1437,8 +1440,23 @@ export function initPartnerWorkScreen(partnerId, userData) {
         // We find the parent TR first.
         const row = event.target.closest('tr');
         if (row) {
-            targetCell = row.querySelector('.status-cell');
+            targetCell = row.querySelector('.status-cell'); // For status tooltip
+             // If not found (e.g. simple tooltip called from non-status cell), try to target the event target itself if it's a cell?
+             // But existing logic specific to status cell for positioning?
+             // let's stick to event target if status-cell is not what we want?
+             // Actually, createTooltipElement/showCustomTooltip logic seems to want a reference.
         }
+
+        if (!targetCell) {
+             // Fallback for simple tooltip or if status cell not found (though simple tooltip might want to center on its own cell)
+             // Let's try to use the event target as the cell if it is a TD
+             if (event.target.tagName === 'TD') {
+                 targetCell = event.target;
+             } else {
+                 targetCell = event.target.closest('td');
+             }
+        }
+
 
         if (targetCell) {
             const rect = targetCell.getBoundingClientRect();
@@ -1470,6 +1488,37 @@ export function initPartnerWorkScreen(partnerId, userData) {
         const tooltip = document.getElementById('custom-tooltip');
         if (tooltip) {
             tooltip.classList.remove('visible');
+        }
+    };
+
+    window.showSimpleTooltip = function(event, text) {
+        window.createTooltipElement();
+        const tooltip = document.getElementById('custom-tooltip');
+        
+        tooltip.textContent = text;
+        tooltip.className = `custom-tooltip visible text-gray-200`; // Neutral color
+        
+        // Positioning Logic (Reused primarily)
+        let targetCell = event.target.tagName === 'TD' ? event.target : event.target.closest('td');
+
+        if (targetCell) {
+            const rect = targetCell.getBoundingClientRect();
+            // Center horizontally on the cell
+            const x = rect.left + (rect.width / 2);
+            // Center vertically on the cell
+            const y = rect.top + (rect.height / 2);
+            
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+            tooltip.style.transform = "translate(-50%, -50%)"; // Center over cell content
+            
+        } else {
+             // Fallback to mouse
+             const x = event.clientX;
+             const y = event.clientY - 20;
+             tooltip.style.left = `${x}px`;
+             tooltip.style.top = `${y}px`;
+             tooltip.style.transform = "translate(-50%, -100%)";
         }
     };
 
@@ -1533,7 +1582,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.vizsg_idopont || 'N/A'}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-white'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-white'); this.classList.remove('text-blue-300');">${dev.description || ''}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.type || ''}</td>
-                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.effectiveLength || ''}</td>
+                <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');" onmouseenter="window.showSimpleTooltip(event, 'Teherbírás: ' + (('${dev.loadCapacity || ''}') || '-'))" onmouseleave="window.hideCustomTooltip()">${dev.effectiveLength || ''}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.serialNumber || ''}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">
                     <span title="${currentOperatorCategory === 'Default' ? 'Alapértelmezett' : currentOperatorCategory}">${operatorIdVal}</span>
