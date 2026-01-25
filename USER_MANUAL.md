@@ -50,7 +50,11 @@ A jogosultságok egymásra épülnek: a magasabb szintű hozzáférés magában 
     *   **Forrás szűrő:** Külön listázhatja a saját (H-ITB/Belső) és a külsős (I-vizsgáló) által vizsgált eszközöket.
     *   **Mobil nézet:** Mobilon a bal felső sarokban található menü ikonnal (hamburger menü) érheti el a szűrőket.
 
-2.  **Adatimportálás (Excel):**
+    *   **Okos Tippek (Tooltips):**
+        *   **Köv. Vizsga oszlop:** Ha az egeret a dátum fölé viszi, a rendszer kiszámolja és kiírja az eszköz státuszát (pl. "Érvényes", "Hamarosan lejár", "Érvénytelen") a pontos napok alapján.
+        *   **Hossz oszlop:** Ha az egeret a hosszúság adat fölé viszi, megjelenik az eszköz **Teherbírása**.
+
+3.  **Adatimportálás (Excel):**
     *   Admin és Write joggal rendelkezők tömegesen tölthetnek fel eszközöket Excelből.
     *   **Tipp:** Használja a letölthető sablont az oszlopnevek helyes megadásához (pl. `Megnevezés`, `Teherbírás`, `Gyári szám`).
 
@@ -71,7 +75,11 @@ Az **EJK (Emelőgép Javító/Karbantartó)** felhasználók a **H-ITB Kft.** mu
 ### Vizsgálat és Karbantartás
 1.  **Új vizsgálat indítása:**
     *   Jelölje ki az eszközt és kattintson az "Új vizsgálat" gombra.
-    *   **"Ajánlat menjen?"**: Ha javítás szükséges, jelölje be ezt az opciót. Az ilyen tételek sárga háttérrel jelennek meg a piszkozatokban.
+    *   "Ajánlat menjen?": Ha javítás szükséges, jelölje be ezt az opciót. Az ilyen tételek sárga háttérrel jelennek meg a piszkozatokban.
+    *   **Intelligens Űrlap Visszatöltés:**
+        *   Ha a vizsgálat indításakor kiderül, hogy az eszköz nincs a rendszerben, az **"Új eszköz felvitele"** gombbal azonnal rögzítheti azt.
+        *   A rendszer **megjegyzi** a már kiválasztott fejléc adatokat (Vizsgálat jellege, Szakértő, Helyszín, Dátum).
+        *   Az új eszköz mentése után a rendszer **automatikusan visszavisz** a vizsgálathoz, visszatölti a fejléc adatait, sőt, **automatikusan beírja** az új eszköz gyári számát és elindítja a keresést. Így zökkenőmentesen folytathatja a munkát.
 
 2.  **Piszkozatok (Drafts):**
     *   A vizsgálatok először piszkozatként jönnek létre. Itt még módosíthatók.
