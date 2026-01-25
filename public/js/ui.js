@@ -258,6 +258,7 @@ export function showCompanyRegistrationOptions(userData) {
         buttonsHtml += `<button id="registerNewCompanyBtn" class="btn btn-primary w-full">Új céget regisztrálok, én leszek a jogosultság osztó</button>`;
     }
     buttonsHtml += `<button id="joinCompanyBtn" class="btn btn-secondary w-full">Már regisztrált cégbe lépek ETAR kóddal</button>`;
+    buttonsHtml += `<button id="cancelRegistrationBtn" class="btn btn-danger w-full mt-2">Kijelentkezés</button>`;
 
     const companyRegHtml = `
         <div class="card max-w-md mx-auto text-center">
@@ -273,15 +274,19 @@ export function showCompanyRegistrationOptions(userData) {
 
     if (!isEkvUser) {
         document.getElementById('registerNewCompanyBtn').addEventListener('click', () => {
-            showNewCompanyForm();
+            showNewCompanyForm(userData); // Pass userData for back navigation
         });
     }
     document.getElementById('joinCompanyBtn').addEventListener('click', () => {
-        showJoinCompanyForm(false);
+        showJoinCompanyForm(false, userData); // Pass userData
+    });
+
+    document.getElementById('cancelRegistrationBtn').addEventListener('click', () => {
+        auth.signOut().catch(console.error);
     });
 }
 
-export function showNewCompanyForm() {
+export function showNewCompanyForm(userData = null) {
     const newCompanyHtml = `
         <div class="card max-w-md mx-auto">
             <h1 class="text-3xl sm:text-4xl font-bold mb-6">Új cég regisztrálása</h1>
@@ -292,10 +297,24 @@ export function showNewCompanyForm() {
                 </div>
                 <p id="newCompanyError" class="text-red-400 text-sm mt-4 h-5"></p>
                 <button type="submit" class="btn btn-primary text-lg w-full mt-6">Cég regisztrálása</button>
+                <button type="button" id="cancelNewCompanyBtn" class="btn btn-secondary text-lg w-full mt-2">Mégse</button>
             </form>
         </div>
     `;
     screens.login.innerHTML = newCompanyHtml;
+
+    const cancelBtn = screens.login.querySelector('#cancelNewCompanyBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+             if (userData && Object.keys(userData.partnerRoles || {}).length > 0) {
+                  showMainScreen(auth.currentUser, userData);
+             } else {
+                  showCompanyRegistrationOptions(userData);
+             }
+        });
+    } else {
+        console.error("Cancel button not found in DOM");
+    }
 
     document.getElementById('newCompanyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -314,7 +333,7 @@ export function showNewCompanyForm() {
     });
 }
 
-export function showJoinCompanyForm(isEkvFlow = false) {
+export function showJoinCompanyForm(isEkvFlow = false, userData = null) {
     const joinHtml = `
         <div class="card max-w-md mx-auto">
             <h1 class="text-3xl sm:text-4xl font-bold mb-6">Csatlakozás céghez</h1>
@@ -325,10 +344,29 @@ export function showJoinCompanyForm(isEkvFlow = false) {
                 </div>
                 <p id="joinCompanyError" class="text-red-400 text-sm mt-4 h-5"></p>
                 <button type="submit" class="btn btn-primary text-lg w-full mt-6">Csatlakozási kérelem küldése</button>
+                <button type="button" id="cancelJoinCompanyBtn" class="btn btn-secondary text-lg w-full mt-2">Mégse</button>
             </form>
         </div>
     `;
     screens.login.innerHTML = joinHtml;
+
+    const cancelBtn = screens.login.querySelector('#cancelJoinCompanyBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+             if (userData && Object.keys(userData.partnerRoles || {}).length > 0) {
+                  showMainScreen(auth.currentUser, userData);
+             } else {
+                  // For EKV flows or fresh users
+                  if (userData && userData.isEkvUser) {
+                       showCompanyRegistrationOptions(userData);
+                  } else {
+                       showCompanyRegistrationOptions(userData);
+                  }
+             }
+        });
+    } else {
+        console.error("Cancel button not found in DOM");
+    }
 
     document.getElementById('joinCompanyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -523,12 +561,12 @@ export async function showMainScreen(user, userData) {
     if (!isEjkUser) {
         if (!userData.isEkvUser) {
             document.getElementById('registerAnotherCompanyBtn').addEventListener('click', () => {
-                showNewCompanyForm();
+                showNewCompanyForm(userData); // Pass userData
                 showScreen('login');
             });
         }
         document.getElementById('joinAnotherCompanyBtn').addEventListener('click', () => {
-            showJoinCompanyForm(false);
+            showJoinCompanyForm(false, userData); // Pass userData
             showScreen('login');
         });
     }
