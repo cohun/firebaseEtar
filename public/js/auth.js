@@ -172,8 +172,7 @@ export async function joinCompanyWithCode(etarCode) {
 
     await userRef.update({
         [`partnerRoles.${partnerId}`]: newRole,
-        isEjkUser: type === 'EJK', // This might overwrite isEkvUser logic if not careful, but EJK is special. 
-                                   // Assuming EKV users won't use the EJK code 'Q27LXR'.
+        // isEjkUser: type === 'EJK', // REMOVED: Do not set isEjkUser to true automatically. Admin must approve.
         roles: firebase.firestore.FieldValue.arrayUnion(`${type}_${newRole}`)
     });
 
