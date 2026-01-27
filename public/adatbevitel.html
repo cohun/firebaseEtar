@@ -70,11 +70,26 @@
                 <!-- Dynamic Custom IDs Container -->
                 <div id="customIdsContainer" class="contents"></div>
             </form>
+
             <div class="grid grid-cols-2 gap-3 mt-6 md:flex md:justify-start md:gap-4">
                 <button id="backButton" class="btn btn-secondary">Vissza</button>
                 <button id="loadPreviousButton" type="button" class="btn btn-secondary">Előző adatok betöltése</button>
                 <button id="excelReadButton" class="btn btn-info">excel adatolvasás</button>
+                <button id="chipScanButton" type="button" class="btn btn-secondary text-glow" style="border: 1px solid #3b82f6;">CHIP</button>
                 <button id="saveButton" class="btn btn-primary">Mentés</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NFC-Modal -->
+    <div id="nfc-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
+            <h3 id="nfc-modal-title" class="text-xl font-bold text-white mb-4">Chip Beolvasás</h3>
+            <div id="nfc-modal-body" class="text-gray-300 mb-6 space-y-4">
+                 <!-- Dynamic Content -->
+            </div>
+            <div class="flex justify-end">
+                <button id="nfc-modal-close-btn" class="btn btn-secondary">Mégse</button>
             </div>
         </div>
     </div>

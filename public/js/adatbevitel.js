@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('dataEntryForm');
     const storageKey = 'previousDeviceData';
     let currentUserData = null; // Store user data for save logic
+    let scannedChipId = null; // Store scanned chip ID
 
     // Wait for Auth to be ready
     auth.onAuthStateChanged(async (user) => {
@@ -75,6 +76,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     form.querySelector('[name="eszkoz_gyariszam"]').value = deviceData.serialNumber || '';
 
                     form.querySelector('[name="eszkoz_uzemeltetoi_azonosito"]').value = deviceData.operatorId || '';
+
+                    // Chip Data
+                    if (deviceData.chip) {
+                        scannedChipId = deviceData.chip;
+                        updateChipButtonUI(scannedChipId);
+                    }
                     
                     // Populate Custom IDs
                     // Note: populateForm function is defined below, but we can reuse the logic or call it if we move it up.
@@ -305,6 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
             serialNumber: serialNumber,
             yearOfManufacture: form.querySelector('[name="gyartas_eve"]').value ? parseInt(form.querySelector('[name="gyartas_eve"]').value) : null,
             comment: 'active',
+            chip: scannedChipId || null,
 
             status: ''
         };
@@ -468,5 +476,149 @@ document.addEventListener('DOMContentLoaded', function () {
                  window.location.href = 'app.html';
              }
         });
+    }
+
+    // --- CHIP / NFC Handler Code ---
+    
+    function updateChipButtonUI(chipId) {
+        const btn = document.getElementById('chipScanButton');
+        if (!btn) return;
+        
+        if (chipId) {
+            btn.classList.remove('text-glow', 'text-white-filled', 'text-hollow');
+            btn.classList.add('text-green-400', 'font-bold'); // Visual feedback for 'assigned'
+            btn.innerHTML = `CHIP (OK)`;
+            // Optionally show ID in title
+            btn.title = `Chip ID: ${chipId}`;
+        } else {
+            // Default state
+            btn.classList.remove('text-green-400', 'font-bold');
+            btn.classList.add('text-glow');
+            btn.innerHTML = `CHIP`;
+            btn.title = '';
+        }
+    }
+
+    const chipScanButton = document.getElementById('chipScanButton');
+    if (chipScanButton) {
+        chipScanButton.addEventListener('click', () => {
+            const confirmMsg = scannedChipId 
+                ? "Már van hozzárendelt Chip. Szeretné felülírni új beolvasással?" 
+                : "Kérjük, olvassa be a chipet.";
+            
+            if (!scannedChipId || confirm(confirmMsg)) {
+                startNFCReader();
+            }
+        });
+    }
+
+    async function startNFCReader() {
+        const modal = document.getElementById('nfc-modal');
+        const modalTitle = document.getElementById('nfc-modal-title');
+        const modalBody = document.getElementById('nfc-modal-body');
+        const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+
+        if (!modal) {
+            console.error("NFC Modal not found!");
+            alert("Hiba: A felugró ablak nem elérhető.");
+            return;
+        }
+
+        const showModal = (title, bodyHtml, buttonText = 'Mégse') => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = bodyHtml;
+            modalCloseBtn.textContent = buttonText;
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex'; // Ensure flex layout
+        };
+        const hideModal = () => {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        };
+
+        modalCloseBtn.onclick = hideModal;
+
+        // Content
+        const modalContent = `
+            <p>Kérem, érintse a chipet a készülékhez (Android) vagy az USB olvasóhoz.</p>
+            <div class="loader-small my-4" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin: 20px auto;"></div>
+            <input type="text" id="nfc-usb-input" style="opacity: 0; position: absolute; pointer-events: none;" autocomplete="off">
+            <p class="text-xs text-gray-400 mt-2">USB olvasó esetén kattintson ide, ha nem aktív a beolvasás.</p>
+            <style>
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            </style>
+        `;
+        
+        showModal('Chip Betanítás...', modalContent, 'Mégse');
+
+        const usbInput = document.getElementById('nfc-usb-input');
+        if (usbInput) {
+            usbInput.focus();
+            
+            // Keep focus
+            usbInput.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!modal.classList.contains('hidden')) usbInput.focus();
+                }, 100);
+            });
+            
+            // Listen for Enter key
+            usbInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const chipId = usbInput.value.trim();
+                    if (chipId) {
+                        console.log(`> USB Reader Input: ${chipId}`);
+                        processChipId(chipId);
+                    }
+                    usbInput.value = '';
+                }
+            });
+        }
+
+        // Web NFC
+        if ('NDEFReader' in window) {
+            try {
+                const ndef = new NDEFReader();
+                let readingHandled = false;
+
+                const onReading = ({ serialNumber }) => {
+                    if (readingHandled) return;
+                    readingHandled = true;
+                    console.log(`> Web NFC Tag read: ${serialNumber}`);
+                    processChipId(serialNumber);
+                };
+                
+                // Add abort controller to cleanup if modal closed? 
+                // Currently simplified.
+
+                ndef.addEventListener("reading", onReading);
+                await ndef.scan();
+                console.log("> Web NFC scan started");
+
+            } catch (error) {
+                console.warn(`Web NFC init failed: ${error.name}`, error);
+            }
+        }
+
+        const processChipId = (chipId) => {
+            scannedChipId = chipId;
+            updateChipButtonUI(scannedChipId);
+            
+            // Success feedback in modal
+            modalTitle.textContent = 'Sikeres Olvasás!';
+            modalBody.innerHTML = `
+                <div class="text-center">
+                    <p class="text-green-400 font-bold text-xl mb-2">Chip rögzítve</p>
+                    <p class="text-white">ID: ${chipId}</p>
+                    <p class="text-gray-400 text-sm mt-4">A mentéshez kattintson a Mentés gombra az űrlapon.</p>
+                </div>
+            `;
+            modalCloseBtn.textContent = 'Kész';
+            
+            // Auto close after short delay?
+            setTimeout(() => {
+                hideModal();
+            }, 1500);
+        };
     }
 });
