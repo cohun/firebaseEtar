@@ -31,29 +31,53 @@
 <body class="text-gray-800">
 
     <!-- Navigation -->
-    <nav class="bg-gray-800 p-3 fixed w-full top-0 z-50 shadow-lg">
+    <!-- Navigation -->
+    <nav class="bg-gray-900/95 backdrop-blur-sm p-4 fixed w-full top-0 z-50 border-b border-gray-800 transition-all duration-300">
         <div class="container mx-auto flex justify-between items-center">
-            <a class="flex items-center text-white text-xl font-bold" href="#">
-                <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10 mr-2">
-                ETAR Rendszer
+            <a class="flex items-center group" href="#">
+                <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10 mr-3 transition-transform group-hover:scale-105">
+                <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">ETAR Rendszer</span>
             </a>
-            <div class="hidden md:flex space-x-6">
-                <a class="text-blue-200 hover:text-white transition-colors" href="#knowledge-center">Szakmai Tudásközpont</a>
-                <a class="text-blue-200 hover:text-white transition-colors" href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer">H-ITB Kft. Weboldala</a>
-                <a class="text-blue-200 hover:text-white transition-colors" href="privacy.html" target="_blank">Adatvédelmi Irányelvek</a>
-                <a class="ml-4 px-4 py-2 rounded-md font-semibold text-white shadow-md bg-blue-600 hover:bg-blue-700 transition-colors" href="app.html">Bejelentkezés / Partnerportál</a>
+            
+            <!-- Desktop Menu (Visible on LG and up) -->
+            <div class="hidden lg:flex items-center space-x-1">
+                <a class="px-4 py-2 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200" href="#knowledge-center">Tudásközpont</a>
+                <a class="px-4 py-2 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200" href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer">H-ITB</a>
+                <a class="px-4 py-2 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200" href="guide.html" target="_blank">Útmutató</a>
+                <a class="px-4 py-2 rounded-full text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200" href="privacy.html" target="_blank">Adatvédelem</a>
+                
+                <div class="h-6 w-px bg-gray-700 mx-2"></div>
+
+                <a class="ml-2 px-6 py-2 rounded-full text-sm font-bold text-white shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transform hover:-translate-y-0.5 transition-all duration-200" href="app.html">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Belépés
+                </a>
             </div>
-            <!-- Mobile menu button -->
-            <button class="md:hidden text-blue-200 hover:text-white focus:outline-none" id="mobile-menu-button">
+
+            <!-- Mobile menu button (Visible up to LG) -->
+            <button class="lg:hidden text-gray-300 hover:text-white focus:outline-none p-2 rounded-md hover:bg-gray-800 transition-colors" id="mobile-menu-button">
                 <i class="fas fa-bars text-2xl"></i>
             </button>
         </div>
+
         <!-- Mobile menu -->
-        <div class="md:hidden hidden mt-4 space-y-2" id="mobile-menu">
-            <a class="block text-blue-200 hover:text-white transition-colors px-3 py-2" href="#knowledge-center">Szakmai Tudásközpont</a>
-            <a class="block text-blue-200 hover:text-white transition-colors px-3 py-2" href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer">H-ITB Kft. Weboldala</a>
-            <a class="block text-blue-200 hover:text-white transition-colors px-3 py-2" href="privacy.html" target="_blank">Adatvédelmi Irányelvek</a>
-            <a class="block w-full mt-2 px-4 py-2 rounded-md font-semibold text-white shadow-md bg-blue-600 hover:bg-blue-700 text-center" href="app.html">Bejelentkezés / Partnerportál</a>
+        <div class="lg:hidden hidden mt-4 space-y-2 bg-gray-800 p-4 rounded-xl shadow-xl border border-gray-700 absolute w-[95%] left-1/2 transform -translate-x-1/2" id="mobile-menu">
+            <a class="block px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors font-medium" href="#knowledge-center">
+                <i class="fas fa-book mr-3 text-blue-400 w-5"></i>Szakmai Tudásközpont
+            </a>
+            <a class="block px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors font-medium" href="https://www.h-itb.hu/" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-globe mr-3 text-blue-400 w-5"></i>H-ITB Kft. Weboldala
+            </a>
+            <a class="block px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors font-medium" href="guide.html" target="_blank">
+                <i class="fas fa-info-circle mr-3 text-blue-400 w-5"></i>Használati Útmutató
+            </a>
+            <a class="block px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700 hover:text-white transition-colors font-medium" href="privacy.html" target="_blank">
+                <i class="fas fa-shield-alt mr-3 text-blue-400 w-5"></i>Adatvédelmi Irányelvek
+            </a>
+            <div class="pt-2 mt-2 border-t border-gray-700">
+                <a class="block w-full px-4 py-3 rounded-lg font-bold text-white shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-center transition-all" href="app.html">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Belépés / Partnerportál
+                </a>
+            </div>
         </div>
     </nav>
 

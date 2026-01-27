@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Felhasználói Útmutató - ETAR Rendszer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="images/ETAR_H.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-5xl mx-auto bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 my-8">
+        <div class="text-center mb-8">
+            <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-16 mx-auto mb-4">
+            <h1 class="text-3xl font-bold text-white">Részletes Felhasználói Útmutató (ENY)</h1>
+            <p class="text-gray-400 mt-2">ETAR - Emelőgép Törzskönyv és Adatnyilvántartó Rendszer</p>
+        </div>
+
+        <div class="space-y-8 text-gray-300 leading-relaxed">
+            
+            <p>Ez a dokumentum az <strong>Eszköz Nyilvántartó (ENY)</strong> felhasználók számára készült, és részletesen bemutatja az ETAR rendszer használatát, a regisztrációtól a mindennapi feladatok ellátásáig.</p>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">1. Indulás: Login és Onboarding</h2>
+                <p class="mb-2">Az ETAR használata regisztrációhoz kötött, mely gyors és biztonságos folyamat.</p>
+                
+                <h3 class="text-lg font-medium text-white mt-4 mb-2">1.1 Regisztráció</h3>
+                <ol class="list-decimal list-inside ml-4 space-y-1">
+                    <li>A nyitóoldalon kattintson a <strong>"Partnerportál"</strong> gombra.</li>
+                    <li>A megjelenő képernyőn válassza a <strong>"Regisztráció"</strong> lehetőséget.</li>
+                    <li>Adja meg nevét, e-mail címét és válasszon egy biztonságos jelszót.</li>
+                </ol>
+
+                <h3 class="text-lg font-medium text-white mt-4 mb-2">1.2 Csatlakozás vagy Új Cég</h3>
+                <p class="mb-2">A belépést követően két lehetőség közül választhat attól függően, hogy Ön az első felhasználó a cégnél, vagy egy meglévő csapathoz csatlakozik.</p>
+                
+                <div class="ml-4 border-l-2 border-gray-600 pl-4 mt-3">
+                    <strong class="text-white">A) Új cég regisztrációja</strong>
+                    <p class="text-sm text-gray-400 mb-2">Válassza ezt, ha Ön az első a cégnél.</p>
+                    <ol class="list-decimal list-inside space-y-1">
+                        <li>Adja meg a cég nevét és címét.</li>
+                        <li>A rendszer generál egy egyedi <strong>ETAR Kódot</strong> (pl. X7Y2Z9).</li>
+                        <li><strong>Fontos:</strong> Ezt a kódot adja meg kollégáinak, hogy ők is csatlakozhassanak a céghez.</li>
+                        <li>Ön automatikusan Admin jogosultságot kap (a jóváhagyást követően).</li>
+                    </ol>
+                </div>
+
+                <div class="ml-4 border-l-2 border-gray-600 pl-4 mt-4">
+                    <strong class="text-white">B) Csatlakozás meglévő céghez</strong>
+                    <p class="text-sm text-gray-400 mb-2">Válassza ezt, ha már rendelkezik ETAR kóddal.</p>
+                    <ol class="list-decimal list-inside space-y-1">
+                        <li>Válassza a <strong>"Csatlakozás céghez"</strong> opciót.</li>
+                        <li>Írja be a kollégájától kapott <strong>ETAR Kódot</strong>.</li>
+                        <li>A csatlakozási kérelem elküldésre kerül a cég adminisztrátorának.</li>
+                    </ol>
+                    <div class="bg-gray-700/50 p-2 rounded mt-2 text-sm">
+                        <i class="fas fa-info-circle text-blue-400 mr-2"></i><strong>Megjegyzés:</strong> Amíg az Admin nem hagyja jóvá a kérelmet, az Ön státusza "Függőben lévő" lesz.
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">2. Jogosultságok és Szerepkörök</h2>
+                <p class="mb-4">Az adatbiztonság érdekében az ETAR szigorú jogosultsági rendszert használ.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-400">
+                        <thead class="bg-gray-700 text-gray-200 uppercase">
+                            <tr>
+                                <th class="px-4 py-2 w-1/4">Szerepkör</th>
+                                <th class="px-4 py-2">Leírás</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <tr>
+                                <td class="px-4 py-3"><strong class="text-white">Admin</strong></td>
+                                <td class="px-4 py-3">Jogosultság osztó, minden funkcióhoz és adathoz teljes hozzáférése van.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3"><strong class="text-white">Write</strong></td>
+                                <td class="px-4 py-3">Írási jogosultság. Adatot vihet be, módosíthat és törölhet, de felhasználókat nem kezelhet.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3"><strong class="text-white">Read</strong></td>
+                                <td class="px-4 py-3">Olvasási jogosultság. Az adatokat láthatja, kereshet és listázhat, de nem módosíthat.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">3. Funkciók és Képernyők Bemutatása</h2>
+                <p>Az ETAR felülete letisztult, modern és intuitív. A belépés után a <strong>Főképernyőn</strong> (Dashboard) látja azokat a cégeket, amelyekhez hozzáférése van. A munkaterületre a kiválasztott partnerre kattintva léphet be.</p>
+                
+                <h3 class="text-lg font-bold text-white mt-6 mb-4">Részletes Funkcióleírás (ENY Felhasználóknak)</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">1. Adatbázis letöltés</h4>
+                        <p>Egy kattintással exportálhatja az összes eszközének adatát és a legutolsó vizsgálati eredményeket egy Excel fájlba.</p>
+                        <ul class="text-sm mt-2 text-gray-400">
+                            <li><strong>Mire jó?</strong> Saját mentés, offline munka, elemzések.</li>
+                            <li><i class="fas fa-lock mr-1"></i> Mindenki</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">2. Új eszköz feltöltés</h4>
+                        <p>Új emelőgép vagy eszköz rögzítése a rendszerben űrlap segítségével.</p>
+                        <ul class="text-sm mt-2 text-gray-400">
+                            <li><strong>Tipp:</strong> Itt rendelhet hozzá NFC Chipet is az eszközhöz.</li>
+                            <li><i class="fas fa-lock mr-1"></i> Csak Write és Admin</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">3. Törlés</h4>
+                        <p>Eszköz végleges eltávolítása.</p>
+                        <ul class="text-sm mt-2 text-gray-400">
+                            <li class="text-yellow-500"><i class="fas fa-exclamation-triangle mr-1"></i> Csak ha nincs véglegesített jegyzőkönyv!</li>
+                            <li><i class="fas fa-lock mr-1"></i> Csak Write és Admin</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">4. Leselejtezés</h4>
+                        <p>Az eszköz "Inaktív" státuszba helyezése (pl. tönkrement).</p>
+                        <ul class="text-sm mt-2 text-gray-400">
+                            <li><strong>Mire jó?</strong> Megőrzi az előzményeket, de elrejti a listából.</li>
+                            <li><i class="fas fa-lock mr-1"></i> Csak Write és Admin</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg md:col-span-2">
+                        <h4 class="font-bold text-blue-300 mb-2">5. Jegyzőkönyvek</h4>
+                        <p>A kiválasztott eszközök véglegesített jegyzőkönyveinek tömeges megtekintése.</p>
+                        <ul class="text-sm mt-2 text-gray-400">
+                            <li><strong>Hogyan működik?</strong> Jelölje ki a tételeket a listában, majd kattintson a gombra.</li>
+                            <li><strong>Gyors elérés:</strong> A QR-kód ikonra kattintva azonnal megnyílik az utolsó érvényes <strong>vizsgálati jegyzőkönyv</strong>.</li>
+                            <li><i class="fas fa-lock mr-1"></i> Mindenki</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">6. Keresés gyári számra</h4>
+                        <p>Gyorskereső mező a lista tetején. Töredékre is keres.</p>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">7. Vizsgálat dátuma (Szűrő)</h4>
+                        <p>Szűrés az utolsó vizsgálat időpontja szerint (ÉÉÉÉ.HH.NN).</p>
+                    </div>
+                    
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">8. Következő vizsga (Szűrő)</h4>
+                        <p>Listázhatja azokat az eszközöket, amelyek vizsgálata hamarosan lejár (pl. 2025.11).</p>
+                    </div>
+
+                     <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">9. Szűrők törlése</h4>
+                        <p>Minden beállított keresési feltétel alaphelyzetbe állítása.</p>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">10. Inaktívak (Kapcsoló)</h4>
+                        <p>Leselejtezett vagy törölt eszközök megjelenítése a listában.</p>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">11. Lista frissítése</h4>
+                        <p>Adatok újratöltése az adatbázisból.</p>
+                    </div>
+                    
+                     <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-300 mb-2">12. Digitális beolvasás</h4>
+                        <p>QR Kód (kamera) vagy NFC Chip (érintés) alapú gyors azonosítás.</p>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg md:col-span-2">
+                        <h4 class="font-bold text-blue-300 mb-2">13. Oszlop alapú szűrés</h4>
+                        <p>Az eszközök lista táblázat fejlécén a <strong>Megnevezés</strong> és a <strong>Következő vizsgálat</strong> oszlopoknál legördülő menüből szűrhet.</p>
+                    </div>
+
+                     <div class="bg-gray-700/30 p-4 rounded-lg md:col-span-2 border border-blue-500/30">
+                        <h4 class="font-bold text-blue-300 mb-2 uppercase">14. Új Használatba Vétel</h4>
+                        <p>Ha új eszközt vásárolt gyári papírokkal, nem kell vizsgálatot hívnia.</p>
+                        <ol class="list-decimal list-inside mt-2 space-y-1 text-sm text-gray-400">
+                             <li>Nyissa meg az <strong>"Új használatba vétel"</strong> űrlapot.</li>
+                             <li>Ellenőrizze a dokumentumokat (CE, Műbizonylat).</li>
+                             <li>Válassza ki a Dátumot és a Periódust (auto-számolás).</li>
+                             <li>Hozza létre a dokumentumot.</li>
+                        </ol>
+                        <p class="mt-2 text-sm text-green-400">Eredmény: "Üzembe helyezve" státusz, kék dátum, kész adatlap.</p>
+                    </div>
+
+                </div>
+            </section>
+
+             <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">5. Határidők Figyelése</h2>
+                 <ul class="list-none space-y-2 ml-4">
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-red-600 mr-3"></span><div><strong class="text-red-400">Piros:</strong> LEJÁRT! Azonnal vonja ki a forgalomból.</div></li>
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-orange-500 mr-3"></span><div><strong class="text-orange-400">Narancs:</strong> 45 napon belül lejár. Rendeljen vizsgálatot.</div></li>
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-green-500 mr-3"></span><div><strong class="text-green-400">Zöld:</strong> Érvényes.</div></li>
+                    <li class="flex items-center"><span class="w-4 h-4 rounded-full bg-blue-400 mr-3"></span><div><strong class="text-blue-300">Világoskék:</strong> Üzembe helyezve (friss).</div></li>
+                </ul>
+            </section>
+
+             <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">6. Hibaelhárítás</h2>
+                 <ul class="list-disc list-inside ml-4 space-y-1 text-gray-400">
+                    <li><strong>Nem látom az eszközt:</strong> Ellenőrizze a szűrőket (állítsa "Összes"-re).</li>
+                    <li><strong>Nem tudok szerkeszteni:</strong> Ellenőrizze a jogosultságát (Read joggal nem lehet).</li>
+                    <li><strong>Helytelen dátum:</strong> Frissítse az oldalt a "Lista frissítése" gombbal.</li>
+                </ul>
+            </section>
+
+            <div class="mt-8 pt-6 border-t border-gray-700 text-center">
+                <a href="index.html" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                    Vissza a főoldalra
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
