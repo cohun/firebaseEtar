@@ -247,7 +247,8 @@ function parseDateSafe(dateStr) {
  * Initializes the device list logic (state, event listeners, initial fetch).
  * @param {string} partnerId The ID of the partner whose devices to display.
  */
-export function initPartnerWorkScreen(partnerId, userData) {
+export function initPartnerWorkScreen(partner, userData) {
+    const partnerId = partner.id;
     console.log("initPartnerWorkScreen called", { partnerId, userData });
     
     // --- RESTORE INSPECTION STATE LOGIC ---
@@ -296,12 +297,20 @@ export function initPartnerWorkScreen(partnerId, userData) {
     const backToDeviceListBtn = document.getElementById('backToDeviceListBtn');
     const partnerWorkScreenHeader = document.getElementById('partner-work-screen-header');
 
+    const newUsageScreen = document.getElementById('newUsageScreen');
+    const showNewUsageBtn = document.getElementById('showNewUsageBtn');
+    const showNewUsageBtnMobile = document.getElementById('showNewUsageBtnMobile');
+    const cancelUsageBtn = document.getElementById('cancelUsageBtn');
+    const createUsageDocsBtn = document.getElementById('createUsageDocsBtn');
+
     function showScreen(screenToShow) {
         deviceListScreen.classList.remove('active');
         newInspectionScreen.classList.remove('active');
+        if (newUsageScreen) newUsageScreen.classList.remove('active');
+
         screenToShow.classList.add('active');
 
-        if (screenToShow === newInspectionScreen) {
+        if (screenToShow === newInspectionScreen || screenToShow === newUsageScreen) {
             partnerWorkScreenHeader.classList.add('hidden');
             finalizedDocsScreen.classList.add('hidden');
         } else {
@@ -316,7 +325,204 @@ export function initPartnerWorkScreen(partnerId, userData) {
     if (showNewInspectionBtnMobile) {
         showNewInspectionBtnMobile.addEventListener('click', () => showScreen(newInspectionScreen));
     }
+    
+    // New Usage Listeners
+    if (showNewUsageBtn) {
+        showNewUsageBtn.addEventListener('click', handleNewUsageClick);
+    }
+    if (showNewUsageBtnMobile) {
+        showNewUsageBtnMobile.addEventListener('click', handleNewUsageClick);
+    }
+    if (cancelUsageBtn) {
+        cancelUsageBtn.addEventListener('click', () => showScreen(deviceListScreen));
+    }
+    if (createUsageDocsBtn) {
+        createUsageDocsBtn.addEventListener('click', handleCreateUsageDocuments);
+    }
+
     backToDeviceListBtn.addEventListener('click', () => showScreen(deviceListScreen));
+
+    function handleNewUsageClick() {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy eszközt!');
+            return;
+        }
+
+        const selectedSystemIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        const selectedDevs = currentDevices.filter(d => selectedSystemIds.includes(d.id));
+
+        // Validation: Cannot have ANY next inspection date (must be N/A)
+        const invalidDevices = selectedDevs.filter(d => d.kov_vizsg && d.kov_vizsg.trim() !== '');
+
+        if (invalidDevices.length > 0) {
+            const names = invalidDevices.map(d => d.serialNumber).join(', ');
+            alert(`A használatba vétel csak új (vizsgálat nélküli) eszközökre indítható!\n\nA következő eszközök már rendelkeznek lejárati dátummal:\n${names}`);
+            return;
+        }
+        
+        // Populate table in New Usage Screen
+        const tbody = document.getElementById('selectedUsageDevicesBody');
+        if (tbody) {
+            tbody.innerHTML = selectedDevs.map(d => `
+                <tr>
+                    <td class="px-4 py-2 text-sm text-white">${d.serialNumber || '-'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-300">${d.description || '-'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-300">${d.type || '-'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-300">${d.effectiveLength || '-'}</td>
+                    <td class="px-4 py-2 text-sm text-gray-300">${d.loadCapacity || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        showScreen(newUsageScreen);
+    }
+
+    // --- Usage Start Period Selection Logic ---
+    const periodBtns = document.querySelectorAll('.period-select-btn');
+    periodBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const months = parseInt(e.target.dataset.months);
+            const usageDateInput = document.getElementById('usageDateInput');
+            const nextDateInput = document.getElementById('nextInspectionDateInput');
+
+            if (!usageDateInput.value) {
+                alert('Kérjük, először adja meg a Használatba vétel dátumát!');
+                return;
+            }
+
+            const baseDate = new Date(usageDateInput.value);
+            // Add months
+            baseDate.setMonth(baseDate.getMonth() + months);
+            
+            // Format to YYYY-MM-DD
+            const nextDate = baseDate.toISOString().slice(0, 10);
+            nextDateInput.value = nextDate;
+        });
+    });
+
+    async function handleCreateUsageDocuments() {
+        const usageDate = document.getElementById('usageDateInput').value;
+        const nextDate = document.getElementById('nextInspectionDateInput').value;
+        const approverName = document.getElementById('approverNameInput').value;
+        const approverPosition = document.getElementById('approverPositionInput').value;
+        
+        const ceRadio = document.querySelector('input[name="ce_radio"]:checked');
+        const certRadio = document.querySelector('input[name="mubizonylat_radio"]:checked');
+        const manualRadio = document.querySelector('input[name="kezelesi_radio"]:checked');
+
+        // Validation
+        if (!usageDate || !nextDate || !approverName || !approverPosition) {
+            alert('Kérjük, töltsön ki minden kötelező mezőt (Dátumok, Engedélyező, Beosztás)!');
+            return;
+        }
+
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        const selectedSystemIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        const selectedDevs = currentDevices.filter(d => selectedSystemIds.includes(d.id));
+
+        if (selectedDevs.length === 0) return;
+
+        if (!confirm(`${selectedDevs.length} db eszköz használatba vétele és dokumentumok generálása. Biztosan folytatja?`)) {
+            return;
+        }
+        
+        const originalBtnText = createUsageDocsBtn.innerHTML;
+        createUsageDocsBtn.disabled = true;
+        createUsageDocsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Feldolgozás...';
+
+        try {
+            // Fetch template
+            const templateResponse = await fetch('op-start.html');
+            if (!templateResponse.ok) throw new Error("Sablon betöltése sikertelen");
+            let templateText = await templateResponse.text();
+
+            for (const device of selectedDevs) {
+                // 1. Prepare Content
+                let content = templateText;
+                
+                // Header Data
+                content = content.replace(/{partner_nev}/g, partner.name || '-');
+                content = content.replace(/{partner_cim}/g, partner.address || '-');
+                
+                // Device Data
+                content = content.replace(/{eszkoz_megnevezes}/g, device.description || '-');
+                content = content.replace(/{eszkoz_tipus}/g, device.type || '-');
+                content = content.replace(/{eszkoz_hossz}/g, device.effectiveLength || '-');
+                content = content.replace(/{eszkoz_gyarto}/g, device.manufacturer || '-');
+                content = content.replace(/{eszkoz_gyari_szam}/g, device.serialNumber || '-');
+                
+                // Operator ID Logic (Respects current category)
+                const operatorIdVal = currentOperatorCategory === 'Default' 
+                        ? (device.operatorId || '- (Nincs azonosító)') 
+                        : (device.customIds?.[currentOperatorCategory] || '- (Nincs azonosító)');
+                content = content.replace(/{eszkoz_azonosito}/g, operatorIdVal);
+                
+                // Teherbírás logic (might store as loadCapacity or wll)
+                // Checking currentDevices structure or just try both
+                const teherbiras = device.loadCapacity || device.wll || '-';
+                content = content.replace(/{eszkoz_teherbiras}/g, teherbiras);
+
+                // Checkbox Data
+                content = content.replace(/{ce_megvan}/g, ceRadio ? (ceRadio.value === 'Megvan' ? 'igen' : 'nem') : '-');
+                content = content.replace(/{mubizonylat_megvan}/g, certRadio ? (certRadio.value === 'Megvan' ? 'igen' : 'nem') : '-');
+                content = content.replace(/{kezelesi_megvan}/g, manualRadio ? (manualRadio.value === 'Megvan' ? 'igen' : 'nem') : '-');
+
+                // Usage Data
+                content = content.replace(/{hasznalatbavetel_datum}/g, usageDate.replace(/-/g, '.'));
+                content = content.replace(/{kovetkezo_vizsgalat_datum}/g, nextDate.replace(/-/g, '.'));
+                content = content.replace(/{jovahagyo_szemely}/g, `${approverName} / ${approverPosition}`);
+                // content = content.replace(/{beosztas}/g, approverPosition); // Template doesn't have {beosztas}
+                
+                // Meta
+                const now = new Date();
+                const timestamp = now.toISOString().replace('T', ' ').slice(0, 19);
+                const docId = `USE-${device.serialNumber}-${now.getTime()}`;
+                
+                content = content.replace(/{generalas_idobelyeg}/g, timestamp);
+                content = content.replace(/{dokumentum_id}/g, docId);
+
+                // 2. Upload to Storage
+                const blob = new Blob([content], { type: 'text/html' });
+                const storagePath = `partners/${partnerId}/usage_docs/${docId}.html`;
+                const storageRef = storage.ref(storagePath);
+                await storageRef.put(blob);
+                const downloadUrl = await storageRef.getDownloadURL();
+
+                // 3. Update Device Data
+                // vizsg_idopont = usageDate, kov_vizsg_datum = nextDate
+                await db.collection('partners').doc(partnerId).collection('devices').doc(device.id).update({
+                    vizsg_idopont: usageDate.replace(/-/g, '.'),
+                    kov_vizsg_datum: nextDate.replace(/-/g, '.'),
+                    inspectionType: 'usage_start', // Special Flag
+                    lastModificationDate: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 4. Create Report Record (so it appears in "Véglegesített Jegyzőkönyvek")
+                await db.collection('partners').doc(partnerId).collection('reports').add({
+                    date: usageDate.replace(/-/g, '.'),
+                    deviceSerialNumber: device.serialNumber,
+                    deviceName: device.description,
+                    expertName: approverName, // Using approver as expert
+                    storagePath: storagePath,
+                    downloadUrl: downloadUrl,
+                    type: 'usage_start',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
+            alert('Sikeres használatba vétel és dokumentum generálás!');
+            showScreen(deviceListScreen);
+            fetchDevices(); // Refresh list to show new dates
+
+        } catch (error) {
+            console.error("Hiba a használatba vétel során:", error);
+            alert("Hiba történt a folyamat során: " + error.message);
+        } finally {
+            createUsageDocsBtn.disabled = false;
+            createUsageDocsBtn.innerHTML = 'Dokumentumok létrehozása';
+        }
+    }
 
 
     // --- EXPERT LOADING LOGIC ---
@@ -1155,13 +1361,49 @@ export function initPartnerWorkScreen(partnerId, userData) {
                      return { empty: true };
                 });
 
+                // Default device values (from checking db update of usage_start)
+                // If usage_start happened, device.vizsg_idopont and device.kov_vizsg_datum might have been updated on the device doc itself.
+                // But let's check prioritization.
+
+                let hasLatestInspection = false;
+                let latestInspectionData = null;
+
                 if (!latestInspectionSnapshot.empty) {
-                    const latestInspection = latestInspectionSnapshot.docs[0].data();
-                    device.vizsg_idopont = latestInspection.vizsgalatIdopontja;
-                    device.status = latestInspection.vizsgalatEredmenye;
-                    device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                    latestInspectionData = latestInspectionSnapshot.docs[0].data();
+                    hasLatestInspection = true;
+                }
+
+                // Check if 'usage_start' is strictly newer than the latest inspection or if there is no inspection
+                // Usage Start updates the DEVICE document fields: 'vizsg_idopont', 'kov_vizsg_datum', 'inspectionType'
+                // Real inspections create a document in 'inspections' subcollection.
+                
+                // Helper to parse date string YYYY.MM.DD to timestamp for comparison
+                const parseTime = (dStr) => {
+                    const d = parseDateSafe(dStr);
+                    return d ? d.getTime() : 0;
+                };
+
+                const usageStartTime = (device.inspectionType === 'usage_start' && device.vizsg_idopont) ? parseTime(device.vizsg_idopont) : 0;
+                const inspectionTime = (hasLatestInspection && latestInspectionData.vizsgalatIdopontja) ? parseTime(latestInspectionData.vizsgalatIdopontja) : 0;
+
+                // LOGIC: If Usage Start exists AND is strictly newer than latest inspection, use Usage Start data
+                // If dates are equal, we verify if it is really just usage start. 
+                // But generally, if an inspection exists on the same day, we prefer the inspection status (e.g. Megfelelt).
+                if (device.inspectionType === 'usage_start' && usageStartTime > inspectionTime) {
+                    // Show Usage Start Data
+                    device.vizsg_idopont = device.vizsg_idopont; // Already on device
+                    device.status = "Üzembe helyezve";
+                    device.kov_vizsg = device.kov_vizsg_datum; // Explicitly map from kov_vizsg_datum
+                } else if (hasLatestInspection) {
+                    // Show Inspection Data
+                    device.vizsg_idopont = latestInspectionData.vizsgalatIdopontja;
+                    device.status = latestInspectionData.vizsgalatEredmenye;
+                    device.kov_vizsg = latestInspectionData.kovetkezoIdoszakosVizsgalat;
                     // Restore ajanlatKeres mapping
-                    device.ajanlatKeres = latestInspection.ajanlatKeres || false;
+                    device.ajanlatKeres = latestInspectionData.ajanlatKeres || false;
+                } else {
+                    // No usage start active (or overridden/cleared) AND no inspection
+                    // device properties might be empty or defaults
                 }
 
                 // Finalized inspection URL
@@ -1183,7 +1425,16 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
                 if (!finalizedInspectionSnapshot.empty) {
                     device.finalizedFileUrl = finalizedInspectionSnapshot.docs[0].data().fileUrl;
-                }
+                } 
+                // Fallback: Check if device has a usage_start report in 'reports' collection? 
+                // The prompt says "Jegyzkönyvek (Reports) button correctly displays documents... even if they haven't had a finalized inspection".
+                // But specifically for the *list*, we might want to link the usage start doc?
+                // The current code links `dev.finalizedFileUrl` to the QR icon.
+                // If usage_start, maybe we should check for a report in 'reports' collection?
+                // The 'handleCreateUsageDocuments' created a report in 'reports' collection.
+                // We could query that here if needed, but for now let's stick to the visual column requirements.
+                // The user asked about "Megállapítások" and "Köv. Vizsg.".
+
                 return device;
             });
 
@@ -1244,7 +1495,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
                     today.setHours(0, 0, 0, 0);
 
                     const isValid = (d) => {
-                         const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt' || d.status === 'Megfelelt / Suitable';
+                         const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt' || d.status === 'Megfelelt / Suitable' || d.status === 'Üzembe helyezve';
                          let futureDate = false;
                          if (d.kov_vizsg) {
                              const kovVizsgDate = parseDateSafe(d.kov_vizsg);
@@ -1367,7 +1618,7 @@ export function initPartnerWorkScreen(partnerId, userData) {
         if (!status) {
             return 'text-gray-300';
         }
-        if (status === 'Megfelelt' || status === 'Zugelassen/Megfelelt' || status === 'Megfelelt / Suitable') {
+        if (status === 'Megfelelt' || status === 'Zugelassen/Megfelelt' || status === 'Megfelelt / Suitable' || status === 'Üzembe helyezve') {
             return 'text-green-400 font-semibold';
         } else if (status === 'Nem felelt meg' || status === 'Nicht zugelassen/Nem felelt meg' || status === 'Nem felelt meg / Not suitable') {
             return 'text-red-400 font-bold';
@@ -1390,8 +1641,8 @@ export function initPartnerWorkScreen(partnerId, userData) {
         let text = "Érvénytelen";
         let colorClass = "text-red-400";
 
-        // "Megfelelt" vagy "Zugelassen/Megfelelt" ellenőrzése
-        const isMegfelelt = status === 'Megfelelt' || status === 'Zugelassen/Megfelelt' || status === 'Megfelelt / Suitable';
+        // "Megfelelt" vagy "Zugelassen/Megfelelt" vagy "Üzembe helyezve" ellenőrzése
+        const isMegfelelt = status === 'Megfelelt' || status === 'Zugelassen/Megfelelt' || status === 'Megfelelt / Suitable' || status === 'Üzembe helyezve';
         
         if (isMegfelelt) {
             if (kovVizsgDate) {
@@ -1576,10 +1827,14 @@ export function initPartnerWorkScreen(partnerId, userData) {
             const checkboxDisabled = isEkvUser ? 'disabled' : '';
             const checkboxOpacity = isEkvUser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
 
+            // Conditional styling for Vizsg. Időp.
+            const isUsageStart = dev.status === 'Üzembe helyezve';
+            const vizsgIdopontClass = isUsageStart ? 'text-blue-300 font-medium' : 'text-gray-300';
+
             return `
             <tr class="${rowClass}">
-                <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}"></td>
-                <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${dev.vizsg_idopont || 'N/A'}</td>
+                <td class="relative px-6 py-4"><input type="checkbox" class="row-checkbox absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-id="${dev.id}" data-serial="${dev.serialNumber || ''}"></td>
+                <td class="whitespace-nowrap py-4 px-3 text-sm ${vizsgIdopontClass} text-center align-middle">${dev.vizsg_idopont || 'N/A'}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-white'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-white'); this.classList.remove('text-blue-300');">${dev.description || ''}</td>
                 <td onclick="window.editDevice('${dev.id}')" class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle cursor-pointer editable-cell" title="Eszköz adatok módosítása" onmouseover="this.classList.remove('text-gray-300'); this.classList.add('text-blue-300');" onmouseout="this.classList.add('text-gray-300'); this.classList.remove('text-blue-300');">${dev.type || ''}</td>
                 <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle" onmouseenter="window.showSimpleTooltip(event, 'Teherbírás: ' + (('${dev.loadCapacity || ''}') || '-'))" onmouseleave="window.hideCustomTooltip()">${dev.effectiveLength || ''}</td>
@@ -2383,38 +2638,88 @@ export function initPartnerWorkScreen(partnerId, userData) {
 
         try {
 
-            let query = db.collectionGroup('inspections')
+            // 1. Existing Inspections Query
+            let inspectionsQuery = db.collectionGroup('inspections')
                 .where('partnerId', '==', partnerId)
                 .where('status', '==', 'finalized');
             
             // EKV users only see inspections they finalized
             if (isEkvUser) {
-                // IMPORTANT: This requires composite index: partnerId + status + finalizedByUid + finalizedAt
-                // If fetching fails due to missing index, we catch it.
-                query = query.where('finalizedByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                // IMPORTANT: This requires composite index: partnerId + status + finalizedByUid
+                inspectionsQuery = inspectionsQuery.where('finalizedByUid', '==', userData.uid || firebase.auth().currentUser.uid);
             }
 
-            const snapshot = await query.orderBy('finalizedAt', 'desc').get();
+            // 2. New Usage Reports Query (Only fetch if not EKV user, or if EKV users are allowed to see these? Assuming yes for now, or maybe only if they created them?)
+            // For now, let's assume usage reports are visible to all focused on the partner (except maybe restricted by roles, but the UI hides the section if not accessible? No, UI shows it).
+            // Let's implicitely assume EKV users assume the same restriction if consistent, but 'reports' collection doesn't have finalizedByUid yet. 
+            // However, "Usage Start" is done by Admin/Write users (ENY), not EKV usually.
+            // So we just fetch them.
+            let reportsQuery = db.collection('partners').doc(partnerId).collection('reports')
+                 .orderBy('createdAt', 'desc');
 
-            if (snapshot.empty) {
+            // Run in parallel
+            const [inspectionsSn, reportsSn] = await Promise.all([
+                inspectionsQuery.get(),
+                reportsQuery.get()
+            ]);
+
+            let mergedItems = [];
+
+            // Process Inspections
+            inspectionsSn.forEach(doc => {
+                const data = doc.data();
+                mergedItems.push({
+                    date: data.vizsgalatIdopontja || 'N/A',
+                    serialNumber: data.deviceDetails?.serialNumber || 'N/A',
+                    description: data.deviceDetails?.description || 'N/A',
+                    expert: data.szakerto || 'N/A',
+                    url: data.fileUrl,
+                    timestamp: data.finalizedAt ? data.finalizedAt.toMillis() : 0,
+                    type: 'inspection'
+                });
+            });
+
+            // Process Reports (Usage Start)
+            reportsSn.forEach(doc => {
+                const data = doc.data();
+                mergedItems.push({
+                    date: data.date || 'N/A',
+                    serialNumber: data.deviceSerialNumber || 'N/A',
+                    description: data.deviceName || 'N/A',
+                    expert: data.expertName || 'N/A',
+                    url: data.downloadUrl,
+                    timestamp: data.createdAt ? data.createdAt.toMillis() : 0,
+                    type: 'usage_start'
+                });
+            });
+
+            // Sort by timestamp desc
+            mergedItems.sort((a, b) => b.timestamp - a.timestamp);
+
+            if (mergedItems.length === 0) {
                 finalizedBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">Nincsenek véglegesített jegyzőkönyvek.</td></tr>`;
                 return;
             }
 
-            const docsHtml = snapshot.docs.map(doc => {
-                const data = doc.data();
-                // A draft-ból átemelt adatok, a biztonság kedvéért fallbackekkel
-                const serialNumber = data.deviceDetails?.serialNumber || 'N/A';
-                const description = data.deviceDetails?.description || 'N/A';
+            const docsHtml = mergedItems.map(item => {
+                let rowClass = "hover:bg-gray-700/50";
+                let typeLabel = "";
+                if (item.type === 'usage_start') {
+                    rowClass = "hover:bg-blue-900/30 bg-blue-900/10"; // Highlight usage start
+                    typeLabel = `<span class="text-xs text-blue-400 block">(Használatbavétel)</span>`;
+                }
 
                 return `
-                    <tr class="hover:bg-gray-700/50">
-                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${data.vizsgalatIdopontja || 'N/A'}</td>
-                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${serialNumber}</td>
-                        <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle">${description}</td>
-                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${data.szakerto || 'N/A'}</td>
+                    <tr class="${rowClass}">
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">
+                            ${item.date}
+                            ${typeLabel}
+                        </td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${item.serialNumber}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm font-medium text-white text-center align-middle">${item.description}</td>
+                        <td class="whitespace-nowrap py-4 px-3 text-sm text-gray-300 text-center align-middle">${item.expert}</td>
                         <td class="whitespace-nowrap py-4 px-3 text-sm text-center">
-                            <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm ${!data.fileUrl ? 'disabled' : ''}">
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm ${!item.url ? 'disabled' : ''}">
                                 Megtekintés
                             </a>
                         </td>
@@ -2715,7 +3020,10 @@ export function initPartnerWorkScreen(partnerId, userData) {
         `);
         newTab.document.close();
 
-        const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+        const selectedDevices = Array.from(selectedCheckboxes).map(cb => ({
+            id: cb.dataset.id,
+            serialNumber: cb.dataset.serial || '' // Get serial from data attribute
+        }));
         
         const originalButtonText = generateProtocolBtn.textContent;
         generateProtocolBtn.innerHTML = '<span>Keresés...</span><div class="loader-small"></div>';
@@ -2725,9 +3033,12 @@ export function initPartnerWorkScreen(partnerId, userData) {
         try {
             // 2. Get protocol URLs
             const protocolUrls = [];
-            const urlPromises = deviceIds.map(async (deviceId) => {
+            const urlPromises = selectedDevices.map(async (device) => {
+                let foundUrl = null;
+
+                // A. Try to find Finalized Inspection
                 const snapshot = await db.collection('partners').doc(partnerId)
-                    .collection('devices').doc(deviceId)
+                    .collection('devices').doc(device.id)
                     .collection('inspections')
                     .where('status', '==', 'finalized')
                     .orderBy('finalizedAt', 'desc')
@@ -2737,8 +3048,33 @@ export function initPartnerWorkScreen(partnerId, userData) {
                 if (!snapshot.empty) {
                     const data = snapshot.docs[0].data();
                     if (data.fileUrl) {
-                        protocolUrls.push(data.fileUrl);
+                        foundUrl = data.fileUrl;
                     }
+                }
+
+                // B. If no inspection, try to find Usage Start Document
+                if (!foundUrl && device.serialNumber) {
+                     // Note: Requires Composite Index (partnerId + type + deviceSerialNumber + createdAt)
+                     // or simpler query if possible. 
+                     // Let's use the 'reports' collection query.
+                     const reportSnapshot = await db.collection('partners').doc(partnerId)
+                        .collection('reports')
+                        .where('deviceSerialNumber', '==', device.serialNumber)
+                        .where('type', '==', 'usage_start')
+                        .orderBy('createdAt', 'desc')
+                        .limit(1)
+                        .get();
+                    
+                    if (!reportSnapshot.empty) {
+                        const data = reportSnapshot.docs[0].data();
+                        if (data.downloadUrl) {
+                            foundUrl = data.downloadUrl;
+                        }
+                    }
+                }
+
+                if (foundUrl) {
+                    protocolUrls.push(foundUrl);
                 }
             });
             await Promise.all(urlPromises);
@@ -3740,6 +4076,118 @@ function getNewInspectionScreenHtml(userData) {
     `;
 }
 
+function getNewUsageScreenHtml() {
+    const today = new Date().toISOString().slice(0, 10);
+    return `
+        <div class="card max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold text-center mb-6">Új használatba vétel</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Fejléc adatok -->
+                <div class="space-y-4">
+                    <h3 class="font-semibold text-lg border-b border-gray-600 pb-2">Dokumentum adatok (Fejléc)</h3>
+                    
+                    <div>
+                        <p class="mb-2 text-sm text-gray-300">EK-megfelelőségi nyilatkozat (CE):</p>
+                        <div class="flex items-center space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="ce_radio" value="Megvan" class="form-radio text-blue-600" checked>
+                                <span class="ml-2">Megvan</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="ce_radio" value="Nincs" class="form-radio text-red-600">
+                                <span class="ml-2">Nincs</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="mb-2 text-sm text-gray-300">Gyártóművi műbizonylat:</p>
+                        <div class="flex items-center space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="mubizonylat_radio" value="Megvan" class="form-radio text-blue-600" checked>
+                                <span class="ml-2">Megvan</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="mubizonylat_radio" value="Nincs" class="form-radio text-red-600">
+                                <span class="ml-2">Nincs</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="mb-2 text-sm text-gray-300">Magyar nyelvű kezelési utasítás:</p>
+                        <div class="flex items-center space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="kezelesi_radio" value="Megvan" class="form-radio text-blue-600" checked>
+                                <span class="ml-2">Megvan</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="kezelesi_radio" value="Nincs" class="form-radio text-red-600">
+                                <span class="ml-2">Nincs</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="font-semibold text-lg border-b border-gray-600 pb-2">Dátumok és Jóváhagyás</h3>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Használatba vétel dátuma:</label>
+                        <input type="date" id="usageDateInput" class="input-field" value="${today}">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Következő esedékes vizsgálat:</label>
+                        <input type="date" id="nextInspectionDateInput" class="input-field">
+                        <div class="mt-2 flex flex-wrap gap-2">
+                             <button type="button" class="period-select-btn px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors" data-months="3">3 hó</button>
+                             <button type="button" class="period-select-btn px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors" data-months="6">6 hó</button>
+                             <button type="button" class="period-select-btn px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors" data-months="9">9 hó</button>
+                             <button type="button" class="period-select-btn px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors" data-months="12">1 év</button>
+                             <button type="button" class="period-select-btn px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors" data-months="24">2 év</button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Engedélyező személy:</label>
+                        <input type="text" id="approverNameInput" class="input-field" placeholder="Név">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Beosztás:</label>
+                        <input type="text" id="approverPositionInput" class="input-field" placeholder="Beosztás">
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="font-semibold text-lg border-b border-gray-600 pb-2 mb-4">Kiválasztott eszközök</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-800">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-white">Gyári szám</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-white">Megnevezés</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-white">Típus</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-white">Hossz</th>
+                            <th class="px-4 py-2 text-left text-sm font-medium text-white">Teherbírás</th>
+                        </tr>
+                    </thead>
+                    <tbody id="selectedUsageDevicesBody" class="divide-y divide-gray-700 bg-gray-900/50">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between mt-6">
+                <button id="cancelUsageBtn" class="btn btn-secondary">Mégse</button>
+                <button id="createUsageDocsBtn" class="btn btn-primary">Dokumentumok létrehozása</button>
+            </div>
+        </div>
+    `;
+}
+
 export function getPartnerWorkScreenHtml(partner, userData) {
     const user = auth.currentUser;
     const logoUrl = partner.logoUrl || 'images/ETAR_H.png';
@@ -3748,6 +4196,10 @@ export function getPartnerWorkScreenHtml(partner, userData) {
 
     const isReadOnly = role === 'read' && !userData.isEjkUser;
     const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write') || userData.isEkvUser;
+    
+    // ENY users with Write permissions (Admin or Write role)
+    const isEnyUser = !userData.isEjkUser && !userData.isEkvUser;
+    const canRegisterUsage = isEnyUser && (role === 'admin' || role === 'write');
 
     let uploadButtonHtml;
     if (isReadOnly) {
@@ -3759,11 +4211,15 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     let newInspectionButtonHtml = '';
     if (canInspect) {
         newInspectionButtonHtml = `<button id="showNewInspectionBtn" class="menu-btn menu-btn-primary"><i class="fas fa-plus fa-fw"></i>Új vizsgálat</button>`;
+    } else if (canRegisterUsage) {
+        newInspectionButtonHtml = `<button id="showNewUsageBtn" class="menu-btn menu-btn-primary"><i class="fas fa-file-signature fa-fw"></i>Új használatba vétel</button>`;
     }
 
     let newInspectionButtonHtmlMobile = '';
     if (canInspect) {
         newInspectionButtonHtmlMobile = `<button id="showNewInspectionBtnMobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-plus fa-fw"></i>Új vizsgálat</button>`;
+    } else if (canRegisterUsage) {
+        newInspectionButtonHtmlMobile = `<button id="showNewUsageBtnMobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-file-signature fa-fw"></i>Új használatba vétel</button>`;
     }
 
     let actionButtonsHtml = '';
@@ -3866,6 +4322,10 @@ export function getPartnerWorkScreenHtml(partner, userData) {
 
             <div id="newInspectionScreen" class="screen">
                 ${getNewInspectionScreenHtml(userData)}
+            </div>
+            
+            <div id="newUsageScreen" class="screen">
+                ${getNewUsageScreenHtml()}
             </div>
         </main>
         <!-- NFC Modal -->

@@ -11,5 +11,10 @@ service firebase.storage {
     match /generated-inspections/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
+
+    // Használatba vételi dokumentumok
+    match /partners/{partnerId}/usage_docs/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
