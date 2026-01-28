@@ -2631,6 +2631,32 @@ export function initPartnerWorkScreen(partner, userData) {
     }
     loadFinalizedInspections(partnerId); // ÚJ: Véglegesített jegyzőkönyvek betöltése
 
+    // --- FINALIZED REPORTS SEARCH LOGIC ---
+    const finalizedSearchInput = document.getElementById('finalized-reports-search-input');
+    if (finalizedSearchInput) {
+        finalizedSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const finalizedBody = document.getElementById('finalized-docs-body');
+            if (!finalizedBody) return;
+
+            const rows = finalizedBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                // Skip "No results" or "Loading" rows if they have colspan
+                if (row.querySelector('td[colspan]')) return;
+
+                const serialCell = row.querySelectorAll('td')[1]; // 2nd column is Serial Number
+                if (serialCell) {
+                    const serialText = serialCell.textContent.toLowerCase().trim();
+                    if (serialText.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        });
+    }
+
     // --- VÉGLEGESÍTETT JEGYZŐKÖNYVEK BETÖLTÉSE ---
     async function loadFinalizedInspections(partnerId) {
         const finalizedBody = document.getElementById('finalized-docs-body');
@@ -4295,6 +4321,9 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                     <p class="mt-2 text-sm text-gray-300 px-4 sm:px-6 lg:px-8">A partnerhez tartozó, véglegesített és archivált vizsgálati jegyzőkönyvek.</p>
                     
                     <div id="finalized-reports-content" class="hidden mt-4 flex flex-col transition-all duration-300">
+                        <div class="mb-4 px-4 sm:px-6 lg:px-8">
+                            <input type="text" id="finalized-reports-search-input" placeholder="Keressen gyári számra..." class="input-field w-full sm:w-1/2 lg:w-1/3">
+                        </div>
                         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
                             <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
                                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
