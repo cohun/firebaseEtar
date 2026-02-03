@@ -1460,7 +1460,7 @@ export function initPartnerWorkScreen(partner, userData) {
 
                 // Description Filtering (New)
                 if (filters.description) {
-                    devices = devices.filter(d => d.description === filters.description);
+                    devices = devices.filter(d => (d.description || '').trim() === filters.description);
                 }
 
                 // Sorszám keresés (Client-Side, Case-Insensitive, Partial)
