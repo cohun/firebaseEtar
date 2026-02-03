@@ -9,6 +9,7 @@ let currentSortDirection = 'desc';
 // Filter state
 let showK = true;
 let showB = true;
+let selectedPartnerFilter = null; // null means "Összes"
 
 function isK(expertName) {
     return expertName === 'Gerőly Iván' || expertName === 'Szadlon Norbert';
@@ -123,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 sortAndRender(); // Initial render with default sorting
+                populatePartnerDropdown(); // Populate the partner filter dropdown
 
             } catch (error) {
                 console.error("CATCH block: Hiba történt a piszkozatok lekérésekor!", error);
@@ -199,6 +201,25 @@ document.addEventListener('DOMContentLoaded', () => {
             sortAndRender();
         });
     });
+
+    // Partner Dropdown Logic
+    const partnerHeaderContainer = document.getElementById('partner-header-container');
+    const partnerDropdown = document.getElementById('partner-dropdown');
+
+    if (partnerHeaderContainer && partnerDropdown) {
+        // Toggle dropdown
+        partnerHeaderContainer.addEventListener('click', (e) => {
+            e.stopPropagation();
+            partnerDropdown.classList.toggle('hidden');
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!partnerHeaderContainer.contains(e.target) && !partnerDropdown.contains(e.target)) {
+                partnerDropdown.classList.add('hidden');
+            }
+        });
+    }
 });
 
 function sortAndRender() {
@@ -214,6 +235,10 @@ function sortAndRender() {
         if (isExpertK && !showK) return false;
         if (!isExpertK && !showB) return false;
         
+        // Partner Filter
+        if (selectedPartnerFilter && draft.partnerName !== selectedPartnerFilter) {
+            return false;
+        }
 
         return true;
     });
@@ -241,6 +266,43 @@ function sortAndRender() {
 
     renderTable(sortedDrafts);
     updateHeaderIcons();
+}
+
+function populatePartnerDropdown() {
+    const listElement = document.getElementById('partner-dropdown-list');
+    if (!listElement) return;
+
+    // Get unique partner names
+    const partners = [...new Set(allEnrichedDrafts.map(d => d.partnerName))].sort();
+
+    // Clear list
+    listElement.innerHTML = '';
+
+    // Add "Összes" option
+    const allOption = document.createElement('li');
+    allOption.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer flex justify-between items-center';
+    allOption.innerHTML = `<span>Összes</span>${selectedPartnerFilter === null ? '<i class="fas fa-check text-blue-500"></i>' : ''}`;
+    allOption.addEventListener('click', () => {
+        selectedPartnerFilter = null;
+        sortAndRender();
+        populatePartnerDropdown(); // Re-render to update checkmark
+        document.getElementById('partner-dropdown').classList.add('hidden');
+    });
+    listElement.appendChild(allOption);
+
+    // Add partner options
+    partners.forEach(partner => {
+        const li = document.createElement('li');
+        li.className = 'px-4 py-2 hover:bg-gray-700 cursor-pointer flex justify-between items-center';
+        li.innerHTML = `<span>${partner}</span>${selectedPartnerFilter === partner ? '<i class="fas fa-check text-blue-500"></i>' : ''}`;
+        li.addEventListener('click', () => {
+            selectedPartnerFilter = partner;
+            sortAndRender();
+            populatePartnerDropdown(); // Re-render to update checkmark
+            document.getElementById('partner-dropdown').classList.add('hidden');
+        });
+        listElement.appendChild(li);
+    });
 }
 
 function updateHeaderIcons() {

@@ -76,7 +76,11 @@
                 <h2 class="text-xl font-bold text-white">Piszkozatok Áttekintése</h2>
                 <p class="mt-1 text-sm text-gray-300">Itt láthatók a rögzített, de még nem véglegesített vizsgálati piszkozatok.</p>
             </div>
-            <div class="w-10"></div>
+            <div class="w-10 flex justify-end">
+                <button onclick="history.back()" class="text-gray-400 hover:text-white transition-colors p-2">
+                    <i class="fas fa-arrow-left fa-lg"></i>
+                </button>
+            </div>
         </header>
         <div class="card rounded-t-none p-6">
             <div class="sm:flex sm:items-center sm:justify-between">
@@ -105,7 +109,18 @@
                                     <th scope="col" class="relative px-6 py-3.5">
                                         <input type="checkbox" id="select-all-checkbox" class="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                     </th>
-                                    <th scope="col" data-sort="partnerName" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Partner<i></i></th>
+                                    <th scope="col" class="relative py-3.5 px-3 text-left text-sm font-semibold text-white">
+                                        <div id="partner-header-container" class="cursor-pointer flex items-center space-x-1 group">
+                                            <span>Partner</span>
+                                            <i class="fas fa-filter text-gray-400 group-hover:text-white transition-colors duration-200"></i>
+                                        </div>
+                                        <!-- Dropdown Menu -->
+                                        <div id="partner-dropdown" class="hidden absolute top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-600 rounded-md shadow-xl z-20 max-h-60 overflow-y-auto">
+                                            <ul id="partner-dropdown-list" class="py-1 text-sm text-gray-300">
+                                                <!-- Populated by JS -->
+                                            </ul>
+                                        </div>
+                                    </th>
                                     <th scope="col" data-sort="serialNumber" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eszköz Gyári Szám<i></i></th>
                                     <th scope="col" data-sort="vizsgalatEredmenye" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Eredmény<i></i></th>
                                     <th scope="col" data-sort="szakerto" class="py-3.5 px-3 text-left text-sm font-semibold text-white sortable">Szakértő<i></i></th>
@@ -133,6 +148,9 @@
                 <button id="deleteDraftsButton" class="btn btn-danger">Kijelöltek törlése</button>
                 <button id="generateDraftsButton" class="btn btn-primary">Piszkozatok előnézete (HTML)</button>
                 <button id="finalizeDraftsButton" class="btn btn-success">Kijelöltek véglegesítése</button>
+                <button onclick="history.back()" class="text-gray-400 hover:text-white transition-colors p-2 ml-2" title="Vissza">
+                    <i class="fas fa-arrow-left fa-lg"></i>
+                </button>
             </div>
         </div>
     </div>
