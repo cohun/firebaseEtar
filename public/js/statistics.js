@@ -13,32 +13,60 @@ export async function showStatisticsScreen(user, userData) {
         screens.statistics = statsScreen;
     }
 
-    // 2. Show loading state
-    const loadingHtml = `
+    // 2. Show initial loading state (just for the structure)
+    showScreen('statistics');
+    screens.statistics.innerHTML = `
         <div class="card max-w-4xl mx-auto text-center">
             <h1 class="text-3xl font-bold mb-6">Statisztikák</h1>
             <div class="loader mx-auto"></div>
-            <p class="mt-4 text-blue-300">Adatok betöltése és feldolgozása...</p>
-            <button id="backToMainFromStatsLoading" class="btn btn-secondary mt-6">Vissza</button>
+            <p class="mt-4 text-blue-300">Partnerlista betöltése...</p>
         </div>
     `;
-    screens.statistics.innerHTML = loadingHtml;
-    showScreen('statistics');
-
-    document.getElementById('backToMainFromStatsLoading').addEventListener('click', () => {
-        window.location.reload();
-    });
 
     try {
-        // 3. Fetch Data
+        // 3. Fetch Partners List First
         const partners = await getPartnersForSelection(userData);
-        const partnerIds = partners.map(p => p.id);
+        
+        // 4. Render the Initial UI (Dropdown frame)
+        renderInitialStatisticsUI(partners, userData);
 
+    } catch (error) {
+        console.error("Hiba a partnerek betöltésekor:", error);
+        screens.statistics.innerHTML = `
+            <div class="card max-w-md mx-auto text-center">
+                <h2 class="text-2xl font-bold mb-4 text-red-400">Hiba történt</h2>
+                <p class="text-gray-300 mb-6">Nem sikerült betölteni a partnerlistát.</p>
+                <button id="backToMainFromStatsError" class="btn btn-secondary w-full">Vissza</button>
+            </div>
+        `;
+        document.getElementById('backToMainFromStatsError').addEventListener('click', () => {
+            window.location.reload();
+        });
+    }
+}
+
+// Helper to fetch and render stats for specific partners
+async function loadStatsForPartners(partnerIdsToLoad, allPartners, userData) {
+    const contentArea = document.getElementById('stats-content-area');
+    if (!contentArea) return;
+
+    // Show loading in the content area
+    contentArea.innerHTML = `
+        <div class="text-center py-12">
+            <div class="loader mx-auto mb-4"></div>
+            <p class="text-blue-300">Adatok lekérése és feldolgozása...</p>
+            <p class="text-sm text-gray-400 mt-2">Ez több másodpercig is eltarthat...</p>
+        </div>
+    `;
+
+    try {
         const partnerStats = []; // Array to hold stats for each partner
 
-        // Fetch devices for all partners
-        await Promise.all(partnerIds.map(async (partnerId) => {
-            const partner = partners.find(p => p.id === partnerId);
+        // Fetch devices for selected partners
+        await Promise.all(partnerIdsToLoad.map(async (partnerId) => {
+            const partner = allPartners.find(p => p.id === partnerId);
+            if (!partner) return;
+
             const devicesSnapshot = await db.collection('partners').doc(partnerId).collection('devices').get();
             
             const stats = {
@@ -128,50 +156,63 @@ export async function showStatisticsScreen(user, userData) {
             partnerStats.push(stats);
         }));
 
-        // 5. Render UI
-        renderStatisticsUI(partnerStats, userData);
+        // Render the results
+        renderStatsContent(partnerStats, userData);
+        
+        // Re-attach scheduler button listener since we have new data
+        setupSchedulerButton(partnerStats, userData);
 
     } catch (error) {
         console.error("Hiba a statisztikák betöltésekor:", error);
-        screens.statistics.innerHTML = `
-            <div class="card max-w-md mx-auto text-center">
-                <h2 class="text-2xl font-bold mb-4 text-red-400">Hiba történt</h2>
-                <p class="text-gray-300 mb-6">Nem sikerült betölteni a statisztikákat.</p>
-                <button id="backToMainFromStatsError" class="btn btn-secondary w-full">Vissza</button>
+        contentArea.innerHTML = `
+            <div class="text-center text-red-400 py-8">
+                <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                <p>Hiba történt az adatok betöltése közben.</p>
             </div>
         `;
-        document.getElementById('backToMainFromStatsError').addEventListener('click', () => {
-            window.location.reload();
-        });
     }
 }
 
-function renderStatisticsUI(partnerStats, userData) {
+function renderInitialStatisticsUI(partners, userData) {
     const isEjkUser = userData.isEjkUser;
+    
     // Sort partners alphabetically
-    partnerStats.sort((a, b) => a.partnerName.localeCompare(b.partnerName));
+    partners.sort((a, b) => a.name.localeCompare(b.name));
 
     let contentHtml = '';
 
     if (isEjkUser) {
         // EJK View: Dropdown + Aggregate/Specific View
-        const optionsHtml = partnerStats.map(p => `<option value="${p.partnerId}">${p.partnerName}</option>`).join('');
+        const optionsHtml = partners.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
         
         const dropdownHtml = `
-            <div class="mb-6">
-                <label for="stats-partner-select" class="block text-sm font-medium text-gray-300 mb-2">Partner kiválasztása</label>
-                <select id="stats-partner-select" class="input-field w-full bg-gray-700 border-gray-600 text-white">
-                    <option value="all" selected>Összes Partner (Összesítő)</option>
-                    ${optionsHtml}
-                </select>
+            <div class="mb-6 flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-grow">
+                    <label for="stats-partner-select" class="block text-sm font-medium text-gray-300 mb-2">Partner kiválasztása</label>
+                    <select id="stats-partner-select" class="input-field w-full bg-gray-700 border-gray-600 text-white">
+                        <option value="all" selected>Összes Partner (Összesítő)</option>
+                        ${optionsHtml}
+                    </select>
+                </div>
+                <div id="action-button-container">
+                     <!-- This will dynamically change based on selection -->
+                     <button id="load-all-stats-btn" class="btn btn-primary h-12 w-full md:w-auto">
+                        <i class="fas fa-download mr-2"></i> Adatok betöltése (Összes)
+                     </button>
+                </div>
             </div>
         `;
 
         contentHtml += dropdownHtml;
-        contentHtml += `<div id="stats-content-area"></div>`; // Placeholder for stats
+        contentHtml += `<div id="stats-content-area" class="min-h-[200px]">
+            <div class="text-center py-12 text-gray-400">
+                <i class="fas fa-chart-bar text-4xl mb-4 opacity-50"></i>
+                <p>Válassz egy partnert a listából, vagy töltsd be az összes adatot.</p>
+            </div>
+        </div>`; 
     } else {
-        // ENY View: List all associated partners
-        contentHtml += `<div id="stats-content-area"></div>`;
+        // ENY View: List all associated partners - Auto load since usually small number
+        contentHtml += `<div id="stats-content-area" class="min-h-[200px]"></div>`;
     }
 
     // Modal for company details
@@ -189,9 +230,9 @@ function renderStatisticsUI(partnerStats, userData) {
 
     const html = `
         <div class="card max-w-5xl mx-auto relative">
-            <div class="flex justify-between items-center mb-6">
+             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">Statisztikák</h1>
-                <div class="flex gap-2">
+                <div class="flex gap-2 w-full md:w-auto justify-end">
                     <button id="openSchedulerBtn" class="btn btn-primary hidden">Vizsgálati időpont egyeztetés</button>
                     <button id="backToMainFromStats" class="btn btn-secondary">Vissza</button>
                 </div>
@@ -204,6 +245,7 @@ function renderStatisticsUI(partnerStats, userData) {
 
     screens.statistics.innerHTML = html;
 
+    // Navigation Listeners
     document.getElementById('backToMainFromStats').addEventListener('click', () => {
         showScreen('main');
     });
@@ -223,151 +265,188 @@ function renderStatisticsUI(partnerStats, userData) {
         modal.classList.remove('hidden');
     };
 
-
-    const contentArea = document.getElementById('stats-content-area');
-
-    // Function to render cards based on selection
-    const renderContent = (filterId) => {
-        let statsToRender = [];
-        let isAggregate = false;
-
-        if (filterId === 'all') {
-            if (isEjkUser) {
-                // Aggregate for EJK
-                isAggregate = true;
-                const aggregateStats = {
-                    partnerName: "Összesített Statisztika",
-                    partnerAddress: "Minden partner adatai",
-                    expiredCount: 0,
-                    noInspectionCount: 0,
-                    monthlyExpirations: {},
-                    totalDevices: 0
-                };
-
-                partnerStats.forEach(stat => {
-                    aggregateStats.expiredCount += stat.expiredCount;
-                    aggregateStats.noInspectionCount += stat.noInspectionCount;
-                    aggregateStats.totalDevices += stat.totalDevices;
-                    
-                    for (const [month, data] of Object.entries(stat.monthlyExpirations)) {
-                        if (!aggregateStats.monthlyExpirations[month]) {
-                            // Initialize with array for company details
-                            aggregateStats.monthlyExpirations[month] = { count: 0, companyDetails: [] };
-                        }
-                        aggregateStats.monthlyExpirations[month].count += data.count;
-                        
-                        // Add company details (name and count for this month)
-                        aggregateStats.monthlyExpirations[month].companyDetails.push({
-                            name: stat.partnerName,
-                            count: data.count
-                        });
-                    }
-                });
-                statsToRender = [aggregateStats];
-            } else {
-                // Show all for ENY (default behavior)
-                statsToRender = partnerStats;
-            }
-        } else {
-            // Specific partner
-            statsToRender = partnerStats.filter(p => p.partnerId === filterId);
-        }
-
-        contentArea.innerHTML = statsToRender.map(stats => generateStatsCardHtml(stats, isAggregate)).join('');
-        
-        // Add click listeners for aggregate view rows
-        if (isAggregate) {
-             statsToRender.forEach(stats => {
-                const sortedMonths = Object.keys(stats.monthlyExpirations).sort();
-                sortedMonths.forEach(month => {
-                    const rowId = `row-${month}`;
-                    const rowElement = document.getElementById(rowId);
-                    if (rowElement) {
-                        rowElement.addEventListener('click', () => {
-                            const companyDetails = stats.monthlyExpirations[month].companyDetails.sort((a, b) => a.name.localeCompare(b.name));
-                            const companyStrings = companyDetails.map(c => `${c.name} <span class="float-right font-bold text-white">${c.count} db</span>`);
-                            
-                            const [year, m] = month.split('-');
-                            const monthName = new Date(year, m - 1).toLocaleString('hu-HU', { month: 'long' });
-                            window.showStatsModal(`${year}. ${monthName} - Érintett cégek`, companyStrings);
-                        });
-                    }
-                });
-             });
-        }
-    };
-
-    // Initial Render
-    renderContent('all');
-
-    // Event Listener for Dropdown
+    // --- Logic for EJK Dropdown & Actions ---
     if (isEjkUser) {
         const partnerSelect = document.getElementById('stats-partner-select');
-        if (partnerSelect) {
-            partnerSelect.addEventListener('change', (e) => {
-                renderContent(e.target.value);
+        const actionContainer = document.getElementById('action-button-container');
+        const loadAllBtn = document.getElementById('load-all-stats-btn');
+
+        // Handle Load All Click
+        if (loadAllBtn) {
+            loadAllBtn.addEventListener('click', () => {
+                const allPartnerIds = partners.map(p => p.id);
+                loadStatsForPartners(allPartnerIds, partners, userData);
             });
         }
+
+        // Handle Change
+        partnerSelect.addEventListener('change', (e) => {
+            const selectedValue = e.target.value;
+            
+            if (selectedValue === 'all') {
+                // Show "Load All" button again, clear content or show placeholder
+                actionContainer.innerHTML = `
+                     <button id="load-all-stats-btn" class="btn btn-primary h-12 w-full md:w-auto">
+                        <i class="fas fa-download mr-2"></i> Adatok betöltése (Összes)
+                     </button>
+                `;
+                document.getElementById('load-all-stats-btn').addEventListener('click', () => {
+                    const allPartnerIds = partners.map(p => p.id);
+                    loadStatsForPartners(allPartnerIds, partners, userData);
+                });
+                
+                document.getElementById('stats-content-area').innerHTML = `
+                    <div class="text-center py-12 text-gray-400">
+                         <i class="fas fa-chart-bar text-4xl mb-4 opacity-50"></i>
+                        <p>Válassz egy partnert a listából, vagy töltsd be az összes adatot.</p>
+                    </div>
+                `;
+            } else {
+                // Specific Partner Selected -> Auto Load
+                actionContainer.innerHTML = ''; // Hide button, auto-loading
+                loadStatsForPartners([selectedValue], partners, userData);
+            }
+        });
+    } else {
+        // ENY User - Auto load their partners
+        const allPartnerIds = partners.map(p => p.id);
+        loadStatsForPartners(allPartnerIds, partners, userData);
+    }
+}
+
+function renderStatsContent(partnerStats, userData) {
+    const isEjkUser = userData.isEjkUser;
+    const contentArea = document.getElementById('stats-content-area');
+    
+    // Sort partners alphabetically
+    partnerStats.sort((a, b) => a.partnerName.localeCompare(b.partnerName));
+    
+    // Determine context (Single vs Aggregate) logic based on userData and selection
+    // NOTE: If we are here, 'partnerStats' contains exactly the data we requested.
+    // However, for EJK 'all' view, we want to aggregate them into ONE card.
+    // For specific view or ENY view, we show separate cards (or one specific card).
+
+    const partnerSelect = document.getElementById('stats-partner-select');
+    const isAggregateMode = isEjkUser && (!partnerSelect || partnerSelect.value === 'all');
+
+    let statsToRender = [];
+    
+    if (isAggregateMode && partnerStats.length > 1) {
+        // Calculate Aggregate
+         const aggregateStats = {
+            partnerName: "Összesített Statisztika",
+            partnerAddress: "Minden partner adatai",
+            expiredCount: 0,
+            noInspectionCount: 0,
+            monthlyExpirations: {},
+            totalDevices: 0
+        };
+
+        partnerStats.forEach(stat => {
+            aggregateStats.expiredCount += stat.expiredCount;
+            aggregateStats.noInspectionCount += stat.noInspectionCount;
+            aggregateStats.totalDevices += stat.totalDevices;
+            
+            for (const [month, data] of Object.entries(stat.monthlyExpirations)) {
+                if (!aggregateStats.monthlyExpirations[month]) {
+                    aggregateStats.monthlyExpirations[month] = { count: 0, companyDetails: [] };
+                }
+                aggregateStats.monthlyExpirations[month].count += data.count;
+                
+                // Add company details
+                aggregateStats.monthlyExpirations[month].companyDetails.push({
+                    name: stat.partnerName,
+                    count: data.count
+                });
+            }
+        });
+        statsToRender = [aggregateStats];
+    } else {
+        // List mode (individual cards)
+        statsToRender = partnerStats;
     }
 
-    // Scheduler Button Logic
+    contentArea.innerHTML = statsToRender.map(stats => generateStatsCardHtml(stats, isAggregateMode)).join('');
+
+    // Add click listeners for aggregate view rows
+    if (isAggregateMode) {
+            statsToRender.forEach(stats => {
+            const sortedMonths = Object.keys(stats.monthlyExpirations).sort();
+            sortedMonths.forEach(month => {
+                const rowId = `row-${month}`;
+                const rowElement = document.getElementById(rowId);
+                if (rowElement) {
+                    rowElement.addEventListener('click', () => {
+                        const companyDetails = stats.monthlyExpirations[month].companyDetails.sort((a, b) => a.name.localeCompare(b.name));
+                        const companyStrings = companyDetails.map(c => `${c.name} <span class="float-right font-bold text-white">${c.count} db</span>`);
+                        
+                        const [year, m] = month.split('-');
+                        const monthName = new Date(year, m - 1).toLocaleString('hu-HU', { month: 'long' });
+                        window.showStatsModal(`${year}. ${monthName} - Érintett cégek`, companyStrings);
+                    });
+                }
+            });
+            });
+    }
+}
+
+function setupSchedulerButton(partnerStats, userData) {
+    const isEjkUser = userData.isEjkUser;
+     // Scheduler Button Logic
     const schedulerBtn = document.getElementById('openSchedulerBtn');
     if (schedulerBtn) {
         // Show for everyone except EKV users
         if (!userData.isEkvUser) {
             schedulerBtn.classList.remove('hidden');
         }
-        schedulerBtn.addEventListener('click', () => {
+
+        // Remove old listeners to avoid duplicates (clone node trick or just overwrite property)
+        const newBtn = schedulerBtn.cloneNode(true);
+        schedulerBtn.parentNode.replaceChild(newBtn, schedulerBtn);
+        
+        newBtn.addEventListener('click', () => {
             // Collect all devices from all stats
             let allDevices = [];
             let partnerName = "Saját eszközök";
             let isAggregate = false;
             let partnerId = 'unknown';
             
-            if (isEjkUser) {
-                // For EJK, check if a specific partner is selected
-                const partnerSelect = document.getElementById('stats-partner-select');
-                const selectedPartnerId = partnerSelect ? partnerSelect.value : 'all';
-                
-                if (selectedPartnerId === 'all') {
+            const partnerSelect = document.getElementById('stats-partner-select');
+            const isAggregateMode = isEjkUser && (!partnerSelect || partnerSelect.value === 'all');
+
+            if (isAggregateMode) {
                     isAggregate = true;
                     partnerName = "Összes Partner (Összesítő)";
-                    partnerStats.forEach(stat => {
+                    // Flatten all devices
+                     partnerStats.forEach(stat => {
                         if (stat.devices) {
                             // Add partnerName to each device for breakdown
                             const devicesWithPartner = stat.devices.map(d => ({...d, partnerName: stat.partnerName}));
                             allDevices = allDevices.concat(devicesWithPartner);
                         }
                     });
-                } else {
-                    const selectedStat = partnerStats.find(p => p.partnerId === selectedPartnerId);
-                    if (selectedStat) {
-                        partnerName = selectedStat.partnerName;
-                        partnerId = selectedStat.partnerId;
-                        allDevices = selectedStat.devices || [];
-                    }
-                }
+
             } else {
-                // ENY Logic
-                if (partnerStats.length === 1) {
+                // Specific Partner or ENY
+                 if (partnerStats.length === 1) {
                     partnerName = partnerStats[0].partnerName;
                     partnerId = partnerStats[0].partnerId;
                 }
                 partnerStats.forEach(stat => {
                     if (stat.devices) {
-                        allDevices = allDevices.concat(stat.devices);
+                         allDevices = allDevices.concat(stat.devices);
                     }
                 });
             }
 
             let isReadOnly = false;
             if (isEjkUser) {
-                // Check roles array for EJK read access
+                 // Check roles array for EJK read access
                 if (userData.roles && (userData.roles.includes('EJK_read') || userData.roles.includes('EJK_reader'))) {
                     isReadOnly = true;
                 }
             } else {
-                // ENY Logic
+                 // ENY Logic
                 if (userData.partnerRoles && userData.partnerRoles[partnerId] === 'read') {
                     isReadOnly = true;
                 }
