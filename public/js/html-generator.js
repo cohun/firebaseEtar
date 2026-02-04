@@ -370,7 +370,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         eszkoz_gyari_szam: device.serialNumber || '',
         eszkoz_tipus: device.type || '',
         eszkoz_gyartasi_ev: device.yearOfManufacture || '',
-        kelt_datum: draft.createdAt?.toDate().toLocaleDateString('hu-HU') || '',
+        kelt_datum: new Date().toLocaleDateString('hu-HU'),
         felhasznalt_anyagok: draft.felhasznaltAnyagok || 'Nem volt',
         feltart_hiba: draft.feltartHiba || 'Nem volt',
         kovetkezo_idoszakos: draft.kovetkezoIdoszakosVizsgalat || '',
