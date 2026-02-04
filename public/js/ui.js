@@ -946,6 +946,13 @@ export function showPartnerSelectionScreen(partners, userData) {
         let isClickable = false;
         let cardClasses = '';
         let statusHtml = '';
+        let nameColorClass = 'text-blue-300'; // Default color
+
+        // Highlight if NO ACTIVE ADMIN (pending company state)
+        if (partner.hasActiveAdmin === false) {
+            nameColorClass = 'text-yellow-400';
+            // Also append a badge or info? The name color is requested.
+        }
 
         if (isEjkUser) {
             isClickable = true;
@@ -953,6 +960,11 @@ export function showPartnerSelectionScreen(partners, userData) {
             statusHtml = role 
                 ? `<p class="text-blue-400 mt-2">Szerepkör: ${role}</p>` 
                 : '<p class="text-gray-400 mt-2">Teljes hozzáférés</p>';
+            
+             if (partner.hasActiveAdmin === false) {
+                 statusHtml += '<p class="text-yellow-400 text-sm font-bold mt-1">Nincs aktív Admin!</p>';
+             }
+
         } else {
             isClickable = role && !isPending;
             if (isPending) {
@@ -961,6 +973,12 @@ export function showPartnerSelectionScreen(partners, userData) {
                 // This case should not be visible to ENY users due to how partners are fetched, but as a fallback.
                 statusHtml = '<p class="text-gray-500 font-bold mt-2">Nincs hozzáférés</p>';
             }
+            
+            // For ENY users, usually they ARE the admin or they are pending.
+            // If they are admin, hasActiveAdmin is true.
+            // If they are pending, isPending handles it.
+            // But if they are a 'read' user and the admin left? 
+            // The request focused on "No admin at all" -> pending creation state.
         }
 
         cardClasses = isClickable
@@ -969,7 +987,7 @@ export function showPartnerSelectionScreen(partners, userData) {
 
         return `
         <div class="${cardClasses}" ${isClickable ? `data-partner-id="${partner.id}"` : ''}>
-            <h3 class="text-xl font-bold text-blue-300">${partner.name}</h3>
+            <h3 class="text-xl font-bold ${nameColorClass}">${partner.name}</h3>
             <p class="text-gray-300">${partner.address}</p>
             ${etarCodeHtml}
             ${statusHtml}

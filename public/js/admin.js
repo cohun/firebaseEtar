@@ -78,7 +78,44 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
         };
     }));
 
-    return usersWithAssociations.filter(u => u); // Filter out any nulls from the mapping
+    const validUsers = usersWithAssociations.filter(u => u);
+
+    // 1. Sort associations within each user alphabetically by company name
+    validUsers.forEach(user => {
+        if (user.associations && user.associations.length > 0) {
+            user.associations.sort((a, b) => {
+                const nameA = a.partnerDetails?.name || '';
+                const nameB = b.partnerDetails?.name || '';
+                return nameA.localeCompare(nameB);
+            });
+        }
+    });
+
+    // 2. Sort the users list
+    validUsers.sort((a, b) => {
+        // Check if user has any pending role
+        const getPriority = (user) => {
+             const hasPending = user.associations.some(assoc => 
+                ['pending', 'pendingAdmin', 'pending_inspector'].includes(assoc.role)
+             );
+             return hasPending ? 0 : 1; // 0 is higher priority (comes first)
+        };
+
+        const priorityA = getPriority(a);
+        const priorityB = getPriority(b);
+
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+
+        // Secondary sort: Company Name (of the first company)
+        const companyA = a.associations[0]?.partnerDetails?.name || '';
+        const companyB = b.associations[0]?.partnerDetails?.name || '';
+
+        return companyA.localeCompare(companyB);
+    });
+
+    return validUsers;
 }
 
 export async function getExternalExperts() {
@@ -287,9 +324,22 @@ export async function removeUserPartnerAssociation(userId, partnerIdToRemove) {
 }
 
 export async function getPartnersForSelection(userData) {
+    let partners = [];
     if (userData.isEjkUser) {
         const partnersSnapshot = await db.collection('partners').get();
-        return partnersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        partners = partnersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // For EJK users, we need to check ALL partners.
+        // To be efficient, we fetch all users once (similar to getUsersForPermissionManagement)
+        // because running N queries for N partners is slow.
+        const usersSnapshot = await db.collection('users').get();
+        const allUsers = usersSnapshot.docs.map(doc => doc.data());
+
+        partners = partners.map(p => {
+            const hasActiveAdmin = allUsers.some(u => u.partnerRoles && u.partnerRoles[p.id] === 'admin');
+            return { ...p, hasActiveAdmin };
+        });
+
     } else { // ENY user
         const partnerIds = Object.keys(userData.partnerRoles || {});
         if (partnerIds.length === 0) {
@@ -305,14 +355,45 @@ export async function getPartnersForSelection(userData) {
         }
 
         const partnerSnapshots = await Promise.all(partnerPromises);
-        const partners = [];
+        partners = [];
         partnerSnapshots.forEach(snapshot => {
             snapshot.forEach(doc => {
                 partners.push({ id: doc.id, ...doc.data() });
             });
         });
-        return partners;
+
+        // For ENY users, we check active admin per partner.
+        // Since they usually have few partners, individual queries are acceptable.
+        await Promise.all(partners.map(async (p) => {
+            try {
+                const adminQuery = await db.collection('users')
+                    .where(`partnerRoles.${p.id}`, '==', 'admin')
+                    .limit(1)
+                    .get();
+                p.hasActiveAdmin = !adminQuery.empty;
+            } catch (error) {
+                console.error(`Error checking admin for partner ${p.id}`, error);
+                // Fallback: assume true (don't highlight as pending/error)
+                p.hasActiveAdmin = true; 
+            }
+        }));
     }
+
+    // Sort partners
+    partners.sort((a, b) => {
+        // Priority 1: No Active Admin (hasActiveAdmin === false) comes first
+        // false < true
+        if (a.hasActiveAdmin !== b.hasActiveAdmin) {
+            return a.hasActiveAdmin ? 1 : -1; 
+        }
+
+        // Priority 2: Alphabetical by Name
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        return nameA.localeCompare(nameB);
+    });
+
+    return partners;
 }
 export async function checkAndEnforceSubscriptionExpiry(user) {
     if (!user) return; // Basic check
