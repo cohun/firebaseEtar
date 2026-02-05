@@ -28,9 +28,32 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
 
         if (isAdminEJK) {
             const isUserEjk = user.isEjkUser === true;
-            const userRoles = Object.values(user.partnerRoles || {});
-            const isPendingOrAdmin = userRoles.some(role => role === 'admin' || role === 'pendingAdmin');
-            return isUserEjk || isPendingOrAdmin;
+            
+            // Check roles with more granularity
+            const userPartnerEntries = Object.entries(user.partnerRoles || {});
+            
+            // Allow if user is an EJK User (internal)
+            if (isUserEjk) return true;
+
+            // Otherwise check specific roles
+            return userPartnerEntries.some(([partnerId, role]) => {
+                // Global visibility for EJK Admin:
+                // 1. Existing Admins of any company
+                // 2. Pending Admins of any company
+                // 3. Independent Experts seeking approval
+                if (['admin', 'pendingAdmin', 'pending_inspector'].includes(role)) {
+                    return true;
+                }
+                
+                // Restricted visibility:
+                // 4. Regular "pending" users -> Only if applying to a company THIS admin manages (e.g. H-ITB)
+                if (role === 'pending') {
+                    return adminPartnerIds.includes(partnerId);
+                }
+                
+                return false;
+            });
+
         } else { // ENY admin
             if (!user.partnerRoles) return false;
             const userPartnerIds = Object.keys(user.partnerRoles);
@@ -256,16 +279,25 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
         // After transaction, let's check if we need to update isEjkUser flag.
         // This is a bit looser consistency but acceptable for this flag.
         const partnerDoc = await db.collection('partners').doc(partnerId).get();
-        if (partnerDoc.exists && partnerDoc.data().etarCode === 'Q27LXR') {
-             const isNowFullEJK = ['admin', 'write', 'read'].includes(newRole); // Define what constitutes "EJK User" access (usually admin/write)
-             // Actually, isEjkUser usually implies being an employee/member of EJK.
-             // If role is NOT pending, we consider them an EJK User.
-             const shouldBeEjkUser = !newRole.startsWith('pending');
+        if (partnerDoc.exists) {
+            const partnerData = partnerDoc.data();
+            // Check by Code (Legacy) OR Name (Robust)
+            if (partnerData.etarCode === 'Q27LXR' || partnerData.name === 'H-ITB Kft.') { // Note: Verify exact string 'H-ITB Kft.' vs 'H-ITB Kft'
+                 // Correcting company name check: The user mentioned "H-ITB Kft." in the prompt usually as H-ITB Kft.
+                 // Let's use a looser check or exact string if we are sure. "H-ITB Kft" is standard.
+            }
+            
+            // Re-implementing logic with exact logic
+            const isEjkCompany = partnerData.etarCode === 'Q27LXR' || partnerData.name.includes('H-ITB Kft');
 
-             await userRef.update({
-                 isEjkUser: shouldBeEjkUser
-             });
-             console.log(`Updated isEjkUser to ${shouldBeEjkUser}`);
+            if (isEjkCompany) {
+                 const shouldBeEjkUser = !newRole.startsWith('pending');
+
+                 await userRef.update({
+                     isEjkUser: shouldBeEjkUser
+                 });
+                 console.log(`Updated isEjkUser to ${shouldBeEjkUser} for company ${partnerData.name}`);
+            }
         }
 
         console.log("Felhasználói szerepkör sikeresen frissítve.");
@@ -309,11 +341,16 @@ export async function removeUserPartnerAssociation(userId, partnerIdToRemove) {
         
         // Check if we removed EJK association
         const partnerDoc = await db.collection('partners').doc(partnerIdToRemove).get();
-        if (partnerDoc.exists && partnerDoc.data().etarCode === 'Q27LXR') {
-             await userRef.update({
-                 isEjkUser: false
-             });
-             console.log("Removed isEjkUser flag.");
+        if (partnerDoc.exists) {
+            const partnerData = partnerDoc.data();
+            const isEjkCompany = partnerData.etarCode === 'Q27LXR' || partnerData.name.includes('H-ITB Kft');
+            
+            if (isEjkCompany) {
+                 await userRef.update({
+                     isEjkUser: false
+                 });
+                 console.log("Removed isEjkUser flag.");
+            }
         }
 
         console.log("Partnerkapcsolat sikeresen eltávolítva.");
