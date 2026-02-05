@@ -12,11 +12,18 @@ service cloud.firestore {
 
     function isEjkUser() {
       // Security hardening: Even if isEjkUser is true, ensure they don't have a pending EJK role.
-      // This prevents "pending" EJK users from seeing everything if the flag was set prematurely.
-      // We assume if they have isEjkUser=true, they should have a role. If that role is pending*, deny.
-      // EJK roles are prefixed with "EJK_" in the `roles` array.
-      return getUserData().isEjkUser == true && 
-             !getUserData().roles.hasAny(['EJK_pending', 'EJK_pending_inspector']);
+      // Exception: If they have a VALID EJK role (admin, write, read), we allow it even if pending is present.
+      
+      let hasValidEjkRole = getUserData().roles.hasAny(['EJK_admin', 'EJK_write']); // EJK_read is not in the original list but implicit? No, wait. 
+      // The original permitted roles for isEjkUser() usage usually implied 'EJK_admin', 'EJK_write', 'EJK_read'. 
+      // Let's check what 'roles' usually contains.
+      // In auth.js: roles: firebase.firestore.FieldValue.arrayUnion(`${type}_${newRole}`)
+      // So 'EJK_read' is a valid role string.
+      
+      let hasValidRole = getUserData().roles.hasAny(['EJK_admin', 'EJK_write', 'EJK_read']);
+      let hasPendingRole = getUserData().roles.hasAny(['EJK_pending', 'EJK_pending_inspector']);
+
+      return getUserData().isEjkUser == true && (hasValidRole || !hasPendingRole);
     }
 
     function isEkvUser() {
