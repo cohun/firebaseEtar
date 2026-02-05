@@ -95,23 +95,30 @@ async function loadStatsForPartners(partnerIdsToLoad, allPartners, userData) {
                 const deviceData = doc.data();
                 deviceData.id = doc.id; // Add ID for persistence
                 
-                // Fetch latest inspection
-                try {
-                    const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
-                        .collection('devices').doc(doc.id)
-                        .collection('inspections')
-                        .orderBy('createdAt', 'desc')
-                        .limit(1)
-                        .get();
-                    
-                    if (!latestInspectionSnapshot.empty) {
-                        const latestInspection = latestInspectionSnapshot.docs[0].data();
-                        deviceData.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
-                        deviceData.szakerto = latestInspection.szakerto;
+                // --- OPTIMIZATION (2024-02-05): Check Denormalized Data First ---
+                if (deviceData.kovetkezoIdoszakosVizsgalat) {
+                    // Fast path: Data exists on device document
+                    deviceData.kov_vizsg = deviceData.kovetkezoIdoszakosVizsgalat;
+                    deviceData.szakerto = deviceData.szakerto;
+                } else {
+                    // Slow path: Fallback to fetching latest inspection (Legacy/Backward Compatibility)
+                    try {
+                        const latestInspectionSnapshot = await db.collection('partners').doc(partnerId)
+                            .collection('devices').doc(doc.id)
+                            .collection('inspections')
+                            .orderBy('createdAt', 'desc')
+                            .limit(1)
+                            .get();
+                        
+                        if (!latestInspectionSnapshot.empty) {
+                            const latestInspection = latestInspectionSnapshot.docs[0].data();
+                            deviceData.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat;
+                            deviceData.szakerto = latestInspection.szakerto;
+                        }
+                    } catch (err) {
+                        console.error(`Error fetching inspection for device ${doc.id}:`, err);
+                        // Continue even if one fails
                     }
-                } catch (err) {
-                    console.error(`Error fetching inspection for device ${doc.id}:`, err);
-                    // Continue even if one fails
                 }
                 
                 return deviceData;
@@ -521,3 +528,4 @@ function generateStatsCardHtml(stats, isAggregate) {
         </div>
     `;
 }
+

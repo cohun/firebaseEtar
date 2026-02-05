@@ -504,6 +504,30 @@ async function startFinalizationProcess(draftsToFinalize) {
                         description: draft.description || 'N/A'
                     }
                 });
+                
+                // --- NEW OPTIMIZATION 2024-02-05: Update Parent Device ---
+                // Denormalize next inspection date and expert to device document for fast statistics
+                if (draft.kovetkezoIdoszakosVizsgalat) {
+                    const deviceRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId);
+                    const deviceUpdate = {
+                        kov_vizsg: draft.kovetkezoIdoszakosVizsgalat, // Use consistent field name 'kov_vizsg' as seen in stats logic or keep aligned? 
+                        // WAIT: In statistics.js step 82, line 109, it maps: deviceData.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat
+                        // So the internal field on device object in memory is kov_vizsg, but we are writing to Firestore.
+                        // Let's check a device document schema in adatbevitel.js.
+                        // Adatbevitel.js (Step 97, Line 317) shows status: '' but no specific NEXT DATE field.
+                        // Statistics.js (Step 82, Line 109) reads 'kovetkezoIdoszakosVizsgalat' FROM INSPECTION and assigns to 'kov_vizsg' on device OBJECT.
+                        // To allow statistics.js to read it DIRECTLY from device DOC, we should probably call it 'kovetkezoIdoszakosVizsgalat' on the device doc 
+                        // OR 'kov_vizsg' if we want to match the internal key.
+                        // The user plan said: "kov_vizsg: draft.kovetkezoIdoszakosVizsgalat" might be confusing.
+                        // Let's safely use the SAME key as the inspection: 'kovetkezoIdoszakosVizsgalat'.
+                        // AND 'szakerto'.
+                        kovetkezoIdoszakosVizsgalat: draft.kovetkezoIdoszakosVizsgalat,
+                        szakerto: draft.szakerto || auth.currentUser.displayName || 'Admin'
+                    };
+                    batch.update(deviceRef, deviceUpdate);
+                }
+                // ---------------------------------------------------------
+
                 finalizedIds.push(draft.id);
             } else {
                 console.warn('Piszkozat kihagyva: hiányzó partnerId, deviceId, vagy id.', draft);
