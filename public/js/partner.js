@@ -22,7 +22,7 @@ function getEszkozListaHtml() {
             <!-- Szűrő és Kereső Vezérlők -->
             <div class="card mb-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-semibold text-white">Szűrés és Keresés</h2>
+                    <h2 class="text-lg font-semibold text-white">Szűrés és Keresés</h2>
                     
                     <!-- QR Print Button (Shown for all) -->
                     <button id="print-qr-btn" class="mr-4 px-3 py-1 rounded-md text-sm font-medium bg-gray-600 text-white hover:bg-gray-500 transition-colors">
@@ -34,6 +34,7 @@ function getEszkozListaHtml() {
                         <button data-value="all" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
                         <button data-value="valid" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Érvényes</button>
                         <button data-value="invalid" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Érvénytelen</button>
+                        <button data-value="due_soon" class="validity-filter-btn px-3 py-1 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">Vizsgálandók</button>
                     </div>
 
                     <!-- 3-Way Filter Switch -->
@@ -54,10 +55,11 @@ function getEszkozListaHtml() {
                     <div class="flex flex-col space-y-2 xl:hidden p-2 bg-gray-800 rounded">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-medium text-gray-300">Érvényesség:</span>
-                            <div class="flex bg-gray-700 rounded-lg p-1">
+                            <div class="flex bg-gray-700 rounded-lg p-1 flex-wrap">
                                 <button data-value="all" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Összes</button>
                                 <button data-value="valid" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Érvényes</button>
                                 <button data-value="invalid" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Érvénytelen</button>
+                                <button data-value="due_soon" class="validity-filter-btn px-2 py-1 rounded-md text-xs font-medium text-gray-300 hover:text-white transition-colors">Vizsgálandók</button>
                             </div>
                         </div>
                         <div class="flex items-center justify-between">
@@ -781,12 +783,14 @@ export function initPartnerWorkScreen(partner, userData) {
                     btn.classList.add('bg-green-600', 'text-white');
                 } else if (validityFilter === 'invalid') {
                     btn.classList.add('bg-red-600', 'text-white');
+                } else if (validityFilter === 'due_soon') {
+                    btn.classList.add('bg-orange-600', 'text-white');
                 } else {
                     btn.classList.add('bg-blue-600', 'text-white'); // Fallback/All color
                 }
             } else {
                 btn.classList.add('text-gray-300', 'hover:text-white');
-                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'text-white');
+                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'bg-orange-600', 'text-white');
             }
         });
     }
@@ -1506,10 +1510,36 @@ export function initPartnerWorkScreen(partner, userData) {
                          return statusOk && futureDate;
                     };
 
+                    const isDueSoon = (d) => {
+                        if (!d.kov_vizsg) return false;
+                        const kovVizsgDate = parseDateSafe(d.kov_vizsg);
+                        if (!kovVizsgDate) return false;
+                        
+                        // Check if expiration is within next 45 days (including today for expired but not yet invalid? or strictly future?)
+                        // User request: "45 napon belül lejárók" -> usually implies imminent expiry.
+                        // Filter logic: date <= today + 45 days AND date >= today (optional, but requested filter is "Due Soon")
+                        
+                        const fortyFiveDaysFromNow = new Date(today);
+                        fortyFiveDaysFromNow.setDate(today.getDate() + 45);
+                        
+                        // Let's include expired ones if they are "Due Soon"? No, "Hamarosan" implies future. 
+                        // But usually users want to see everything they need to deal with SOON.
+                        // I will assume strictly future + 45 days. 
+                        // Update: Actually "Hamarosan vizsgálandók" is often interpreted as including those already expired or about to.
+                        // But "Invalid" filter handles expired. "Valid" handles OK.
+                        // "Due Soon" should probably be a subset of "valid" that are close to expiry? 
+                        // Or just checking the date range regardless of status?
+                        // Let's stick to date range: Today <= Date <= Today + 45.
+                        
+                        return kovVizsgDate >= today && kovVizsgDate <= fortyFiveDaysFromNow;
+                    };
+
                     if (validityFilter === 'valid') {
                         devices = devices.filter(d => isValid(d));
                     } else if (validityFilter === 'invalid') {
                         devices = devices.filter(d => !isValid(d));
+                    } else if (validityFilter === 'due_soon') {
+                        devices = devices.filter(d => isDueSoon(d));
                     }
                 }
 
