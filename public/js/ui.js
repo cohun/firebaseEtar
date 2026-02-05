@@ -618,6 +618,15 @@ export function showPermissionManagementScreen(users, currentUserData) {
         }
 
         return userList.map(user => {
+            // Check if user serves any pending role
+            const hasPendingRole = user.associations.some(assoc => 
+                ['pending', 'pendingAdmin', 'pending_inspector'].includes(assoc.role)
+            );
+
+            // Styling variables
+            const nameColorClass = hasPendingRole ? 'text-yellow-400' : 'text-blue-300';
+            const cardBorderClass = hasPendingRole ? 'border-yellow-500' : 'border-blue-800';
+
             const associationsHtml = user.associations.map(assoc => {
                 if (!assoc.partnerDetails) return '';
     
@@ -685,8 +694,11 @@ export function showPermissionManagementScreen(users, currentUserData) {
             }).join('');
     
             return `
-                <div class="p-4 border border-blue-800 rounded-lg mb-4">
-                    <h3 class="text-xl font-bold text-blue-300">${user.name}</h3>
+                <div class="p-4 border ${cardBorderClass} rounded-lg mb-4">
+                    <h3 class="text-xl font-bold ${nameColorClass}">
+                        ${user.name} 
+                        ${hasPendingRole ? '<span class="ml-2 text-sm text-yellow-400 border border-yellow-400 rounded px-2 py-0.5">Jóváhagyásra vár</span>' : ''}
+                    </h3>
                     <p class="text-gray-400">${user.email}</p>
                     <div class="mt-4 space-y-2">
                         <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
