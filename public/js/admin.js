@@ -201,16 +201,28 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
     }
 
     const userRef = db.collection('users').doc(userId);
+    const partnerRef = db.collection('partners').doc(partnerId);
 
     try {
         await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userRef);
+            const partnerDoc = await transaction.get(partnerRef);
+
             if (!userDoc.exists) {
                 throw "A felhasználó nem található!";
             }
+            if (!partnerDoc.exists) {
+                 throw "A partner nem található!";
+            }
 
             const userData = userDoc.data();
+            const partnerData = partnerDoc.data();
             const updates = {};
+
+            // Determine if this is the EJK company (H-ITB)
+            // We check by Code (Q27LXR) or Name includes/equals H-ITB logic
+            const isEjkCompany = partnerData.etarCode === 'Q27LXR' || 
+                                 (partnerData.name && partnerData.name.includes('H-ITB Kft'));
 
             // 1. Update the partnerRoles map
             updates[`partnerRoles.${partnerId}`] = newRole;
@@ -228,8 +240,8 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
                  updates[`partnerSubscriptions.${partnerId}`] = firebase.firestore.FieldValue.delete();
             }
 
-            // 2. If the user is an EJK user, also update the main 'roles' array
-            if (userData.isEjkUser === true) {
+            // 2. Logic for EJK Company: Update 'roles' array and 'isEjkUser' flag
+            if (isEjkCompany) {
                 const oldRole = userData.partnerRoles?.[partnerId];
                 const oldEjkRole = oldRole ? `EJK_${oldRole}` : null;
                 const newEjkRole = `EJK_${newRole}`;
@@ -247,58 +259,19 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
                 }
 
                 updates['roles'] = currentRoles;
+
+                // Update isEjkUser flag
+                // True if user is NOT pending, AND has some valid role
+                // Valid roles: admin, write, read, inspector, subcontractor, subscriber
+                // Invalid/Pending: pending, pendingAdmin, pending_inspector
+                const shouldBeEjkUser = !newRole.startsWith('pending');
+                updates['isEjkUser'] = shouldBeEjkUser;
+                
+                console.log(`EJK Role Update: ${oldEjkRole} -> ${newEjkRole}. isEjkUser: ${shouldBeEjkUser}`);
             }
 
             transaction.update(userRef, updates);
-
-            // 3. SPECIAL LOGIC FOR EJK PARTNER (Q27LXR)
-            // If we are updating the EJK partner role, we must also set/unset the isEjkUser flag on the user.
-            // We need to know if the partnerId corresponds to EJK.
-            // Since we are inside a transaction, we should ideally fetch the partner doc, but we can't easily do a query inside tx if we didn't prepare.
-            // However, we can do a check *after* or *outside*. 
-            // BUT, to keep it consistent, let's assume valid EJK Partner ID if isEjkAction is true OR check against known ID if possible.
-            // Better approach: We know EJK Code is Q27LXR. We can't know the ID easily without querying.
-            // Let's rely on `isEjkAction` which implies the admin is an EJK admin acting. 
-            // IF the admin is EJK admin, and they are modifying a user's role for THE EJK company, we update the flag.
-            
-            // Note: `isEjkAction` currently just means "An EJK admin is performing this". 
-            // But an EJK admin can also manage other partners? 
-            // Based on `admin.js` logic: `isAdminEJK` sees all companies.
-            
-            // Let's safe check: Fetch the partner to see if it is the EJK company.
-            // This transaction is already running. We can't easily query inside it for "where etarCode == ...".
-            // So we might need to split this or assume the calling code knows.
-            
-            // ALTERNATIVE: We can just check if the partnerDoc matches the EJK criteria if we had it.
-            // Let's do a separate update for the flag if needed, or try to do it here if we can verify the partner.
-            
-            // For now, let's look up the partner OUTSIDE the transaction if we want to be 100% sure, or just check the ID if we knew it.
-            // Let's assume we can fetch the partner doc to check its code.
         });
-        
-        // After transaction, let's check if we need to update isEjkUser flag.
-        // This is a bit looser consistency but acceptable for this flag.
-        const partnerDoc = await db.collection('partners').doc(partnerId).get();
-        if (partnerDoc.exists) {
-            const partnerData = partnerDoc.data();
-            // Check by Code (Legacy) OR Name (Robust)
-            if (partnerData.etarCode === 'Q27LXR' || partnerData.name === 'H-ITB Kft.') { // Note: Verify exact string 'H-ITB Kft.' vs 'H-ITB Kft'
-                 // Correcting company name check: The user mentioned "H-ITB Kft." in the prompt usually as H-ITB Kft.
-                 // Let's use a looser check or exact string if we are sure. "H-ITB Kft" is standard.
-            }
-            
-            // Re-implementing logic with exact logic
-            const isEjkCompany = partnerData.etarCode === 'Q27LXR' || partnerData.name.includes('H-ITB Kft');
-
-            if (isEjkCompany) {
-                 const shouldBeEjkUser = !newRole.startsWith('pending');
-
-                 await userRef.update({
-                     isEjkUser: shouldBeEjkUser
-                 });
-                 console.log(`Updated isEjkUser to ${shouldBeEjkUser} for company ${partnerData.name}`);
-            }
-        }
 
         console.log("Felhasználói szerepkör sikeresen frissítve.");
     } catch (error) {
