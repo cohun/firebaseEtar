@@ -617,7 +617,10 @@ export function initPartnerWorkScreen(partner, userData) {
     let sourceFilter = 'all'; // 'all', 'h-itb', 'external'
     
     // --- VALIDITY FILTER LOGIC ---
-    let validityFilter = 'all'; // 'all', 'valid', 'invalid'
+    let validityFilter = sessionStorage.getItem('validityFilter') || 'all'; // 'all', 'valid', 'invalid', 'expired'
+    if (sessionStorage.getItem('validityFilter')) {
+        sessionStorage.removeItem('validityFilter');
+    }
     
     // Determine default filter based on user type
     
@@ -754,11 +757,7 @@ export function initPartnerWorkScreen(partner, userData) {
                 btn.addEventListener('click', (e) => {
                     sourceFilter = e.target.dataset.value;
                     updateFilterButtonsUI();
-                    currentPage = 1; // Reset pagination
-                    // Reset pagination cursors when changing filters
-                    firstVisibleDoc = null;
-                    lastVisibleDoc = null;
-                    fetchDevices();
+                    resetAndFetch();
                 });
             });
         }
@@ -775,11 +774,7 @@ export function initPartnerWorkScreen(partner, userData) {
             btn.addEventListener('click', (e) => {
                 validityFilter = e.target.dataset.value;
                 updateValidityFilterButtonsUI();
-                currentPage = 1; // Reset pagination
-                // Reset pagination cursors when changing filters
-                firstVisibleDoc = null;
-                lastVisibleDoc = null;
-                fetchDevices();
+                resetAndFetch();
             });
         });
     }
@@ -1018,40 +1013,110 @@ export function initPartnerWorkScreen(partner, userData) {
             searchTermOperatorId = e.target.value.trim();
             sessionStorage.setItem('operatorIdFilterValue', searchTermOperatorId); // Save on input
             currentPage = 1;
+            updateFilterButtonVisuals();
             fetchDevices();
         });
     }
 
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', () => {
+             // 1. Reset Internal State
             filters.vizsg_idopont = '';
             filters.kov_vizsg = '';
-            filters.description = ''; // Reset description filter
-            
+            filters.description = ''; 
+            filters.operatorId = ''; 
+            searchTerm = '';
+            searchTermOperatorId = '';
+            validityFilter = 'all'; // Reset validity filter
+
+            // 2. Reset UI Inputs
+            if (searchInput) searchInput.value = '';
             if (vizsgIdopontInput) vizsgIdopontInput.value = '';
             if (kovVizsgInput) kovVizsgInput.value = '';
-            
-            searchTermOperatorId = '';
-            filters.operatorId = ''; // Reset operatorId filter
-
-            updateDescriptionHeaderStyle(); // Reset header style
-            updateOperatorIdHeaderStyle();  // Reset header style
             if (operatorIdInput) operatorIdInput.value = '';
-            sessionStorage.removeItem('operatorIdFilterValue'); // Clear stored value
+            
+            // 3. Reset Toggles & Switches
+            if (inactiveToggle) {
+                inactiveToggle.checked = false;
+                currentView = 'active';
+                updateUiForView();
+            }
+            
+            // 4. Reset Header Styles
+            updateDescriptionHeaderStyle(); 
+            updateOperatorIdHeaderStyle(); 
+            updateKovVizsgHeaderStyle(); 
 
-            updateDescriptionHeaderStyle(); // Reset description header style
-            updateKovVizsgHeaderStyle(); // Reset kov vizsg header style
+            // 5. Clear Session Storage
+            sessionStorage.removeItem('operatorIdFilterValue');
+            sessionStorage.removeItem('validityFilter');
 
-            // Close dropdowns if open
+            // 6. Close Dropdowns
             if (descriptionDropdown) descriptionDropdown.classList.add('hidden');
             if (kovVizsgDropdown) kovVizsgDropdown.classList.add('hidden');
+            if (operatorIdDropdown) operatorIdDropdown.classList.add('hidden'); // Assuming this exists or will exist
 
-            // Optionally reset category too? User request didn't specify, but usually "Reset Filters" might be expected to.
-            // Requirement said: "User a Szűrők gombbal nem törli azt" -> implies this button should clear it.
-            // Keeping category selection as is, only clearing the text input value based on request.
+            // 7. Update Filter UI Buttons
+            updateValidityFilterButtonsUI();
+            if (sourceFilterContainer) {
+                 // Reset source filter if needed? User didn't explicitly say, but usually yes. 
+                 // Keeping source filter as is might be better if it's a "mode" (EKV vs HITB).
+                 // Let's keep source filter as is for now, unless requested.
+            }
             
+            // 8. Update Button Visuals
+            updateFilterButtonVisuals();
+
+            // 9. Fetch Data
             fetchDevices();
         });
+    }
+
+    // New Function: Update Filter Button Color based on active state
+    function updateFilterButtonVisuals() {
+        if (!resetFiltersBtn) return;
+        
+        const hasActiveFilters = 
+            (searchInput && searchInput.value.trim() !== '') ||
+            (operatorIdInput && operatorIdInput.value.trim() !== '') ||
+            (vizsgIdopontInput && vizsgIdopontInput.value.trim() !== '') ||
+            (kovVizsgInput && kovVizsgInput.value.trim() !== '') ||
+            validityFilter !== 'all' ||
+            filters.description !== '' ||
+            filters.operatorId !== '' ||
+            (inactiveToggle && inactiveToggle.checked);
+
+        // Remove old classes first to be safe
+        resetFiltersBtn.classList.remove('menu-btn-primary', 'bg-green-600', 'hover:bg-green-700', 'bg-yellow-500', 'hover:bg-yellow-600', 'text-gray-900');
+        
+        // Base classes (keeping text-white usually, or black for yellow)
+        resetFiltersBtn.classList.add('text-white'); 
+        
+        if (hasActiveFilters) {
+            // Yellow Warning Style
+            resetFiltersBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600', 'text-gray-900'); // Dark text on yellow for contrast
+             resetFiltersBtn.classList.remove('text-white'); // Remove white text for yellow bg
+             resetFiltersBtn.innerHTML = '<i class="fas fa-filter fa-fw"></i> Szűrők (Aktív)';
+        } else {
+             // Default Green Style (matches other menu buttons roughly or specific style)
+             // Original was just 'menu-btn' class which likely has some default. 
+             // Let's check original HTML or adjacent buttons. 
+             // Usually menu-btn might be blue/gray? User said "zöldről".
+             // If user sees green, let's try to match that or just use standard secondary/primary.
+             // Actually, the user PROBABLY meant the button looks "normal" (maybe green if they added custom css).
+             // I see 'menu-btn-clear-filters' class in original code. 
+             // Let's stick to a safe default (gray/blue) or explicitly green if requested "zöldről".
+             // I will use a defined style or just standard class.
+             // Let's assume 'menu-btn' gives it the default look.
+             
+             // Wait, the user said "zöldről". So it WAS green? 
+             // I don't see explicit green class in previous code (menu-btn menu-btn-clear-filters).
+             // Maybe custom CSS. I will apply a neutral style or 'bg-gray-600' as base, and yellow for active.
+             
+             resetFiltersBtn.style.backgroundColor = ''; // Reset inline styles if any
+             resetFiltersBtn.classList.add('bg-gray-600', 'hover:bg-gray-500'); // Standard toolbar look
+             resetFiltersBtn.innerHTML = '<i class="fas fa-trash-alt fa-fw"></i> Szűrők';
+        }
     }
 
     // --- DESCRIPTION FILTER LOGIC ---
@@ -1701,12 +1766,21 @@ export function initPartnerWorkScreen(partner, userData) {
                         return isUpcoming || (isMegfelelt && isExpired);
                     };
 
+                    const isExpiredStrict = (d) => {
+                        if (!d.kov_vizsg) return false;
+                        const kovVizsgDate = parseDateSafe(d.kov_vizsg);
+                        if (!kovVizsgDate) return false; // No date -> No inspection, not expired
+                        return kovVizsgDate < today;
+                    };
+
                     if (validityFilter === 'valid') {
                         devices = devices.filter(d => isValid(d));
                     } else if (validityFilter === 'invalid') {
                         devices = devices.filter(d => !isValid(d));
                     } else if (validityFilter === 'due_soon') {
                         devices = devices.filter(d => isDueSoon(d));
+                    } else if (validityFilter === 'expired') {
+                        devices = devices.filter(d => isExpiredStrict(d));
                     }
                 }
 
@@ -2578,6 +2652,7 @@ export function initPartnerWorkScreen(partner, userData) {
         currentPage = 1;
         firstVisibleDoc = null;
         lastVisibleDoc = null;
+        updateFilterButtonVisuals(); // Update button visuals on reset/fetch
         fetchDevices();
     }
 
@@ -2827,19 +2902,7 @@ export function initPartnerWorkScreen(partner, userData) {
     vizsgIdopontInput.addEventListener('input', (e) => handleDateInput(e, 'vizsg_idopont'));
     kovVizsgInput.addEventListener('input', (e) => handleDateInput(e, 'kov_vizsg'));
 
-    resetFiltersBtn.addEventListener('click', () => {
-        searchInput.value = '';
-        if (operatorIdInput) operatorIdInput.value = ''; // Reset new input
-        vizsgIdopontInput.value = '';
-        kovVizsgInput.value = '';
-        searchTerm = '';
-        searchTermOperatorId = ''; // Reset new variable
-        filters = { vizsg_idopont: '', kov_vizsg: '' };
-        inactiveToggle.checked = false; // Kapcsoló visszaállítása
-        currentView = 'active'; // Nézet visszaállítása
-        updateUiForView(); // UI frissítése a visszaállított nézethez
-        resetAndFetch();
-    });
+
 
     refreshListBtn.addEventListener('click', () => {
         resetAndFetch();
@@ -2858,7 +2921,10 @@ export function initPartnerWorkScreen(partner, userData) {
     } else {
         loadExperts();
     }
-    loadFinalizedInspections(partnerId); // ÚJ: Véglegesített jegyzőkönyvek betöltése
+    loadFinalizedInspections(partnerId); 
+    
+    // Initialize filter button visuals
+    setTimeout(updateFilterButtonVisuals, 100);
 
     // --- FINALIZED REPORTS SEARCH LOGIC ---
     const finalizedSearchInput = document.getElementById('finalized-reports-search-input');

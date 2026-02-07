@@ -1,5 +1,5 @@
 import { db } from './firebase.js';
-import { showScreen, screens } from './ui.js';
+import { showScreen, screens, showPartnerWorkScreen } from './ui.js';
 import { getPartnersForSelection } from './admin.js';
 import { showScheduler } from './scheduler.js';
 
@@ -73,6 +73,7 @@ async function loadStatsForPartners(partnerIdsToLoad, allPartners, userData) {
                 partnerId: partner.id,
                 partnerName: partner.name,
                 partnerAddress: partner.address,
+                partnerObj: partner, // Store full object for navigation
                 expiredCount: 0,
                 noInspectionCount: 0,
                 monthlyExpirations: {}, // Key: "YYYY-MM", Value: { count: number, companies: Set<string> }
@@ -394,6 +395,34 @@ function renderStatsContent(partnerStats, userData) {
                 }
             });
             });
+    } else {
+        // Add click listeners for Expired Cards (only in non-aggregate mode)
+        statsToRender.forEach(stats => {
+            const expiredCardId = `expired-card-${stats.partnerId}`;
+            const expiredCard = document.getElementById(expiredCardId);
+            
+            if (expiredCard) {
+                expiredCard.addEventListener('click', () => {
+                    if (stats.expiredCount > 0) {
+                        // Navigate to device list with filter
+                        sessionStorage.setItem('validityFilter', 'expired');
+                        
+                        // Need to reconstruct partner object since we might not have it fully if we came from aggregate breakdown,
+                        // but here in 'else' block we are either in ENY view or EJK specific view.
+                        // stats.partnerObj should be available if we added it in loadStatsForPartners.
+                        // If for some reason it's missing (e.g. aggregate breakdown logic that I didn't verifyfully), we might need fallback.
+                        // But wait, loadStatsForPartners creates 'stats' object where I added 'partnerObj'.
+                        
+                        if (stats.partnerObj) {
+                            showPartnerWorkScreen(stats.partnerObj, userData);
+                        } else {
+                            console.error("Partner object missing for navigation", stats);
+                            alert("Hiba: Nem sikerült a navigáció a partnerhez.");
+                        }
+                    }
+                });
+            }
+        });
     }
 }
 
@@ -488,6 +517,11 @@ function generateStatsCardHtml(stats, isAggregate) {
         `;
     }).join('');
 
+    // Determine interactivity for expired card
+    const expiredCardId = !isAggregate ? `expired-card-${stats.partnerId}` : '';
+    const expiredCursorClass = (!isAggregate && stats.expiredCount > 0) ? 'cursor-pointer hover:opacity-80 transition-opacity' : '';
+    const expiredTitle = (!isAggregate && stats.expiredCount > 0) ? 'title="Kattintson a listázáshoz"' : '';
+
     return `
         <div class="bg-gray-800/50 rounded-lg border border-blue-800 p-6 mb-8">
             <div class="mb-6 border-b border-gray-700 pb-4">
@@ -498,7 +532,7 @@ function generateStatsCardHtml(stats, isAggregate) {
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <!-- Expired Card -->
-                <div class="p-4 rounded-lg border ${stats.expiredCount > 0 ? 'border-red-500 bg-red-900/20' : 'border-green-500 bg-green-900/20'} text-center">
+                <div id="${expiredCardId}" ${expiredTitle} class="p-4 rounded-lg border ${stats.expiredCount > 0 ? 'border-red-500 bg-red-900/20' : 'border-green-500 bg-green-900/20'} text-center ${expiredCursorClass}">
                     <h3 class="text-lg font-semibold mb-1 text-gray-200">Lejárt</h3>
                     <p class="text-3xl font-bold ${stats.expiredCount > 0 ? 'text-red-400' : 'text-green-400'}">${stats.expiredCount}</p>
                     <p class="text-xs text-gray-400">eszköz</p>

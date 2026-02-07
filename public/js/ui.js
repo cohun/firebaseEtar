@@ -1061,7 +1061,8 @@ export function showPartnerSelectionScreen(partners, userData) {
             }
         }
     });
-}export function showPartnerWorkScreen(partner, userData) {
+}
+export function showPartnerWorkScreen(partner, userData) {
     sessionStorage.setItem('lastPartnerId', partner.id);
     document.body.classList.add('partner-mode-active');
     
