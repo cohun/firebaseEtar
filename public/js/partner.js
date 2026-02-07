@@ -621,6 +621,13 @@ export function initPartnerWorkScreen(partner, userData) {
     if (sessionStorage.getItem('validityFilter')) {
         sessionStorage.removeItem('validityFilter');
     }
+
+    // --- KOV VIZSG FILTER PERSISTENCE (From Stats) ---
+    const savedKovVizsgFilter = sessionStorage.getItem('kovVizsgFilter');
+    if (savedKovVizsgFilter) {
+        filters.kov_vizsg = savedKovVizsgFilter;
+        sessionStorage.removeItem('kovVizsgFilter');
+    }
     
     // Determine default filter based on user type
     
@@ -789,12 +796,16 @@ export function initPartnerWorkScreen(partner, userData) {
                     btn.classList.add('bg-red-600', 'text-white');
                 } else if (validityFilter === 'due_soon') {
                     btn.classList.add('bg-orange-600', 'text-white');
+                } else if (validityFilter === 'expired') {
+                    btn.classList.add('bg-red-600', 'text-white');
+                } else if (validityFilter === 'no_inspection') {
+                    btn.classList.add('bg-yellow-600', 'text-white');
                 } else {
                     btn.classList.add('bg-blue-600', 'text-white'); // Fallback/All color
                 }
             } else {
                 btn.classList.add('text-gray-300', 'hover:text-white');
-                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'bg-orange-600', 'text-white');
+                btn.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'bg-orange-600', 'bg-yellow-600', 'text-white');
             }
         });
     }
@@ -824,6 +835,9 @@ export function initPartnerWorkScreen(partner, userData) {
     const operatorIdInput = document.getElementById('filter-operator-id'); // New input
     const vizsgIdopontInput = document.getElementById('filter-vizsg-idopont');
     const kovVizsgInput = document.getElementById('filter-kov-vizsg');
+    if (kovVizsgInput && filters.kov_vizsg) {
+        kovVizsgInput.value = filters.kov_vizsg;
+    }
     const resetFiltersBtn = document.getElementById('reset-filters-btn');
     const refreshListBtn = document.getElementById('refresh-list-btn');
     const tableHeaders = document.querySelectorAll('th.sortable');
@@ -1781,6 +1795,8 @@ export function initPartnerWorkScreen(partner, userData) {
                         devices = devices.filter(d => isDueSoon(d));
                     } else if (validityFilter === 'expired') {
                         devices = devices.filter(d => isExpiredStrict(d));
+                    } else if (validityFilter === 'no_inspection') {
+                        devices = devices.filter(d => !d.kov_vizsg || !parseDateSafe(d.kov_vizsg));
                     }
                 }
 

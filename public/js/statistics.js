@@ -413,6 +413,25 @@ function renderStatsContent(partnerStats, userData) {
                         // If for some reason it's missing (e.g. aggregate breakdown logic that I didn't verifyfully), we might need fallback.
                         // But wait, loadStatsForPartners creates 'stats' object where I added 'partnerObj'.
                         
+                if (stats.partnerObj) {
+                            showPartnerWorkScreen(stats.partnerObj, userData);
+                        } else {
+                            console.error("Partner object missing for navigation", stats);
+                            alert("Hiba: Nem sikerült a navigáció a partnerhez.");
+                        }
+                    }
+                });
+            }
+
+            // No Inspection Card Click Listener
+            const noInspectionCardId = `no-inspection-card-${stats.partnerId}`;
+            const noInspectionCard = document.getElementById(noInspectionCardId);
+            
+            if (noInspectionCard) {
+                noInspectionCard.addEventListener('click', () => {
+                    if (stats.noInspectionCount > 0) {
+                        sessionStorage.setItem('validityFilter', 'no_inspection');
+                        
                         if (stats.partnerObj) {
                             showPartnerWorkScreen(stats.partnerObj, userData);
                         } else {
@@ -422,6 +441,27 @@ function renderStatsContent(partnerStats, userData) {
                     }
                 });
             }
+
+            // Monthly breakdown Row Click Listeners
+            const sortedMonths = Object.keys(stats.monthlyExpirations).sort();
+            sortedMonths.forEach(month => {
+                const rowId = `row-${stats.partnerId}-${month}`;
+                const rowElement = document.getElementById(rowId);
+                
+                if (rowElement && stats.monthlyExpirations[month].count > 0) {
+                    rowElement.addEventListener('click', () => {
+                        const filterValue = month.replace('-', '.'); // YYYY-MM -> YYYY.MM
+                        sessionStorage.setItem('kovVizsgFilter', filterValue);
+
+                        if (stats.partnerObj) {
+                            showPartnerWorkScreen(stats.partnerObj, userData);
+                        } else {
+                            console.error("Partner object missing for navigation", stats);
+                            alert("Hiba: Nem sikerült a navigáció a partnerhez.");
+                        }
+                    });
+                }
+            });
         });
     }
 }
@@ -502,9 +542,10 @@ function generateStatsCardHtml(stats, isAggregate) {
         const formattedMonth = `${year}. ${monthName}`;
         const data = stats.monthlyExpirations[month];
         
-        // Add ID and cursor pointer if aggregate view
-        const rowId = isAggregate ? `id="row-${month}"` : '';
-        const cursorClass = isAggregate ? 'cursor-pointer hover:bg-gray-700/50 transition-colors' : '';
+        // Add ID and cursor pointer
+        const rowId = isAggregate ? `id="row-${month}"` : `id="row-${stats.partnerId}-${month}"`;
+        // Animation class for interactivity
+        const cursorClass = 'cursor-pointer hover:bg-gray-700/50 transition-colors transform hover:translate-x-1 duration-200';
 
         return `
             <tr ${rowId} class="border-b border-gray-700 ${cursorClass}">
@@ -519,7 +560,7 @@ function generateStatsCardHtml(stats, isAggregate) {
 
     // Determine interactivity for expired card
     const expiredCardId = !isAggregate ? `expired-card-${stats.partnerId}` : '';
-    const expiredCursorClass = (!isAggregate && stats.expiredCount > 0) ? 'cursor-pointer hover:opacity-80 transition-opacity' : '';
+    const expiredCursorClass = (!isAggregate && stats.expiredCount > 0) ? 'cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg' : '';
     const expiredTitle = (!isAggregate && stats.expiredCount > 0) ? 'title="Kattintson a listázáshoz"' : '';
 
     return `
@@ -538,7 +579,7 @@ function generateStatsCardHtml(stats, isAggregate) {
                     <p class="text-xs text-gray-400">eszköz</p>
                 </div>
                 <!-- No Inspection Card -->
-                <div class="p-4 rounded-lg border ${stats.noInspectionCount > 0 ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-600 bg-gray-700/20'} text-center">
+                <div id="${!isAggregate ? `no-inspection-card-${stats.partnerId}` : ''}" ${!isAggregate && stats.noInspectionCount > 0 ? 'title="Kattintson a listázáshoz"' : ''} class="p-4 rounded-lg border ${stats.noInspectionCount > 0 ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-600 bg-gray-700/20'} text-center ${(!isAggregate && stats.noInspectionCount > 0) ? 'cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg' : ''}">
                     <h3 class="text-lg font-semibold mb-1 text-gray-200">Nincs vizsgálat</h3>
                     <p class="text-3xl font-bold ${stats.noInspectionCount > 0 ? 'text-yellow-400' : 'text-gray-400'}">${stats.noInspectionCount}</p>
                     <p class="text-xs text-gray-400">eszköz</p>
