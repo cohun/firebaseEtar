@@ -147,15 +147,22 @@ function getEszkozListaHtml() {
                                         </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Gyári szám</th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">
-                                            <div class="flex flex-col items-center">
+                                            <div class="flex flex-col items-center relative group">
                                                 <div class="flex items-center space-x-1 mb-1">
-                                                    <span>Op. ID</span>
+                                                    <div id="header-operator-id-title" class="cursor-pointer text-white hover:text-blue-200 inline-flex items-center group-filter">
+                                                        <span>Op. ID</span> <i class="fas fa-filter ml-1 text-xs opacity-50 group-filter-hover:opacity-100"></i>
+                                                    </div>
                                                     <button id="add-operator-category-btn" class="text-xs bg-gray-700 hover:bg-gray-600 text-green-400 font-bold rounded px-1.5 py-0.5" title="Új kategória">+</button>
                                                     <button id="delete-operator-category-btn" class="text-xs bg-gray-700 hover:bg-gray-600 text-red-400 font-bold rounded px-1.5 py-0.5 ml-1 hidden" title="Kategória törlése"><i class="fas fa-trash-alt"></i></button>
                                                 </div>
                                                 <select id="operator-category-select" class="block w-full text-xs bg-gray-700 border-gray-600 text-white rounded p-1 focus:ring-indigo-500 focus:border-indigo-500">
                                                     <option value="Default">Alap.</option>
                                                 </select>
+                                                
+                                                <!-- Dropdown Menu for Operator ID Filter -->
+                                                <div id="operator-id-filter-dropdown" class="hidden absolute top-full left-0 mt-1 w-48 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-left max-h-60 overflow-y-auto">
+                                                    <!-- Populated by JS -->
+                                                </div>
                                             </div>
                                         </th>
                                         <th class="p-3 text-center text-sm font-semibold text-white whitespace-nowrap">Megállapítások</th>
@@ -601,7 +608,9 @@ export function initPartnerWorkScreen(partner, userData) {
     let filters = {
         vizsg_idopont: '',
         kov_vizsg: '',
-        description: '' // New filter
+        kov_vizsg: '',
+        description: '', // New filter
+        operatorId: ''   // New filter
     };
     
     // --- SOURCE FILTER LOGIC ---
@@ -976,6 +985,10 @@ export function initPartnerWorkScreen(partner, userData) {
             currentOperatorCategory = e.target.value;
             sessionStorage.setItem('currentOperatorCategory', currentOperatorCategory); // Save to session
             
+            // Reset Operator ID Filter when category changes
+            filters.operatorId = '';
+            updateOperatorIdHeaderStyle();
+
             updateOperatorIdLabelStyle();
             fetchDevices();
         });
@@ -1019,6 +1032,10 @@ export function initPartnerWorkScreen(partner, userData) {
             if (kovVizsgInput) kovVizsgInput.value = '';
             
             searchTermOperatorId = '';
+            filters.operatorId = ''; // Reset operatorId filter
+
+            updateDescriptionHeaderStyle(); // Reset header style
+            updateOperatorIdHeaderStyle();  // Reset header style
             if (operatorIdInput) operatorIdInput.value = '';
             sessionStorage.removeItem('operatorIdFilterValue'); // Clear stored value
 
@@ -1043,6 +1060,7 @@ export function initPartnerWorkScreen(partner, userData) {
     
     if (descriptionHeader && descriptionDropdown) {
         descriptionHeader.addEventListener('click', async (e) => {
+            hideProminentTooltip();
             e.stopPropagation();
             
             // Toggle visibility
@@ -1125,12 +1143,106 @@ export function initPartnerWorkScreen(partner, userData) {
         });
     }
 
+    // --- OPERATOR ID FILTER LOGIC ---
+    const operatorIdHeader = document.getElementById('header-operator-id-title');
+    const operatorIdDropdown = document.getElementById('operator-id-filter-dropdown');
+    
+    if (operatorIdHeader && operatorIdDropdown) {
+        operatorIdHeader.addEventListener('click', async (e) => {
+            hideProminentTooltip();
+            e.stopPropagation();
+            
+            // Toggle visibility
+            const isHidden = operatorIdDropdown.classList.contains('hidden');
+            if (!isHidden) {
+                operatorIdDropdown.classList.add('hidden');
+                return;
+            }
+
+            // Close other dropdowns
+            if (descriptionDropdown) descriptionDropdown.classList.add('hidden');
+            if (kovVizsgDropdown) kovVizsgDropdown.classList.add('hidden');
+
+            // Show loading
+            operatorIdDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">ID-k betöltése...</div>';
+            operatorIdDropdown.classList.remove('hidden');
+
+            try {
+                const snapshot = await db.collection('partners').doc(partnerId).collection('devices')
+                    .where('comment', '==', currentView)
+                    .get();
+
+                const uniqueIds = new Set();
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    let val = currentOperatorCategory === 'Default' 
+                            ? (d.operatorId || '') 
+                            : (d.customIds?.[currentOperatorCategory] || '');
+                    
+                    if (val !== null && val !== undefined) {
+                         val = String(val).trim();
+                         if (val) uniqueIds.add(val);
+                    }
+                });
+
+                const sortedIds = Array.from(uniqueIds).sort();
+                
+                // Render List
+                let html = `
+                    <div class="operator-id-filter-item px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 ${filters.operatorId === '' ? 'bg-blue-900/50 font-bold' : ''}" data-value="">
+                        Összes megjelenítése
+                    </div>
+                `;
+                
+                sortedIds.forEach(idVal => {
+                    const isSelected = filters.operatorId === idVal;
+                    html += `
+                        <div class="operator-id-filter-item px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-200 ${isSelected ? 'bg-blue-900/50 font-bold' : ''}" data-value="${idVal.replace(/"/g, '&quot;')}">
+                            ${idVal}
+                        </div>
+                    `;
+                });
+                
+                operatorIdDropdown.innerHTML = html;
+                
+                // Add listeners
+                const items = operatorIdDropdown.querySelectorAll('.operator-id-filter-item');
+                items.forEach(item => {
+                    item.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        filters.operatorId = item.dataset.value;
+                        updateOperatorIdHeaderStyle();
+                        operatorIdDropdown.classList.add('hidden');
+                        
+                        // Reset pagination
+                        currentPage = 1;
+                        fetchDevices();
+                    });
+                });
+
+            } catch (error) {
+                console.error("Error fetching operator IDs:", error);
+                operatorIdDropdown.innerHTML = '<div class="p-2 text-red-400 text-xs text-center">Hiba a betöltéskor</div>';
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            // Because the header is inside a flex container that might be clicked, we need careful targeting
+            // But standard check usually works.
+            if (!operatorIdHeader.contains(e.target) && !operatorIdDropdown.contains(e.target)) {
+                 operatorIdDropdown.classList.add('hidden');
+            }
+        });
+    }
+
     // --- NEXT INSPECTION FILTER LOGIC ---
     const kovVizsgHeader = document.getElementById('header-kov-vizsg-title');
     const kovVizsgDropdown = document.getElementById('kov-vizsg-filter-dropdown');
 
     if (kovVizsgHeader && kovVizsgDropdown) {
         kovVizsgHeader.addEventListener('click', async (e) => {
+            hideProminentTooltip();
             e.stopPropagation();
 
             // Toggle visibility
@@ -1214,10 +1326,40 @@ export function initPartnerWorkScreen(partner, userData) {
         });
     }
 
+    // --- PROMINENT TOOLTIP INITIALIZATION ---
+    if (kovVizsgHeader) {
+        kovVizsgHeader.addEventListener('mouseenter', (e) => {
+            showProminentTooltip(e, "Köv. Vizsg.", "Szűrés lejárati dátum alapján.<br>A listában szereplő időpontok közül választhat.");
+        });
+        kovVizsgHeader.addEventListener('mouseleave', () => {
+            hideProminentTooltip();
+        });
+    }
+
+    if (descriptionHeader) {
+        descriptionHeader.addEventListener('mouseenter', (e) => {
+            showProminentTooltip(e, "Megnevezés", "Szűrés megnevezés alapján.<br>Kattintson a listából való választáshoz.");
+        });
+        descriptionHeader.addEventListener('mouseleave', () => {
+            hideProminentTooltip();
+        });
+    }
+
+    if (operatorIdHeader) {
+        operatorIdHeader.addEventListener('mouseenter', (e) => {
+            showProminentTooltip(e, "Op. ID", "Szűrés Operátor ID alapján.<br>Válasszon a rendszerben lévő azonosítók közül.");
+        });
+        operatorIdHeader.addEventListener('mouseleave', () => {
+            hideProminentTooltip();
+        });
+    }
+
     function updateKovVizsgHeaderStyle() {
         if (!kovVizsgHeader) return;
         const icon = kovVizsgHeader.querySelector('i');
         
+
+
         if (filters.kov_vizsg) {
             kovVizsgHeader.classList.add('text-yellow-400');
             kovVizsgHeader.classList.remove('text-blue-300', 'hover:text-blue-200');
@@ -1248,6 +1390,27 @@ export function initPartnerWorkScreen(partner, userData) {
         } else {
             descriptionHeader.classList.remove('text-yellow-400');
             descriptionHeader.classList.add('text-blue-300', 'hover:text-blue-200');
+             if (icon) {
+                 icon.classList.add('opacity-50');
+                 icon.classList.remove('opacity-100', 'text-yellow-400');
+            }
+        }
+    }
+
+    function updateOperatorIdHeaderStyle() {
+        if (!operatorIdHeader) return;
+        const icon = operatorIdHeader.querySelector('i');
+        
+        if (filters.operatorId) {
+            operatorIdHeader.classList.add('text-yellow-400');
+            operatorIdHeader.classList.remove('text-white', 'hover:text-blue-200');
+            if (icon) {
+                 icon.classList.remove('opacity-50');
+                 icon.classList.add('opacity-100', 'text-yellow-400');
+            }
+        } else {
+            operatorIdHeader.classList.remove('text-yellow-400');
+            operatorIdHeader.classList.add('text-white', 'hover:text-blue-200'); // Original was text-white
              if (icon) {
                  icon.classList.add('opacity-50');
                  icon.classList.remove('opacity-100', 'text-yellow-400');
@@ -1307,7 +1470,7 @@ export function initPartnerWorkScreen(partner, userData) {
             // Added searchTerm to client-side logic triggers to allow for partial/case-insensitive matching
             const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
             const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
-            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm || validityFilter !== 'all' || !!filters.description;
+            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm || validityFilter !== 'all' || !!filters.description || !!filters.operatorId;
 
             if (!useClientSideLogic) {
                 // Server-side filtering for 'external' (isI == true)
@@ -1467,13 +1630,23 @@ export function initPartnerWorkScreen(partner, userData) {
                     devices = devices.filter(d => (d.description || '').trim() === filters.description);
                 }
 
+                // Operator ID Filtering (New - Dropdown)
+                if (filters.operatorId) {
+                    devices = devices.filter(d => {
+                        let val = currentOperatorCategory === 'Default' 
+                            ? (d.operatorId || '') 
+                            : (d.customIds?.[currentOperatorCategory] || '');
+                        return String(val).trim() === filters.operatorId;
+                    });
+                }
+
                 // Sorszám keresés (Client-Side, Case-Insensitive, Partial)
                 if (searchTerm) {
                     const lowerTerm = searchTerm.toLowerCase();
                     devices = devices.filter(d => String(d.serialNumber || '').toLowerCase().includes(lowerTerm));
                 }
 
-                // Operátor ID szűrés (Client-Side)
+                // Operátor ID Search (Existing - Input)
                 if (searchTermOperatorId) {
                     const lowerOpTerm = searchTermOperatorId.toLowerCase();
                     devices = devices.filter(d => {
@@ -1796,6 +1969,38 @@ export function initPartnerWorkScreen(partner, userData) {
              tooltip.style.transform = "translate(-50%, -100%)";
         }
     };
+
+    // --- PROMINENT TOOLTIP FUNCTIONS ---
+    function createProminentTooltipElement() {
+        if (document.getElementById('prominent-tooltip')) return;
+        const tooltip = document.createElement('div');
+        tooltip.id = 'prominent-tooltip';
+        tooltip.className = 'prominent-tooltip'; // Uses the CSS class added earlier
+        document.body.appendChild(tooltip);
+    }
+
+    function showProminentTooltip(event, title, description) {
+        createProminentTooltipElement(); // Ensure element exists
+        const tooltip = document.getElementById('prominent-tooltip');
+        
+        tooltip.innerHTML = `<h3>${title}</h3><p>${description}</p>`;
+        tooltip.classList.add('visible');
+
+        // Position Logic - Fixed near mouse but slightly offset
+        const x = event.clientX;
+        const y = event.clientY + 20; // Position below cursor
+        
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+        tooltip.style.transform = "translate(-50%, 0)"; // Center horizontally
+    }
+
+    function hideProminentTooltip() {
+        const tooltip = document.getElementById('prominent-tooltip');
+        if (tooltip) {
+            tooltip.classList.remove('visible');
+        }
+    }
 
     function renderTable(devices) {
         currentDevices = devices; // Store the currently rendered devices
