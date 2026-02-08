@@ -99,7 +99,8 @@ async function handleRoleUpdate(user, partnerId, newRole, saveButton, roleSelect
         try {
             const isEjkAction = currentUserData && currentUserData.isEjkUser;
             let expiryDate = null;
-            let shouldReload = false;
+            // Force reload for inspector role to show the "Partners" button immediately
+            let shouldReload = newRole === 'inspector';
 
             if (newRole === 'subscriber' && isEjkAction) {
                 const daysStr = prompt("Hány napra fizetett elő?", "30");

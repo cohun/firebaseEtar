@@ -465,7 +465,9 @@ export async function showMainScreen(user, userData) {
     // Statistics button for everyone (functionality differs)
     buttonsHtml += `<button id="statisticsBtn" class="btn btn-secondary w-full mt-2">Statisztikák</button>`;
 
-    if (isEjkUser) {
+    // Külső Szakértők gomb: Csak EJK Admin/Write/Read/Sysadmin láthatja (Inspector és EKV NEM)
+    const isInspector = (userData.roles || []).includes('EJK_inspector');
+    if (isEjkUser && !userData.isEkvUser && !isInspector) {
         buttonsHtml += `<button id="externalExpertsBtn" class="btn btn-secondary w-full mt-2">Külső Szakértők</button>`;
     }
 
@@ -607,11 +609,14 @@ export function showPermissionManagementLoadingScreen() {
 import { attachPermissionManagementListeners } from './ui_helpers.js';
 
 export function showPermissionManagementScreen(users, currentUserData) {
-    // ... existing content ...
     const isAdminEJK = currentUserData.isEjkUser;
 
     const roleOptions = ['pending', 'admin', 'pendingAdmin', 'write', 'read', 'inspector', 'pending_inspector'];
-    // ... render html ...
+    // Add 'subcontractor' and 'subscriber' to roleOptions for display purposes if not EJK
+    if (!isAdminEJK) {
+        roleOptions.push('subcontractor', 'subscriber');
+    }
+
     const renderUserList = (userList) => {
         if (userList.length === 0) {
             return '<p class="text-center text-gray-400">Nincsenek a feltételeknek megfelelő felhasználók.</p>';
@@ -695,9 +700,12 @@ export function showPermissionManagementScreen(users, currentUserData) {
     
             return `
                 <div class="p-4 border ${cardBorderClass} rounded-lg mb-4">
-                    <h3 class="text-xl font-bold ${nameColorClass}">
+                    <h3 class="text-xl font-bold ${nameColorClass} flex items-center gap-2">
                         ${user.name} 
-                        ${hasPendingRole ? '<span class="ml-2 text-sm text-yellow-400 border border-yellow-400 rounded px-2 py-0.5">Jóváhagyásra vár</span>' : ''}
+                        ${hasPendingRole ? '<span class="text-sm text-yellow-400 border border-yellow-400 rounded px-2 py-0.5">Jóváhagyásra vár</span>' : ''}
+                        ${(user.roles && user.roles.includes('EJK_inspector')) ? 
+                            `<button onclick="window.openInspectorPartnerModal('${user.id}', '${user.name.replace(/'/g, "\\'")}')" class="ml-2 text-xs bg-blue-700 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors" title="Partnerek kezelése"><i class="fas fa-edit mr-1"></i>Partnerek</button>` 
+                            : ''}
                     </h3>
                     <p class="text-gray-400">${user.email}</p>
                     <div class="mt-4 space-y-2">
@@ -1133,3 +1141,117 @@ export function hideLoadingModal() {
         modal.remove();
     }
 }
+
+import { saveInspectorPartners } from './admin.js';
+
+window.openInspectorPartnerModal = async function(userId, userName) {
+    showLoadingModal('Partnerek betöltése...');
+    try {
+        // 1. Fetch ALL partners
+        const snapshot = await db.collection('partners').get();
+        const allPartners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // 2. Fetch current user data to see assigned permissions
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data();
+        const userPartnerRoles = userData.partnerRoles || {};
+
+        hideLoadingModal();
+
+        // 3. Create Modal HTML
+        let modal = document.getElementById('inspector-modal');
+        if (!modal) {
+            const modalHtml = `
+                <div id="inspector-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-2xl w-full flex flex-col max-h-[85vh]">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold text-white">Inspector Partnerek: <span class="text-blue-300" id="inspector-modal-username"></span></h2>
+                            <button id="close-inspector-modal" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <input type="text" id="inspector-partner-search" placeholder="Keresés..." class="input-field w-full">
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto pr-2 mb-4" id="inspector-partners-list">
+                            <!-- Helper checkboxes will be injected here -->
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-4 border-t border-gray-700">
+                             <button id="close-inspector-modal-btn" class="btn btn-secondary">Mégse</button>
+                             <button id="save-inspector-partners-btn" class="btn btn-primary">Mentés</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            modal = document.getElementById('inspector-modal');
+        
+            // Attach close listeners only once
+            document.getElementById('close-inspector-modal').onclick = () => modal.style.display = 'none';
+            document.getElementById('close-inspector-modal-btn').onclick = () => modal.style.display = 'none';
+        }
+
+        // 4. Populate Data
+        document.getElementById('inspector-modal-username').textContent = userName;
+        const listContainer = document.getElementById('inspector-partners-list');
+        modal.style.display = 'flex';
+
+        const renderList = (filter = '') => {
+            const filterLower = filter.toLowerCase();
+            const filteredPartners = allPartners.filter(p => p.name.toLowerCase().includes(filterLower)); // Improved sorting/filtering could go here
+
+            filteredPartners.sort((a, b) => a.name.localeCompare(b.name));
+
+            listContainer.innerHTML = filteredPartners.map(p => {
+                const isChecked = !!userPartnerRoles[p.id];
+                return `
+                    <label class="flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer">
+                        <input type="checkbox" class="inspector-partner-checkbox h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3" 
+                               value="${p.id}" ${isChecked ? 'checked' : ''}>
+                        <div class="flex-1">
+                            <div class="font-medium text-white">${p.name}</div>
+                            <div class="text-xs text-gray-400">${p.address || ''}</div>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        };
+
+        renderList();
+
+        // 5. Attach Search Listener
+        const searchInput = document.getElementById('inspector-partner-search');
+        // Remove old listener to avoid duplicates if reopened? (Actually defining the function inside creates a closure, better to just replace oninput)
+        searchInput.oninput = (e) => renderList(e.target.value);
+        searchInput.value = ''; // Reset search
+        searchInput.focus();
+
+        // 6. Attach Save Listener
+        const saveBtn = document.getElementById('save-inspector-partners-btn');
+        saveBtn.onclick = async () => {
+            const checkboxes = listContainer.querySelectorAll('.inspector-partner-checkbox:checked');
+            const selectedPartnerIds = Array.from(checkboxes).map(cb => cb.value);
+
+            showLoadingModal('Mentés folyamatban...');
+            try {
+                await saveInspectorPartners(userId, selectedPartnerIds);
+                hideLoadingModal();
+                modal.style.display = 'none';
+                alert('Partnerek sikeresen frissítve!');
+                // Refresh parent screen?
+                // Ideally we'd trigger a reload of the user list in the background or just reload page
+                window.location.reload(); 
+            } catch (error) {
+                 hideLoadingModal();
+                 console.error(error);
+                 alert('Hiba történt a mentés során: ' + error.message);
+            }
+        };
+
+    } catch (error) {
+        hideLoadingModal();
+        console.error("Error opening inspector modal:", error);
+        alert("Hiba történt az ablak megnyitása közben.");
+    }
+};

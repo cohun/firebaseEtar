@@ -25,13 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let userData = {};
             let isEkvUser = false; // Declare outside try block
+            let userRoles = [];
             
             // Check user roles to adjust UI
             try {
                 const userDoc = await db.collection('users').doc(user.uid).get();
                 if (userDoc.exists) {
                     userData = userDoc.data();
-                    const userRoles = userData.roles || [];
+                    userRoles = userData.roles || [];
                     isEkvUser = userData.isEkvUser === true; // Assign value
 
                     if (isEkvUser) {
@@ -43,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     // If user has EJK_read but NOT admin or write, AND is NOT an EKV user, hide dangerous buttons
-                    if (!isEkvUser && userRoles.includes('EJK_read') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+                    if (!isEkvUser && userRoles.includes('EJK_read') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_inspector')) {
                         const deleteBtn = document.getElementById('deleteDraftsButton');
                         const finalizeBtn = document.getElementById('finalizeDraftsButton');
                         if (deleteBtn) deleteBtn.style.display = 'none';
@@ -121,6 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // EJK users only see isI: false (or undefined) drafts
                     allEnrichedDrafts = allEnrichedDrafts.filter(draft => draft.isI !== true);
+
+                    // EJK_inspector restriction: only see assigned partners
+                    if (userRoles.includes('EJK_inspector') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
+                         const myPartnerIds = Object.keys(userData.partnerRoles || {});
+                         allEnrichedDrafts = allEnrichedDrafts.filter(draft => myPartnerIds.includes(draft.partnerId));
+                    }
                 }
 
                 sortAndRender(); // Initial render with default sorting
@@ -402,7 +409,7 @@ if (generateDraftsButton) {
         const userData = userDoc.data();
         const userRoles = userData.roles || [];
 
-        if (!userData.isEkvUser && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
+        if (!userData.isEkvUser && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read') && !userRoles.includes('EJK_inspector')) {
             alert('Ehhez a művelethez nincs jogosultsága!');
             return;
         }
@@ -572,7 +579,7 @@ if (finalizeDraftsButton) {
         const userData = userDoc.data();
         const userRoles = userData.roles || [];
 
-        if (!userData.isEkvUser && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write')) {
+        if (!userData.isEkvUser && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_inspector')) {
             alert('Ehhez a művelethez nincs jogosultsága!');
             return;
         }

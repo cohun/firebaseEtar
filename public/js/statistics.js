@@ -182,14 +182,22 @@ async function loadStatsForPartners(partnerIdsToLoad, allPartners, userData) {
 }
 
 function renderInitialStatisticsUI(partners, userData) {
-    const isEjkUser = userData.isEjkUser;
+    // Determine Global Access
+    const isEkv = userData.isEkvUser === true;
+    const globalRoles = ['EJK_admin', 'EJK_write', 'EJK_read', 'sysadmin'];
+    if (userData.role === 'sysadmin') globalRoles.push('ignore_this_check');
+    const userRoles = userData.roles || [];
+    const hasGlobalRole = (userData.role === 'sysadmin') || userRoles.some(r => globalRoles.includes(r));
+    
+    // "Global Access" means seeing all partners in the system
+    const hasGlobalAccess = userData.isEjkUser && !isEkv && hasGlobalRole;
     
     // Sort partners alphabetically
     partners.sort((a, b) => a.name.localeCompare(b.name));
 
     let contentHtml = '';
 
-    if (isEjkUser) {
+    if (hasGlobalAccess) {
         // EJK View: Dropdown + Aggregate/Specific View
         const optionsHtml = partners.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
         
@@ -219,7 +227,7 @@ function renderInitialStatisticsUI(partners, userData) {
             </div>
         </div>`; 
     } else {
-        // ENY View: List all associated partners - Auto load since usually small number
+        // ENY View OR Restricted EJK View: List all associated partners - Auto load since usually small number
         contentHtml += `<div id="stats-content-area" class="min-h-[200px]"></div>`;
     }
 
@@ -274,7 +282,10 @@ function renderInitialStatisticsUI(partners, userData) {
     };
 
     // --- Logic for EJK Dropdown & Actions ---
-    if (isEjkUser) {
+    // Variables already declared at top of function
+
+
+    if (hasGlobalAccess) {
         const partnerSelect = document.getElementById('stats-partner-select');
         const actionContainer = document.getElementById('action-button-container');
         const loadAllBtn = document.getElementById('load-all-stats-btn');
@@ -316,7 +327,7 @@ function renderInitialStatisticsUI(partners, userData) {
             }
         });
     } else {
-        // ENY User - Auto load their partners
+        // ENY User OR Restricted EJK User - Auto load their partners
         const allPartnerIds = partners.map(p => p.id);
         loadStatsForPartners(allPartnerIds, partners, userData);
     }
@@ -374,7 +385,7 @@ function renderStatsContent(partnerStats, userData) {
         statsToRender = partnerStats;
     }
 
-    contentArea.innerHTML = statsToRender.map(stats => generateStatsCardHtml(stats, isAggregateMode)).join('');
+    contentArea.innerHTML = statsToRender.map(stats => generateStatsCardHtml(stats, isAggregateMode, userData)).join('');
 
     // Add click listeners for aggregate view rows
     if (isAggregateMode) {
@@ -533,9 +544,28 @@ function setupSchedulerButton(partnerStats, userData) {
     }
 }
 
-function generateStatsCardHtml(stats, isAggregate) {
+function checkPartnerAccess(userData, partnerId) {
+    if (!userData) return false;
+    // Sysadmin always has access
+    if (userData.role === 'sysadmin' || (userData.roles && userData.roles.includes('sysadmin'))) return true;
+    
+    // Check specific partner roles
+    if (userData.partnerRoles && userData.partnerRoles[partnerId]) {
+        const allowedRoles = ['admin', 'write', 'read', 'inspector', 'subcontractor', 'subscriber'];
+        return allowedRoles.includes(userData.partnerRoles[partnerId]);
+    }
+    
+    return false;
+}
+
+function generateStatsCardHtml(stats, isAggregate, userData = null) {
     const sortedMonths = Object.keys(stats.monthlyExpirations).sort();
     
+    // Check access for this partner
+    // For aggregate view, we assume interactivity is always allowed (it just shows modal)
+    // For individual partner cards, we check permission
+    const hasAccess = isAggregate || checkPartnerAccess(userData, stats.partnerId);
+
     const rowsHtml = sortedMonths.map(month => {
         const [year, m] = month.split('-');
         const monthName = new Date(year, m - 1).toLocaleString('hu-HU', { month: 'long' });
@@ -543,9 +573,11 @@ function generateStatsCardHtml(stats, isAggregate) {
         const data = stats.monthlyExpirations[month];
         
         // Add ID and cursor pointer
-        const rowId = isAggregate ? `id="row-${month}"` : `id="row-${stats.partnerId}-${month}"`;
+        // access strictly required for non-aggregate rows
+        const rowId = (isAggregate || hasAccess) ? (isAggregate ? `id="row-${month}"` : `id="row-${stats.partnerId}-${month}"`) : '';
+        
         // Animation class for interactivity
-        const cursorClass = 'cursor-pointer hover:bg-gray-700/50 transition-colors transform hover:translate-x-1 duration-200';
+        const cursorClass = (isAggregate || hasAccess) ? 'cursor-pointer hover:bg-gray-700/50 transition-colors transform hover:translate-x-1 duration-200' : '';
 
         return `
             <tr ${rowId} class="border-b border-gray-700 ${cursorClass}">
@@ -559,12 +591,21 @@ function generateStatsCardHtml(stats, isAggregate) {
     }).join('');
 
     // Determine interactivity for expired card
-    const expiredCardId = !isAggregate ? `expired-card-${stats.partnerId}` : '';
-    const expiredCursorClass = (!isAggregate && stats.expiredCount > 0) ? 'cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg' : '';
-    const expiredTitle = (!isAggregate && stats.expiredCount > 0) ? 'title="Kattintson a listázáshoz"' : '';
+    // Only if hasAccess
+    const expiredCardId = (!isAggregate && hasAccess) ? `expired-card-${stats.partnerId}` : '';
+    const expiredCursorClass = (!isAggregate && stats.expiredCount > 0 && hasAccess) ? 'cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg' : '';
+    const expiredTitle = (!isAggregate && stats.expiredCount > 0 && hasAccess) ? 'title="Kattintson a listázáshoz"' : '';
+    
+    // Determine interactivity for no inspection card
+    const noInspectionCardId = (!isAggregate && hasAccess) ? `no-inspection-card-${stats.partnerId}` : '';
+    const noInspectionCursorClass = (!isAggregate && stats.noInspectionCount > 0 && hasAccess) ? 'cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg' : '';
+    const noInspectionTitle = (!isAggregate && stats.noInspectionCount > 0 && hasAccess) ? 'title="Kattintson a listázáshoz"' : '';
+    
+    // Visual opacity for disabled state (optional, improving UX)
+    const cardOpacity = hasAccess ? '' : 'opacity-75';
 
     return `
-        <div class="bg-gray-800/50 rounded-lg border border-blue-800 p-6 mb-8">
+        <div class="bg-gray-800/50 rounded-lg border border-blue-800 p-6 mb-8 ${cardOpacity}">
             <div class="mb-6 border-b border-gray-700 pb-4">
                 <h2 class="text-2xl font-bold text-blue-300">${stats.partnerName}</h2>
                 <p class="text-gray-400 text-sm">${stats.partnerAddress}</p>
@@ -579,7 +620,7 @@ function generateStatsCardHtml(stats, isAggregate) {
                     <p class="text-xs text-gray-400">eszköz</p>
                 </div>
                 <!-- No Inspection Card -->
-                <div id="${!isAggregate ? `no-inspection-card-${stats.partnerId}` : ''}" ${!isAggregate && stats.noInspectionCount > 0 ? 'title="Kattintson a listázáshoz"' : ''} class="p-4 rounded-lg border ${stats.noInspectionCount > 0 ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-600 bg-gray-700/20'} text-center ${(!isAggregate && stats.noInspectionCount > 0) ? 'cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg' : ''}">
+                <div id="${noInspectionCardId}" ${noInspectionTitle} class="p-4 rounded-lg border ${stats.noInspectionCount > 0 ? 'border-yellow-500 bg-yellow-900/20' : 'border-gray-600 bg-gray-700/20'} text-center ${noInspectionCursorClass}">
                     <h3 class="text-lg font-semibold mb-1 text-gray-200">Nincs vizsgálat</h3>
                     <p class="text-3xl font-bold ${stats.noInspectionCount > 0 ? 'text-yellow-400' : 'text-gray-400'}">${stats.noInspectionCount}</p>
                     <p class="text-xs text-gray-400">eszköz</p>

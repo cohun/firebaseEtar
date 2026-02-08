@@ -25,6 +25,7 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
     // Filter users based on admin's permissions
     const usersToProcess = allUsers.filter(user => {
         if (user.id === adminUser.uid) return false; // Exclude admin
+        if (user.isEkvUser) return false; // Exclude External Experts (EKV)
 
         if (isAdminEJK) {
             const isUserEjk = user.isEjkUser === true;
@@ -97,6 +98,8 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
             id: user.id,
             name: user.name,
             email: user.email,
+            roles: user.roles || [],
+            isEjkUser: user.isEjkUser,
             associations: associations
         };
     }));
@@ -335,7 +338,25 @@ export async function removeUserPartnerAssociation(userId, partnerIdToRemove) {
 
 export async function getPartnersForSelection(userData) {
     let partners = [];
-    if (userData.isEjkUser) {
+    
+    // Determine Global Access
+    // 1. Must be EJK User (isEjkUser)
+    // 2. Must NOT be EKV User (External Expert)
+    // 3. Must have a Global Role (admin, write, read, inspector, sysadmin) - NOT just subcontractor/subscriber
+    
+    const isEkv = userData.isEkvUser === true;
+    // EJK_inspector is REMOVED from globalRoles. They see only assigned partners.
+    const globalRoles = ['EJK_admin', 'EJK_write', 'EJK_read', 'sysadmin'];
+    // Also allow raw 'sysadmin' role property
+    if (userData.role === 'sysadmin') globalRoles.push('ignore_this_check');
+
+    const userRoles = userData.roles || [];
+    const hasGlobalRole = (userData.role === 'sysadmin') || userRoles.some(r => globalRoles.includes(r));
+    
+    // "Global Access" means seeing all partners in the system
+    const hasGlobalAccess = userData.isEjkUser && !isEkv && hasGlobalRole;
+
+    if (hasGlobalAccess) {
         const partnersSnapshot = await db.collection('partners').get();
         partners = partnersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -350,7 +371,7 @@ export async function getPartnersForSelection(userData) {
             return { ...p, hasActiveAdmin };
         });
 
-    } else { // ENY user
+    } else { // ENY user OR Restricted EJK User (Subcontractor/Subscriber/External)
         const partnerIds = Object.keys(userData.partnerRoles || {});
         if (partnerIds.length === 0) {
             return [];
@@ -448,5 +469,58 @@ export async function checkAndEnforceSubscriptionExpiry(user) {
 
     } catch (e) {
         console.error("Error enforcing subscription", e);
+    }
+}
+
+export async function saveInspectorPartners(userId, selectedPartnerIds) {
+    if (!userId || !selectedPartnerIds) {
+        throw new Error("Hiányzó paraméterek.");
+    }
+
+    const userRef = db.collection('users').doc(userId);
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) throw "Felhasználó nem található.";
+
+            const userData = userDoc.data();
+            const updates = {};
+            const currentPartnerRoles = userData.partnerRoles || {};
+            const currentEjkPartnerRoles = userData.ejkPartnerRoles || {};
+
+            // 1. Identify all partners this user currently has access to
+            // We only want to touch transparency for partners EJK manages/assigns.
+            // For now, we assume ALL partnerRoles are managed by EJK for an EJK user.
+            
+            // 2. Add 'write' role for selected partners
+            selectedPartnerIds.forEach(partnerId => {
+                updates[`partnerRoles.${partnerId}`] = 'write';
+                updates[`ejkPartnerRoles.${partnerId}`] = 'write';
+            });
+
+            // 3. Remove roles for partners that are NOT in the selected list
+            // But were previously assigned.
+            Object.keys(currentPartnerRoles).forEach(partnerId => {
+                if (!selectedPartnerIds.includes(partnerId)) {
+                    updates[`partnerRoles.${partnerId}`] = firebase.firestore.FieldValue.delete();
+                    updates[`ejkPartnerRoles.${partnerId}`] = firebase.firestore.FieldValue.delete();
+                }
+            });
+
+            // 4. Ensure EJK_inspector role and isEjkUser flag
+            let currentRoles = userData.roles || [];
+            if (!currentRoles.includes('EJK_inspector')) {
+                currentRoles.push('EJK_inspector');
+                updates['roles'] = currentRoles;
+            }
+            updates['isEjkUser'] = true;
+
+            transaction.update(userRef, updates);
+        });
+        console.log("Inspector partners updated successfully.");
+    } catch (error) {
+        console.error("Error saving inspector partners:", error);
+        throw error;
     }
 }

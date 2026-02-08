@@ -4532,7 +4532,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
     const userRoles = userData.roles || [];
 
     const isReadOnly = role === 'read' && !userData.isEjkUser;
-    const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write') || userData.isEkvUser;
+    const canInspect = userRoles.includes('EJK_admin') || userRoles.includes('EJK_write') || userRoles.includes('EJK_inspector') || userData.isEkvUser;
     
     // ENY users with Write permissions (Admin or Write role)
     const isEnyUser = !userData.isEjkUser && !userData.isEkvUser;
