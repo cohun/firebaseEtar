@@ -548,6 +548,12 @@ function checkPartnerAccess(userData, partnerId) {
     if (!userData) return false;
     // Sysadmin always has access
     if (userData.role === 'sysadmin' || (userData.roles && userData.roles.includes('sysadmin'))) return true;
+
+    // Global EJK roles have access to everything
+    // EJK_inspector is EXCLUDED here because they only have access to ASSIGNED partners (caught by next check)
+    if (userData.isEjkUser && userData.roles && (userData.roles.includes('EJK_admin') || userData.roles.includes('EJK_write') || userData.roles.includes('EJK_read'))) {
+        return true;
+    }
     
     // Check specific partner roles
     if (userData.partnerRoles && userData.partnerRoles[partnerId]) {
