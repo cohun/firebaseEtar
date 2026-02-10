@@ -2989,7 +2989,7 @@ export function initPartnerWorkScreen(partner, userData) {
                         <option value="3">3. Vegyi / hőhatás</option>
                         <option value="4">4. Hiányzó / olvashatatlan jelölés</option>
                         <option value="5">5. Gyártói élettartam lejárta</option>
-                        <option value="other">Egyéb / Kiselejtezve</option>
+                        <option value="other">6. Egyéb indok</option>
                     </select>
                 </td>
             `;

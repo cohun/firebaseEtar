@@ -138,22 +138,23 @@
         .legend-row {
             display: flex;
             align-items: flex-start;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .legend-number {
-            width: 30px;
-            height: 30px;
-            border: 2px solid #000;
+            width: 22px;
+            height: 22px;
+            border: 1.5px solid #000;
             border-radius: 50%;
-            margin-right: 15px;
+            margin-right: 8px;
             display: inline-flex;
             justify-content: center;
             align-items: center;
             flex-shrink: 0;
             font-weight: bold;
-            font-size: 1.1em;
+            font-size: 0.85em;
             background-color: #fff;
+            line-height: 1;
         }
 
         .danger-text {
@@ -164,12 +165,7 @@
             display: block;
         }
 
-        .sub-header {
-            font-weight: bold;
-            margin-top: 15px;
-            margin-bottom: 10px;
-            text-decoration: underline;
-        }
+
 
         .statement-container {
             margin-top: 20px;
@@ -385,45 +381,54 @@
                 <div class="section-header">
                     <h2>II. A KIVONÁS ELSŐDLEGES INDOKA (JELMAGYARÁZAT)</h2>
                 </div>
-                <div class="legend-container">
+                <div class="legend-container" style="display: flex; gap: 20px;">
                     
-                    <!-- 1-es ok -->
-                    <div class="legend-row">
-                        <div class="legend-number">1</div> 
-                        <div style="flex: 1;">
-                            <strong>IDŐSZAKOS VIZSGÁLAT ALAPJÁN NEM MEGFELELT</strong>
-                            <span class="danger-text">Tovább használata TILOS és életveszélyes!</span>
-                            <div style="margin-top: 5px; font-size: 0.9em;">
-                                Indoklás: A javítás nem gazdaságos vagy nem lehetséges.<br>
+                    <!-- Bal oszlop (1-3) -->
+                    <div style="flex: 1;">
+                        <!-- 1-es ok -->
+                        <div class="legend-row">
+                            <div class="legend-number">1</div> 
+                            <div style="flex: 1; font-size: 0.9em;">
+                                <strong>IDŐSZAKOS VIZSGÁLATON NEM MEGFELELT</strong><br>
+                                <span class="danger-text" style="display: inline; font-size: 0.9em;">Használata TILOS!</span>
+                                <span style="font-size: 0.9em;">(Javítása gazdaságtalan/nem lehetséges)</span>
                             </div>
+                        </div>
+
+                        <!-- 2-es ok -->
+                        <div class="legend-row">
+                            <div class="legend-number">2</div>
+                            <div style="align-self: center; font-size: 0.9em;">Mechanikai sérülés (szakadás, törés, deformáció)</div>
+                        </div>
+                        
+                        <!-- 3-as ok -->
+                        <div class="legend-row">
+                            <div class="legend-number">3</div>
+                            <div style="align-self: center; font-size: 0.9em;">Vegyi/hőhatás (merevedés, olvadás, elszíneződés)</div>
                         </div>
                     </div>
 
-                    <div class="sub-header">EGYÉB INDOKOK</div>
+                    <!-- Jobb oszlop (4-6) -->
+                    <div style="flex: 1;">
+                        <!-- 4-es ok -->
+                        <div class="legend-row">
+                            <div class="legend-number">4</div>
+                            <div style="align-self: center; font-size: 0.9em;">Hiányzó / olvashatatlan jelölés (CE, teherbírás)</div>
+                        </div>
 
-                    <!-- 2-es ok -->
-                    <div class="legend-row">
-                        <div class="legend-number">2</div>
-                        <div style="align-self: center;">Mechanikai sérülés (szakadás, törés, hurok, deformáció)</div>
-                    </div>
-                    
-                    <!-- 3-as ok -->
-                    <div class="legend-row">
-                        <div class="legend-number">3</div>
-                        <div style="align-self: center;">Vegyi vagy hőhatás (merevedés, olvadás, elszíneződés)</div>
+                        <!-- 5-ös ok -->
+                        <div class="legend-row">
+                            <div class="legend-number">5</div>
+                            <div style="align-self: center; font-size: 0.9em;">Gyártói élettartam lejárta</div>
+                        </div>
+
+                        <!-- 6-os ok -->
+                        <div class="legend-row">
+                            <div class="legend-number">6</div>
+                            <div style="align-self: center; font-size: 0.9em;">Egyéb indok (Lásd: megjegyzés)</div>
+                        </div>
                     </div>
 
-                    <!-- 4-es ok -->
-                    <div class="legend-row">
-                        <div class="legend-number">4</div>
-                        <div style="align-self: center;">Hiányzó / olvashatatlan jelölés (CE, teherbírás, azonosító)</div>
-                    </div>
-
-                    <!-- 5-ös ok -->
-                    <div class="legend-row">
-                        <div class="legend-number">5</div>
-                        <div style="align-self: center;">Gyártói élettartam lejárta</div>
-                    </div>
                 </div>
             </section>
 
@@ -501,7 +506,7 @@
                 let rowsHtml = '';
                 data.devices.forEach(device => {
                     let reasonDisplay = device.reasonCode;
-                    if (reasonDisplay === 'other') reasonDisplay = 'Egyéb';
+                    if (reasonDisplay === 'other') reasonDisplay = '6';
                     
                     rowsHtml += `
                         <tr>
