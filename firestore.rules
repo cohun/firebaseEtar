@@ -50,14 +50,15 @@ service cloud.firestore {
 
     match /partners/{partnerId}/devices/{deviceId} {
       allow read, list: if isEjkUser() || (isEkvUser() && resource.data.isI == true) || getRoleForPartner(partnerId) != null;
-			allow write: if isEjkUser() || getRoleForPartner(partnerId) == 'admin' || getRoleForPartner(partnerId) == 'write' || getRoleForPartner(partnerId) == 'inspector' || getRoleForPartner(partnerId) == 'subcontractor';
+			allow create, update: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write', 'inspector', 'subcontractor'];
+			allow delete: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write'];
     }
 
     // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
 		match /partners/{partnerId}/devices/{deviceId}/inspections/{inspectionId} {
   		allow create, update: if canWriteInspection(partnerId) || request.auth.token.email == 'attila.hitb@gmail.com';
   		allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
-			allow delete: if canWriteInspection(partnerId) && resource.data.status == 'draft';
+			allow delete: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write'] || (canWriteInspection(partnerId) && resource.data.status == 'draft');
 		}
 
     // ÚJ SZABÁLY: Engedélyezi a 'collectionGroup' lekérdezést az 'inspections' kollekcióra.

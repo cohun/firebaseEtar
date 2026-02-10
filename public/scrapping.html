@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selejtezési Jegyzőkönyv</title>
+    <style>
+        /* --- Alapstílusok (Minden nézetre) --- */
+        html {
+            box-sizing: border-box;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            line-height: 1.3;
+            background-color: #ffffff;
+        }
+        
+        /* --- Képernyős nézet (Boríték) --- */
+        .screen-view-wrapper {
+            background-color: #f4f4f4;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px; 
+            background-color: #ffffff;
+            padding: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        /* --- Tartalmi Stílusok --- */
+
+        .document-title {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 10px;
+        }
+
+        .document-title h1 {
+            font-size: 1.6em;
+            font-weight: bold;
+            margin: 0;
+            text-transform: uppercase;
+            color: #000;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            background-color: #eee;
+            padding: 5px 10px;
+            border-bottom: 1px solid #000;
+            margin-bottom: 10px;
+        }
+
+        .section-header h2 {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 0;
+            color: #000;
+            text-transform: uppercase;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: minmax(250px, 40%) 1fr; 
+            gap: 8px 0;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .data-label {
+            font-weight: normal;
+            color: #444;
+        }
+
+        .data-value {
+            font-weight: bold;
+            color: #000;
+            padding-left: 10px;
+            border-bottom: 1px dotted #ccc;
+            min-height: 1.3em;
+        }
+
+        /* Táblázat stílusok az eszközlistához */
+        .device-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+        
+        .device-table th {
+            text-align: left;
+            background-color: #f9f9f9;
+            padding: 8px;
+            border-bottom: 2px solid #000;
+            font-weight: bold;
+            color: #000;
+        }
+        
+        .device-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: middle;
+            color: #000;
+        }
+
+        .col-code {
+            text-align: center;
+            font-weight: bold;
+            background-color: #fcfcfc;
+        }
+        
+        .device-table tr:last-child td {
+            border-bottom: 1px solid #ccc;
+        }
+
+        /* Lista stílusok a II. szakaszhoz (Számozott lista) */
+        .legend-container {
+            padding: 10px;
+        }
+        
+        .legend-row {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .legend-number {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #000;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            font-weight: bold;
+            font-size: 1.1em;
+            background-color: #fff;
+        }
+
+        .danger-text {
+            color: #cc0000;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .sub-header {
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            text-decoration: underline;
+        }
+
+        .statement-container {
+            margin-top: 20px;
+            margin-left: 10px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #fafafa;
+        }
+
+        .statement-text {
+            font-size: 1em;
+            line-height: 1.5;
+            font-style: italic;
+        }
+
+        .signature-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between; 
+        }
+        
+        .signature-block {
+            text-align: center;
+            width: 300px;
+            margin-left: auto; 
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            margin-bottom: 5px;
+            height: 30px;
+        }
+        
+        .signature-label {
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 0.7em;
+            color: #777;
+        }
+
+        /* --- Mobil nézet --- */
+        @media (max-width: 600px) {
+            .screen-view-wrapper { padding: 0; }
+            .container { padding: 15px; border: none; }
+            .data-grid { grid-template-columns: 1fr; }
+            .data-value { padding-left: 0; margin-bottom: 10px; border-bottom: 1px solid #eee; }
+            .signature-section { justify-content: center; }
+            .signature-block { margin-left: 0; }
+            
+            /* Mobil táblázat kezelés */
+            .device-table th { display: none; }
+            .device-table td { display: block; padding-left: 0; border: none; }
+            .device-table tr { display: block; border-bottom: 2px solid #ccc; margin-bottom: 10px; padding-bottom: 10px; }
+            .device-table td:before { content: attr(data-label); font-weight: bold; display: block; margin-bottom: 3px; color: #555; }
+            .col-code { text-align: left; background-color: transparent; }
+        }
+
+        /* --- Nyomtatási stílusok (A4) --- */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.8cm;
+            }
+
+            .screen-view-wrapper {
+                display: block;
+                padding: 0;
+                margin: 0;
+                background-color: #fff !important;
+            }
+
+            html, body {
+                font-family: 'Times New Roman', Times, serif;
+                background-color: #fff !important;
+                margin: 0;
+                padding: 0;
+                font-size: 10pt;
+                line-height: 1.4;
+                color: #000;
+                height: 100%;
+            }
+
+            .container {
+                width: 100%;
+                max-width: none;
+                padding: 0;
+                margin: 0;
+                border: none;
+                box-shadow: none;
+            }
+
+            .document-title {
+                margin-bottom: 20px;
+            }
+
+            .section-header {
+                background-color: #ddd !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                border: 1px solid #000;
+            }
+            
+            .data-grid {
+                gap: 10px 0;
+            }
+            
+            .data-value {
+                border-bottom: 1px dotted #000;
+            }
+            
+            /* Táblázat nyomtatási korrekciók */
+            .device-table th {
+                background-color: #ddd !important;
+                -webkit-print-color-adjust: exact;
+                border-bottom: 1px solid #000;
+            }
+            .device-table td {
+                border-bottom: 1px solid #000;
+            }
+            
+            .legend-number {
+                border: 2px solid #000 !important;
+            }
+
+            .danger-text {
+                color: #000 !important; /* Nyomtatásban fekete */
+                text-decoration: underline;
+            }
+            
+            .statement-container {
+                background-color: #fff !important;
+                border: 1px solid #000;
+            }
+
+            .footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="screen-view-wrapper">
+        <div class="container">
+
+            <!-- Cím -->
+            <div class="document-title">
+                <h1>TEHERFELVEVŐ ESZKÖZ<br>SELEJTEZÉSI JEGYZŐKÖNYV</h1>
+            </div>
+
+            <!-- I. Azonosító Adatok -->
+            <section class="section">
+                <div class="section-header">
+                    <h2>I. AZONOSÍTÓ ADATOK</h2>
+                </div>
+                
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%; text-align: center;">Selejt ok<br>(Kód)</th>
+                            <th style="width: 45%;">Megnevezés / Típus</th>
+                            <th style="width: 22%;">Gyáriszám</th>
+                            <th style="width: 23%;">Belső azonosító</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 1. sor -->
+                        <tr>
+                            <td data-label="Selejt ok (Kód)" class="col-code">{kod_1}</td>
+                            <td data-label="Megnevezés / Típus">{megnevezes_tipus_1}</td>
+                            <td data-label="Gyáriszám">{gyari_sorszam_1}</td>
+                            <td data-label="Belső azonosító">{belso_azonosito_1}</td>
+                        </tr>
+                        <!-- 2. sor -->
+                        <tr>
+                            <td data-label="Selejt ok (Kód)" class="col-code">{kod_2}</td>
+                            <td data-label="Megnevezés / Típus">{megnevezes_tipus_2}</td>
+                            <td data-label="Gyáriszám">{gyari_sorszam_2}</td>
+                            <td data-label="Belső azonosító">{belso_azonosito_2}</td>
+                        </tr>
+                        <!-- 3. sor -->
+                        <tr>
+                            <td data-label="Selejt ok (Kód)" class="col-code">{kod_3}</td>
+                            <td data-label="Megnevezés / Típus">{megnevezes_tipus_3}</td>
+                            <td data-label="Gyáriszám">{gyari_sorszam_3}</td>
+                            <td data-label="Belső azonosító">{belso_azonosito_3}</td>
+                        </tr>
+                         <!-- 4. sor -->
+                         <tr>
+                            <td data-label="Selejt ok (Kód)" class="col-code">{kod_4}</td>
+                            <td data-label="Megnevezés / Típus">{megnevezes_tipus_4}</td>
+                            <td data-label="Gyáriszám">{gyari_sorszam_4}</td>
+                            <td data-label="Belső azonosító">{belso_azonosito_4}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="font-size: 0.8em; margin-top: 5px; font-style: italic; text-align: right;">* A kódok magyarázata a II. pontban található.</div>
+            </section>
+
+            <!-- II. A KIVONÁS ELSŐDLEGES INDOKA -->
+            <section class="section">
+                <div class="section-header">
+                    <h2>II. A KIVONÁS ELSŐDLEGES INDOKA (JELMAGYARÁZAT)</h2>
+                </div>
+                <div class="legend-container">
+                    
+                    <!-- 1-es ok -->
+                    <div class="legend-row">
+                        <div class="legend-number">1</div> 
+                        <div style="flex: 1;">
+                            <strong>IDŐSZAKOS VIZSGÁLAT ALAPJÁN NEM MEGFELELT</strong>
+                            <span class="danger-text">Tovább használata TILOS és életveszélyes!</span>
+                            <div style="margin-top: 5px; font-size: 0.9em;">
+                                Indoklás: A javítás nem gazdaságos vagy nem lehetséges.<br>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sub-header">EGYÉB INDOKOK</div>
+
+                    <!-- 2-es ok -->
+                    <div class="legend-row">
+                        <div class="legend-number">2</div>
+                        <div style="align-self: center;">Mechanikai sérülés (szakadás, törés, hurok, deformáció)</div>
+                    </div>
+                    
+                    <!-- 3-as ok -->
+                    <div class="legend-row">
+                        <div class="legend-number">3</div>
+                        <div style="align-self: center;">Vegyi vagy hőhatás (merevedés, olvadás, elszíneződés)</div>
+                    </div>
+
+                    <!-- 4-es ok -->
+                    <div class="legend-row">
+                        <div class="legend-number">4</div>
+                        <div style="align-self: center;">Hiányzó / olvashatatlan jelölés (CE, teherbírás, azonosító)</div>
+                    </div>
+
+                    <!-- 5-ös ok -->
+                    <div class="legend-row">
+                        <div class="legend-number">5</div>
+                        <div style="align-self: center;">Gyártói élettartam lejárta</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- III. ZÁRÓ INTÉZKEDÉSEK -->
+            <section class="section">
+                <div class="section-header">
+                    <h2>III. ZÁRÓ INTÉZKEDÉSEK</h2>
+                </div>
+                
+                <div class="data-grid">
+                    <div class="data-label">Kivonás dátuma:</div>
+                    <div class="data-value">{kivonas_datum}</div>
+                </div>
+
+                <div class="legend-container" style="margin-top: 10px;">
+                    <div>Selejtezés végrehajtásának módja (a megfelelő aláhúzva):</div>
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px; font-weight: normal; margin-left: 20px;">
+                        <div id="method-physical">Fizikailag használhatatlanná téve (pl. elvágva, roncsolva)</div>
+                        <div id="method-removal">Üzemeltetés helyéről eltávolítva (további használata kizárva)</div>
+                    </div>
+                </div>
+
+                <div class="statement-container">
+                    <strong>Nyilatkozat:</strong>
+                    <div class="statement-text">
+                        Az eszközöket a nyilvántartásból töröltem, fizikai állapotukat használatra alkalmatlanná tettem.
+                    </div>
+                </div>
+            </section>
+
+            <!-- Aláírás -->
+            <section class="signature-section">
+                <div class="signature-block">
+                    <div class="signature-line">
+                        <!-- Aláírás helye -->
+                    </div>
+                    <div class="data-value" style="border: none; text-align: center;">{ellenorzo_szemely}</div>
+                    <div class="signature-label" style="font-weight: normal; font-size: 0.8em; margin-top: 5px;">A döntést hozó / ellenőrző személy</div>
+                    <div class="data-value" style="border: none; text-align: center; font-size: 0.9em; margin-top: 2px;">{beosztás}</div>
+                </div>
+            </section>
+
+            <!-- Lábléc -->
+            <footer class="footer">
+                Generálva: {generalas_idobelyeg} | Dokumentum azonosító: {dokumentum_id}
+            </footer>
+
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const dataJSON = localStorage.getItem('scrappingData');
+            if (dataJSON) {
+                const data = JSON.parse(dataJSON);
+                
+                // Replace placeholders in text content
+                // Note: We use a simple replacement on the body's HTML for placeholders that appear in text nodes.
+                // However, replacing innerHTML entirely might break event listeners (none here) or references.
+                // A safer approach for specific fields is searching them. But the placeholders are text.
+                
+                // Helper to safely replace text in specific elements if possible, but simplest is body replace for unique placeholders keys.
+                // We'll replace specific known placeholders.
+                
+                const replaceText = (key, value) => {
+                    // Primitive replacement: traverse and replace. 
+                    // Or simpler: just replace innerHTML of body since this is a report generation page.
+                    document.body.innerHTML = document.body.innerHTML.replace(new RegExp(key, 'g'), value);
+                };
+
+                // We must populate the table FIRST before replacing body HTML, otherwise we lose the tbody reference if we overwrite body.innerHTML.
+                // Actually, if we overwrite body.innerHTML, we re-parse everything.
+                // So let's generate the table HTML string first, then inject it.
+                
+                let rowsHtml = '';
+                data.devices.forEach(device => {
+                    let reasonDisplay = device.reasonCode;
+                    if (reasonDisplay === 'other') reasonDisplay = 'Egyéb';
+                    
+                    rowsHtml += `
+                        <tr>
+                            <td data-label="Selejt ok (Kód)" class="col-code">${reasonDisplay}</td>
+                            <td data-label="Megnevezés / Típus">${device.name} / ${device.type}</td>
+                            <td data-label="Gyáriszám">${device.serialNumber}</td>
+                            <td data-label="Belső azonosító">${device.internalId || '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                // Now replace the body content's table body.
+                // We'll use a specific marker or just find the tbody.
+                const tbody = document.querySelector('.device-table tbody');
+                if (tbody) tbody.innerHTML = rowsHtml;
+                
+                // Now replace other placeholders.
+                // Note: updating innerHTML of tbody didn't affect the rest of body string if we read body.innerHTML before.
+                // So we should do text replacements on the DOM nodes or body.innerHTML *after* table update? 
+                // No, refreshing body.innerHTML wipes the DOM.
+                
+                // Better strategy:
+                // 1. Update Table
+                // 2. Walk the DOM for text nodes and replace.
+                
+                const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                let node;
+                while(node = walk.nextNode()) {
+                    let val = node.nodeValue;
+                    let changed = false;
+                    
+                    if (val.includes('{ellenorzo_szemely}')) {
+                        val = val.replace(/{ellenorzo_szemely}/g, data.approverName);
+                        changed = true;
+                    }
+                    if (val.includes('{beosztás}')) {
+                        val = val.replace(/{beosztás}/g, data.approverPosition);
+                        changed = true;
+                    }
+                    if (val.includes('{kivonas_datum}')) {
+                        val = val.replace(/{kivonas_datum}/g, data.date);
+                        changed = true;
+                    }
+                    if (val.includes('{generalas_idobelyeg}')) {
+                        val = val.replace(/{generalas_idobelyeg}/g, new Date().toLocaleString('hu-HU'));
+                        changed = true;
+                    }
+
+                    if (val.includes('{dokumentum_id}')) {
+                        val = val.replace(/{dokumentum_id}/g, 'SCRAP-' + Math.floor(Math.random() * 1000000));
+                        changed = true;
+                    }
+
+                    if (changed) node.nodeValue = val;
+                }
+
+                // Handle Scrapping Method Highlight
+                if (data.method === 'physical') {
+                    const el = document.getElementById('method-physical');
+                    if (el) {
+                        el.style.fontWeight = 'bold';
+                        el.style.textDecoration = 'underline';
+                    }
+                } else if (data.method === 'removal') {
+                     const el = document.getElementById('method-removal');
+                    if (el) {
+                        el.style.fontWeight = 'bold';
+                        el.style.textDecoration = 'underline';
+                    }
+                }
+                
+                // Auto-print
+                setTimeout(() => window.print(), 800);
+            }
+        };
+    </script>
+</body>
+</html>

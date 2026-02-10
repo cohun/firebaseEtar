@@ -20,6 +20,9 @@ function getEszkozListaHtml() {
                 </div>
             </div>
             <!-- Szűrő és Kereső Vezérlők -->
+            <div id="inactive-view-warning" class="hidden mb-4 p-3 bg-yellow-900/50 border border-yellow-600 rounded text-yellow-200 text-center font-bold">
+                Jelenleg a leselejtezett (inaktív) eszközök listáját látja. A visszatéréshez vegye ki a pipát az 'Inaktívak' jelölőnégyzetből!
+            </div>
             <div class="card mb-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-semibold text-white">Szűrés és Keresés</h2>
@@ -847,6 +850,8 @@ export function initPartnerWorkScreen(partner, userData) {
     const deleteBtnMobile = document.getElementById('delete-device-btn-mobile');
     const decommissionBtn = document.getElementById('decommission-reactivate-btn');
     const decommissionBtnMobile = document.getElementById('decommission-reactivate-btn-mobile');
+    const permanentScrapBtn = document.getElementById('permanent-scrap-btn');
+    const permanentScrapBtnMobile = document.getElementById('permanent-scrap-btn-mobile');
     const scanChipModalBtn = document.getElementById('scan-chip-modal-btn');
     const filterHamburgerBtn = document.getElementById('filter-hamburger-btn');
     const filterMenu = document.getElementById('filter-menu');
@@ -1507,16 +1512,83 @@ export function initPartnerWorkScreen(partner, userData) {
     }
 
     function updateUiForView() {
+        // Buttons to hide/show based on view
+        const downloadDbBtn = document.getElementById('download-db-btn');
+        const downloadDbBtnMobile = document.getElementById('download-db-btn-mobile');
+        const uploadDeviceBtn = document.getElementById('uploadDeviceBtn');
+        const uploadDeviceBtnMobile = document.getElementById('uploadDeviceBtnMobile');
+        const showNewInspectionBtn = document.getElementById('showNewInspectionBtn');
+        const showNewInspectionBtnMobile = document.getElementById('showNewInspectionBtnMobile');
+        const showNewUsageBtn = document.getElementById('showNewUsageBtn');
+        const showNewUsageBtnMobile = document.getElementById('showNewUsageBtnMobile');
+        const generateProtocolBtn = document.getElementById('generate-protocol-btn');
+        const generateProtocolBtnMobile = document.getElementById('generate-protocol-btn-mobile');
+        const inactiveViewWarning = document.getElementById('inactive-view-warning');
+
         if (currentView === 'inactive') {
-            if (decommissionBtn) decommissionBtn.textContent = 'Újraaktiválás';
-            if (decommissionBtnMobile) decommissionBtnMobile.textContent = 'Újraaktiválás';
+            // Update Reactivate Button
+            if (decommissionBtn) {
+                decommissionBtn.innerHTML = '<i class="fas fa-trash-restore fa-fw"></i> Kijelöltek Újraaktiválása';
+                decommissionBtn.style.border = '1px solid #22c55e'; // Green border
+            }
+            if (decommissionBtnMobile) {
+                decommissionBtnMobile.innerHTML = '<i class="fas fa-trash-restore fa-fw"></i> Kijelöltek Újraaktiválása';
+                decommissionBtnMobile.style.border = '1px solid #22c55e'; // Green border
+            }
+            
+            // Show Warning
+            if (inactiveViewWarning) inactiveViewWarning.classList.remove('hidden');
+
+            // Hide Standard Action Buttons
+            if (downloadDbBtn) downloadDbBtn.style.display = 'none';
+            if (downloadDbBtnMobile) downloadDbBtnMobile.style.display = 'none';
+            if (uploadDeviceBtn) uploadDeviceBtn.style.display = 'none';
+            if (uploadDeviceBtnMobile) uploadDeviceBtnMobile.style.display = 'none';
+            if (showNewInspectionBtn) showNewInspectionBtn.style.display = 'none';
+            if (showNewInspectionBtnMobile) showNewInspectionBtnMobile.style.display = 'none';
+            if (showNewUsageBtn) showNewUsageBtn.style.display = 'none';
+            if (showNewUsageBtnMobile) showNewUsageBtnMobile.style.display = 'none';
+            if (generateProtocolBtn) generateProtocolBtn.style.display = 'none';
+            if (generateProtocolBtnMobile) generateProtocolBtnMobile.style.display = 'none';
+
             if (deleteBtn) deleteBtn.style.display = 'none';
             if (deleteBtnMobile) deleteBtnMobile.style.display = 'none';
+            // Show Permanent Scrap Button
+            if (permanentScrapBtn) permanentScrapBtn.style.display = '';
+            if (permanentScrapBtnMobile) permanentScrapBtnMobile.style.display = '';
         } else {
-            if (decommissionBtn) decommissionBtn.textContent = 'Leselejtezés';
-            if (decommissionBtnMobile) decommissionBtnMobile.textContent = 'Leselejtezés';
+            // Revert Reactivate Button to Scrap
+            if (decommissionBtn) {
+                decommissionBtn.innerHTML = '<i class="fas fa-ban fa-fw"></i> Leselejtezés';
+                decommissionBtn.style.border = ''; // Reset border
+            }
+            if (decommissionBtnMobile) {
+                decommissionBtnMobile.innerHTML = '<i class="fas fa-ban fa-fw"></i> Leselejtezés';
+                decommissionBtnMobile.style.border = ''; // Reset border
+            }
+
+            // Hide Warning
+            if (inactiveViewWarning) inactiveViewWarning.classList.add('hidden');
+            
+            // Show Standard Action Buttons (revert display property to default/empty which respects CSS/original state)
+            if (downloadDbBtn) downloadDbBtn.style.display = '';
+            if (downloadDbBtnMobile) downloadDbBtnMobile.style.display = '';
+            // Only show upload/new inspection/usage if they weren't originally restricted. 
+            // Since we are just toggling 'display', setting to '' removes the inline style, allowing CSS/default to take over.
+            if (uploadDeviceBtn) uploadDeviceBtn.style.display = '';
+            if (uploadDeviceBtnMobile) uploadDeviceBtnMobile.style.display = '';
+            if (showNewInspectionBtn) showNewInspectionBtn.style.display = '';
+            if (showNewInspectionBtnMobile) showNewInspectionBtnMobile.style.display = '';
+            if (showNewUsageBtn) showNewUsageBtn.style.display = '';
+            if (showNewUsageBtnMobile) showNewUsageBtnMobile.style.display = '';
+            if (generateProtocolBtn) generateProtocolBtn.style.display = '';
+            if (generateProtocolBtnMobile) generateProtocolBtnMobile.style.display = '';
+
             if (deleteBtn) deleteBtn.style.display = '';
             if (deleteBtnMobile) deleteBtnMobile.style.display = '';
+            // Hide Permanent Scrap Button
+            if (permanentScrapBtn) permanentScrapBtn.style.display = 'none';
+            if (permanentScrapBtnMobile) permanentScrapBtnMobile.style.display = 'none';
         }
     }
 
@@ -2680,8 +2752,8 @@ export function initPartnerWorkScreen(partner, userData) {
         }
 
         const deviceIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
-        const actionText = newComment === 'inactive' ? 'leselejtezni' : (newComment === 'active' ? 'újraaktiválni' : 'törölni');
-        const actionTextPast = newComment === 'inactive' ? 'leselejtezve' : (newComment === 'active' ? 'újraaktiválva' : 'törölve');
+        const actionText = newComment === 'inactive' ? 'inaktívvá tenni' : (newComment === 'active' ? 'újraaktiválni' : 'törölni');
+        const actionTextPast = newComment === 'active' ? 'újraaktiválva' : 'törölve';
         
         if (!confirm(`Biztosan szeretné ${actionText} a kiválasztott ${deviceIds.length} eszközt?`)) {
             return;
@@ -2695,7 +2767,11 @@ export function initPartnerWorkScreen(partner, userData) {
             });
             await batch.commit();
             
-            alert(`A kiválasztott eszközök sikeresen ${actionTextPast} lettek.`);
+            if (newComment === 'inactive') {
+                alert('A kiválasztott eszközök inaktívak lettek.');
+            } else {
+                alert(`A kiválasztott eszközök sikeresen ${actionTextPast} lettek.`);
+            }
             resetAndFetch(); // Refresh the list
         } catch (error) {
             console.error(`Hiba az eszközök ${actionText} során:`, error);
@@ -2851,6 +2927,219 @@ export function initPartnerWorkScreen(partner, userData) {
     if (deleteBtnMobile) {
         deleteBtnMobile.addEventListener('click', handleDelete);
     }
+
+    // --- Permanent Scrapping Logic ---
+
+    const scrappingModal = document.getElementById('scrapping-modal');
+    const scrapConfirmBtn = document.getElementById('scrap-confirm-btn');
+    const scrapCancelBtn = document.getElementById('scrap-cancel-btn');
+    const scrapNameInput = document.getElementById('scrap-name');
+    const scrapPositionInput = document.getElementById('scrap-position');
+    const scrapDeviceListBody = document.getElementById('scrap-device-list-body');
+    let _deviceIdsToDeleteForScrap = []; // Declare top level variable
+
+    // --- Scrapping Modal State Management ---
+    const showScrapInputState = () => {
+        document.getElementById('scrap-input-section').style.display = 'block';
+        document.getElementById('scrap-confirm-section').style.display = 'none';
+        document.getElementById('scrap-input-buttons').style.display = 'flex';
+        document.getElementById('scrap-confirm-buttons').style.display = 'none';
+        document.getElementById('modal-title').textContent = 'Leselejtezési Jegyzőkönyv Adategyeztetés';
+    };
+
+    const showScrapConfirmState = () => {
+        document.getElementById('scrap-input-section').style.display = 'none';
+        document.getElementById('scrap-confirm-section').style.display = 'block';
+        document.getElementById('scrap-input-buttons').style.display = 'none';
+        document.getElementById('scrap-confirm-buttons').style.display = 'flex';
+        document.getElementById('modal-title').textContent = 'Megerősítés és Végleges Törlés';
+    };
+
+    const handlePermanentScrap = () => {
+        const selectedCheckboxes = tableBody.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Kérjük, válasszon ki legalább egy eszközt a végleges leselejtezéshez!');
+            return;
+        }
+
+        // Reset to Input State
+        showScrapInputState();
+
+        // Clear previous data
+        scrapDeviceListBody.innerHTML = '';
+        scrapNameInput.value = '';
+        scrapPositionInput.value = '';
+
+        selectedCheckboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            const name = row.cells[2].textContent.trim(); // Megnevezés
+            const type = row.cells[3].textContent.trim(); // Típus
+            const sn = row.cells[1].textContent.trim(); // Gyári szám
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-3 py-2 text-sm text-gray-900 border-b">
+                    <div class="font-bold">${name}</div>
+                    <div class="text-xs text-gray-500">${type} | ${sn}</div>
+                </td>
+                <td class="px-3 py-2 text-sm text-gray-900 border-b">
+                     <select class="scrap-reason-select mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" data-device-id="${cb.dataset.id}">
+                        <option value="1">1. NEM MEGFELELT (Időszakos vizsg.)</option>
+                        <option value="2">2. Mechanikai sérülés</option>
+                        <option value="3">3. Vegyi / hőhatás</option>
+                        <option value="4">4. Hiányzó / olvashatatlan jelölés</option>
+                        <option value="5">5. Gyártói élettartam lejárta</option>
+                        <option value="other">Egyéb / Kiselejtezve</option>
+                    </select>
+                </td>
+            `;
+            scrapDeviceListBody.appendChild(tr);
+        });
+
+        // Show Modal
+        scrappingModal.classList.remove('hidden');
+    };
+
+    const closeScrappingModal = () => {
+        scrappingModal.classList.add('hidden');
+    };
+
+    const performRecursiveDeletion = async (deviceIdsToDelete) => {
+        try {
+            const batchLimit = 500;
+            let batch = db.batch();
+            let operationCount = 0;
+
+            for (const deviceId of deviceIdsToDelete) {
+                const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(deviceId);
+                
+                // 1. Delete Subcollections (Inspections)
+                // Note: Firestore doesn't support recursive delete of subcollections automatically in client SDK.
+                // We must fetch and delete them.
+                const inspectionsSnapshot = await deviceRef.collection('inspections').get();
+                
+                for (const doc of inspectionsSnapshot.docs) {
+                    batch.delete(doc.ref);
+                    operationCount++;
+                    if (operationCount >= batchLimit) {
+                        await batch.commit();
+                        batch = db.batch();
+                        operationCount = 0;
+                    }
+                }
+
+                // 2. Delete the Device
+                batch.delete(deviceRef);
+                operationCount++;
+                if (operationCount >= batchLimit) {
+                    await batch.commit();
+                    batch = db.batch();
+                    operationCount = 0;
+                }
+            }
+
+            if (operationCount > 0) {
+                await batch.commit();
+            }
+
+            alert("A kijelölt eszközök és minden kapcsolódó adatuk (jegyzőkönyvek) véglegesen törlésre kerültek.");
+            
+            // Cleanup UI
+            closeScrappingModal();
+            resetAndFetch();
+
+        } catch (error) {
+            console.error("Hiba a végleges törlés során:", error);
+            alert("Hiba történt a törlés során: " + error.message);
+        }
+    };
+
+
+
+    const handleScrapConfirm = async () => {
+        const name = scrapNameInput.value.trim();
+        const position = scrapPositionInput.value.trim();
+        const method = document.querySelector('input[name="scrap-method"]:checked').value;
+
+        if (!name || !position) {
+            alert('Kérjük, adja meg a döntést hozó személy nevét és beosztását!');
+            return;
+        }
+
+        const selectedDevicesData = [];
+        _deviceIdsToDeleteForScrap = []; // Reset and populate the global variable
+        
+        const rows = scrapDeviceListBody.querySelectorAll('tr');
+        rows.forEach(row => {
+            const select = row.querySelector('select');
+            const deviceId = select.dataset.deviceId;
+            const reasonCode = select.value;
+            
+            // Get original device data from table (or fetch if needed, but table has what we need for the report mostly)
+            // Actually, we need 'belso_azonosito' (Internal ID) too. 
+            // Let's find the original row in the main table to get all data.
+            const originalCheckbox = tableBody.querySelector(`.row-checkbox[data-id="${deviceId}"]`);
+            const originalRow = originalCheckbox.closest('tr');
+            
+            // Assuming column order: Checkbox, Gyári szám, Megnevezés, Típus, Hossz, Op. ID, ...
+            // Cells: 0=Checkbox, 1=Gyári szám, 2=Megnevezés, 3=Típus, 4=Hossz, 5=Op.ID
+            
+            selectedDevicesData.push({
+                deviceId: deviceId,
+                serialNumber: originalRow.cells[1].textContent.trim(),
+                name: originalRow.cells[2].textContent.trim(),
+                type: originalRow.cells[3].textContent.trim(),
+                internalId: originalRow.cells[5].textContent.trim(), // Op ID / Internal ID
+                reasonCode: reasonCode
+            });
+            
+            _deviceIdsToDeleteForScrap.push(deviceId); // Store for final deletion
+        });
+
+        // 1. Prepare Data for Scrapping Protocol
+        const scrappingData = {
+            partnerName: partner.name, // 'partner' object is checking in scope? Yes, initPartnerWorkScreen(partner, ...)
+            partnerAddress: partner.address,
+            approverName: name,
+            approverPosition: position,
+            method: method,
+            date: new Date().toISOString().split('T')[0],
+            devices: selectedDevicesData
+        };
+
+        // 2. Open Scrapping Protocol Window
+        localStorage.setItem('scrappingData', JSON.stringify(scrappingData));
+        window.open('scrapping.html', '_blank');
+
+        // 3. Update Modal to Confirmation State
+        showScrapConfirmState();
+    };
+
+    const scrapBackBtn = document.getElementById('scrap-back-btn');
+    if (scrapBackBtn) {
+        scrapBackBtn.addEventListener('click', showScrapInputState);
+    }
+
+    if (permanentScrapBtn) {
+        permanentScrapBtn.addEventListener('click', handlePermanentScrap);
+    }
+    if (permanentScrapBtnMobile) {
+        permanentScrapBtnMobile.addEventListener('click', handlePermanentScrap);
+    }
+    
+    scrapConfirmBtn.addEventListener('click', handleScrapConfirm);
+    scrapCancelBtn.addEventListener('click', closeScrappingModal);
+
+    // New event listener for the final delete button
+    const scrapFinalDeleteBtn = document.getElementById('scrap-final-delete-btn');
+    if (scrapFinalDeleteBtn) {
+        scrapFinalDeleteBtn.addEventListener('click', async () => {
+            if (confirm("BIZTOSAN törölni szeretné véglegesen az eszközöket? A művelet nem visszavonható!")) {
+                await performRecursiveDeletion(_deviceIdsToDeleteForScrap);
+            }
+        });
+    }
+
 
     nextPageBtn.addEventListener('click', () => {
         if (!nextPageBtn.disabled) {
@@ -4568,10 +4857,12 @@ export function getPartnerWorkScreenHtml(partner, userData) {
         actionButtonsHtml = `
             <button id="delete-device-btn" class="menu-btn menu-btn-primary"><i class="fas fa-trash fa-fw"></i>Törlés</button>
             ${showDecommissionBtn ? `<button id="decommission-reactivate-btn" class="menu-btn menu-btn-primary"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>` : ''}
+            <button id="permanent-scrap-btn" class="menu-btn menu-btn-primary" style="display: none; border: 1px solid #ef4444;"><i class="fas fa-dumpster-fire fa-fw"></i>Kijelöltek végleges leselejtezése</button>
         `;
         actionButtonsHtmlMobile = `
             <button id="delete-device-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-trash fa-fw"></i>Törlés</button>
             ${showDecommissionBtn ? `<button id="decommission-reactivate-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-ban fa-fw"></i>Leselejtezés</button>` : ''}
+            <button id="permanent-scrap-btn-mobile" class="menu-btn menu-btn-primary w-full text-left" style="display: none; border: 1px solid #ef4444;"><i class="fas fa-dumpster-fire fa-fw"></i>Kijelöltek végleges leselejtezése</button>
         `;
     }
 
@@ -4689,6 +4980,105 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 <button id="scan-chip-modal-close-btn" class="btn btn-secondary">Mégse</button>
             </div>
         </div>
+
+        <!-- Scrapping Modal -->
+        <div id="scrapping-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true" style="background-color: rgba(0,0,0,0.5);">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                    <div class="bg-gray-800 px-4 py-3 sm:px-6">
+                        <h3 class="text-lg leading-6 font-medium text-white" id="modal-title">Leselejtezési Jegyzőkönyv Adategyeztetés</h3>
+                    </div>
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <!-- Input Section -->
+                        <div id="scrap-input-section">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Döntést hozó / ellenőrző személy neve</label>
+                                <input type="text" id="scrap-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border text-gray-900" placeholder="Pl. Kovács István">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Beosztás</label>
+                                <input type="text" id="scrap-position" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border text-gray-900" placeholder="Pl. Üzemvezető">
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Selejtezés végrehajtásának módja</label>
+                                <div class="mt-2 text-gray-900">
+                                    <label class="inline-flex items-center">
+                                        <input type="radio" class="form-radio" name="scrap-method" value="physical" checked>
+                                        <span class="ml-2">Fizikailag használhatatlanná téve (pl. elvágva, roncsolva)</span>
+                                    </label>
+                                    <div class="mt-1">
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" class="form-radio" name="scrap-method" value="removal">
+                                            <span class="ml-2">Üzemeltetés helyéről eltávolítva (további használata kizárva)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h4 class="font-medium text-gray-900 mb-2">Kiválasztott eszközök és selejtezési okok:</h4>
+                            <div class="max-h-60 overflow-y-auto border border-gray-200 rounded-md">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eszköz</th>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selejt ok (Kód)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="scrap-device-list-body" class="bg-white divide-y divide-gray-200 text-gray-900">
+                                        <!-- Rows rendered by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Confirmation Section (Initially Hidden) -->
+                        <div id="scrap-confirm-section" class="hidden text-center py-4">
+                            <div class="mb-4">
+                                <i class="fas fa-file-pdf text-red-600 text-5xl mb-3"></i>
+                                <h4 class="text-xl font-bold text-gray-900 mb-2">Jegyzőkönyv Generálva</h4>
+                                <p class="text-gray-600 mb-4">A leselejtezési jegyzőkönyv megnyílt egy új ablakban.</p>
+                            </div>
+                            
+                            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 text-left">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm text-yellow-700">
+                                            Kérjük, ellenőrizze, hogy a jegyzőkönyv sikeresen letöltődött/kinyomtatásra került!
+                                            <strong class="block mt-1">A következő lépés véglegesen törli az adatokat az adatbázisból!</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                         <!-- Input Buttons -->
+                        <div id="scrap-input-buttons" class="w-full sm:flex sm:flex-row-reverse">
+                            <button id="scrap-confirm-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                <i class="fas fa-file-pdf mr-2"></i> Jegyzőkönyv & Törlés
+                            </button>
+                            <button id="scrap-cancel-btn" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                Mégse
+                            </button>
+                        </div>
+                        
+                        <!-- Confirmation Buttons (Initially Hidden) -->
+                         <div id="scrap-confirm-buttons" class="hidden w-full sm:flex sm:flex-row-reverse">
+                            <button id="scrap-final-delete-btn" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-800 text-base font-medium text-white hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                <i class="fas fa-trash-alt mr-2"></i> IGEN, Végleges Törlés
+                            </button>
+                            <button id="scrap-back-btn" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                Vissza
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         <footer class="p-4 bg-gray-800 text-white text-center text-sm">
             <p>&copy; ${new Date().getFullYear()} H-ITB Kft. | ETAR Rendszer</p>
         </footer>
