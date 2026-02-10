@@ -2974,7 +2974,7 @@ export function initPartnerWorkScreen(partner, userData) {
             const row = cb.closest('tr');
             const name = row.cells[2].textContent.trim(); // Megnevezés
             const type = row.cells[3].textContent.trim(); // Típus
-            const sn = row.cells[1].textContent.trim(); // Gyári szám
+            const sn = row.cells[5].textContent.trim(); // Gyári szám
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -3086,10 +3086,10 @@ export function initPartnerWorkScreen(partner, userData) {
             
             selectedDevicesData.push({
                 deviceId: deviceId,
-                serialNumber: originalRow.cells[1].textContent.trim(),
+                serialNumber: originalRow.cells[5].textContent.trim(),
                 name: originalRow.cells[2].textContent.trim(),
                 type: originalRow.cells[3].textContent.trim(),
-                internalId: originalRow.cells[5].textContent.trim(), // Op ID / Internal ID
+                internalId: originalRow.cells[6].textContent.trim(), // Op ID / Internal ID
                 reasonCode: reasonCode
             });
             
