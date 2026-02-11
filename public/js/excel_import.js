@@ -161,16 +161,6 @@ import { auth, db } from './firebase.js';
                         continue; 
                     }
 
-                    // Add metadata
-                    deviceData.createdAt = firebase.firestore.Timestamp.now();
-                    deviceData.createdBy = createdByName;
-                    deviceData.partnerId = partnerId;
-                    deviceData.comment = 'active';
-                    deviceData.status = '';
-
-                    const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc();
-                    batch.set(deviceRef, deviceData);
-
                     // Helper to format date as YYYY.MM.DD
                     const formatDate = (date) => {
                         if (!date) return '';
@@ -182,12 +172,28 @@ import { auth, db } from './firebase.js';
                         return `${year}.${month}.${day}`;
                     };
 
+                    // Format dates first
                     inspectionData.vizsgalatIdopontja = inspectionData.vizsgalatIdopontja ? formatDate(inspectionData.vizsgalatIdopontja) : formatDate(new Date());
                     inspectionData.kovetkezoIdoszakosVizsgalat = inspectionData.kovetkezoIdoszakosVizsgalat ? formatDate(inspectionData.kovetkezoIdoszakosVizsgalat) : '';
+
+                    // Add metadata
+                    deviceData.createdAt = firebase.firestore.Timestamp.now();
+                    deviceData.createdBy = createdByName;
+                    deviceData.partnerId = partnerId;
+                    deviceData.comment = 'active';
+                    
+                    // Denormalized fields for Device List Optimization
+                    deviceData.status = inspectionData.vizsgalatEredmenye || 'Megfelelt';
+                    deviceData.vizsg_idopont = inspectionData.vizsgalatIdopontja;
+                    deviceData.kov_vizsg = inspectionData.kovetkezoIdoszakosVizsgalat;
+                    deviceData.kov_vizsg_datum = inspectionData.kovetkezoIdoszakosVizsgalat;
+
+                    const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc();
+                    batch.set(deviceRef, deviceData);
+
                     inspectionData.deviceId = deviceRef.id;
                     inspectionData.createdAt = firebase.firestore.Timestamp.now();
                     inspectionData.createdBy = createdByName;
-
 
                     const inspectionRef = deviceRef.collection('inspections').doc();
                     batch.set(inspectionRef, inspectionData);
@@ -502,6 +508,25 @@ import { auth, db } from './firebase.js';
                     // Add metadata
                     if (!updateData.updatedAt) updateData.updatedAt = firebase.firestore.Timestamp.now();
                     
+                    // DENORMALIZATION UPDATES (Optimized List)
+                    if (mod.fullData.vizsgalatIdopontja) {
+                         const vDate = formatDate(mod.fullData.vizsgalatIdopontja);
+                         if (vDate) updateData.vizsg_idopont = vDate;
+                    }
+                    if (mod.fullData.kovetkezoIdoszakosVizsgalat) {
+                         const kDate = formatDate(mod.fullData.kovetkezoIdoszakosVizsgalat);
+                         if (kDate) {
+                            updateData.kov_vizsg = kDate;
+                            updateData.kov_vizsg_datum = kDate;
+                         }
+                    }
+                    if (mod.fullData.vizsgalatEredmenye) {
+                        updateData.status = mod.fullData.vizsgalatEredmenye;
+                    } else if (mod.fullData.vizsgalatIdopontja && !updateData.status) {
+                        // If we have a new inspection but no explicit result, assume Compliant or keep existing?
+                        // Better to leave it unless explicit.
+                    }
+
                     operations.push({ type: 'update', ref: db.collection('partners').doc(bulkAnalysisResult.partnerId).collection('devices').doc(mod.docId), data: updateData });
                 });
             }
@@ -516,6 +541,12 @@ import { auth, db } from './firebase.js';
                     // Simple date format fix if needed, similar to saveButton logic
                     if (newData.vizsgalatIdopontja) newData.vizsgalatIdopontja = formatDate(newData.vizsgalatIdopontja);
                      if (newData.kovetkezoIdoszakosVizsgalat) newData.kovetkezoIdoszakosVizsgalat = formatDate(newData.kovetkezoIdoszakosVizsgalat);
+
+                    // DENORMALIZATION (Optimized List)
+                    newData.vizsg_idopont = newData.vizsgalatIdopontja || '';
+                    newData.kov_vizsg = newData.kovetkezoIdoszakosVizsgalat || '';
+                    newData.kov_vizsg_datum = newData.kovetkezoIdoszakosVizsgalat || '';
+                    newData.status = newData.vizsgalatEredmenye || 'Megfelelt';
 
                     const newRef = db.collection('partners').doc(bulkAnalysisResult.partnerId).collection('devices').doc();
                     operations.push({ type: 'set', ref: newRef, data: newData });
