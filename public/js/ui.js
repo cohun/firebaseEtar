@@ -3,6 +3,7 @@ import { registerUser, registerNewCompany, joinCompanyWithCode, sendPasswordRese
 import { getUsersForPermissionManagement, updateUserPartnerRole, removeUserPartnerAssociation, getPartnersForSelection, getExternalExperts } from './admin.js';
 import { getPartnerWorkScreenHtml, initPartnerWorkScreen } from './partner.js';
 import { showStatisticsScreen } from './statistics.js';
+// import { runMigration } from './migration_fix.js'; // REMOVED after migration
 
 export const screens = {
     loading: document.getElementById('loadingScreen'),
@@ -481,6 +482,8 @@ export async function showMainScreen(user, userData) {
         buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
     }
 
+    // TEMP MIGRATION BUTTON REMOVED
+
     const menuHtml = `
         <div class="space-y-4 mt-8">
             ${buttonsHtml}
@@ -587,6 +590,10 @@ export async function showMainScreen(user, userData) {
             }
         });
     }
+
+    // Listener for Migration REMOVED
+
+
 }
 
 export function showPermissionManagementLoadingScreen() {

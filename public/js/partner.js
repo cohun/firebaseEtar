@@ -505,7 +505,10 @@ export function initPartnerWorkScreen(partner, userData) {
                 // vizsg_idopont = usageDate, kov_vizsg_datum = nextDate
                 await db.collection('partners').doc(partnerId).collection('devices').doc(device.id).update({
                     vizsg_idopont: usageDate.replace(/-/g, '.'),
-                    kov_vizsg_datum: nextDate.replace(/-/g, '.'),
+                    kov_vizsg: nextDate.replace(/-/g, '.'), // Standardized field for next inspection
+                    kov_vizsg_datum: nextDate.replace(/-/g, '.'), // Keep for potential legacy compatibility
+                    status: 'Üzembe helyezve', // Usage start implies compliance
+                    finalizedFileUrl: downloadUrl, // Save the generated document URL
                     inspectionType: 'usage_start', // Special Flag
                     lastModificationDate: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -1652,111 +1655,14 @@ export function initPartnerWorkScreen(partner, userData) {
 
             let rawDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Fetch inspection data for ALL fetched devices
-            const deviceDataPromises = rawDevices.map(async (device) => {
-                // Latest inspection
-                let latestInspectionQuery = db.collection('partners').doc(partnerId)
-                    .collection('devices').doc(device.id)
-                    .collection('inspections')
-                    .orderBy('createdAt', 'desc')
-                    .limit(1);
+            // OPTIMIZATION (2025-02-11): 
+            // Removed N+1 subcollection queries. Data is now denormalized on the device document.
+            // Migration script and write-logic ensures 'status', 'vizsg_idopont', 'kov_vizsg', 'finalizedFileUrl' are up to date.
+            
+            devices = rawDevices;
 
-                if (isEkvUser) {
-                    // EKV users only see works they created/finalized (assuming 'finalizedByUid' tracks finalizer)
-                    // Note: 'createdByUid' is more appropriate for 'createdAt' sort, but finalizedByUid is better for 'finalized' reports.
-                    // However, orderBy('createdAt') requires a composite index if filters are applied.
-                    // For simplicity and avoiding index explosion, we might fetch and filter in memory if the list is small per device,
-                    // OR rely on 'finalizedByUid' for finalized ones.
-                    
-                    // Since specific index creation might be needed, we'll try filtering by query.
-                    // IMPORTANT: Firestore requires index for 'createdByUid' + 'createdAt'.
-                    // If index is missing, this will fail. For now we assume logic correctness and user will create index.
-                    latestInspectionQuery = latestInspectionQuery.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
-                }
+            // Legacy fallback (optional): If specific fields are missing, we could fetch, but for performance we rely on migration.
 
-                const latestInspectionSnapshot = await latestInspectionQuery.get().catch(e => {
-                     console.warn("Error fetching latest inspection (likely missing index or permission):", e);
-                     return { empty: true };
-                });
-
-                // Default device values (from checking db update of usage_start)
-                // If usage_start happened, device.vizsg_idopont and device.kov_vizsg_datum might have been updated on the device doc itself.
-                // But let's check prioritization.
-
-                let hasLatestInspection = false;
-                let latestInspectionData = null;
-
-                if (!latestInspectionSnapshot.empty) {
-                    latestInspectionData = latestInspectionSnapshot.docs[0].data();
-                    hasLatestInspection = true;
-                }
-
-                // Check if 'usage_start' is strictly newer than the latest inspection or if there is no inspection
-                // Usage Start updates the DEVICE document fields: 'vizsg_idopont', 'kov_vizsg_datum', 'inspectionType'
-                // Real inspections create a document in 'inspections' subcollection.
-                
-                // Helper to parse date string YYYY.MM.DD to timestamp for comparison
-                const parseTime = (dStr) => {
-                    const d = parseDateSafe(dStr);
-                    return d ? d.getTime() : 0;
-                };
-
-                const usageStartTime = (device.inspectionType === 'usage_start' && device.vizsg_idopont) ? parseTime(device.vizsg_idopont) : 0;
-                const inspectionTime = (hasLatestInspection && latestInspectionData.vizsgalatIdopontja) ? parseTime(latestInspectionData.vizsgalatIdopontja) : 0;
-
-                // LOGIC: If Usage Start exists AND is strictly newer than latest inspection, use Usage Start data
-                // If dates are equal, we verify if it is really just usage start. 
-                // But generally, if an inspection exists on the same day, we prefer the inspection status (e.g. Megfelelt).
-                if (device.inspectionType === 'usage_start' && usageStartTime > inspectionTime) {
-                    // Show Usage Start Data
-                    device.vizsg_idopont = device.vizsg_idopont; // Already on device
-                    device.status = "Üzembe helyezve";
-                    device.kov_vizsg = device.kov_vizsg_datum; // Explicitly map from kov_vizsg_datum
-                } else if (hasLatestInspection) {
-                    // Show Inspection Data
-                    device.vizsg_idopont = latestInspectionData.vizsgalatIdopontja;
-                    device.status = latestInspectionData.vizsgalatEredmenye;
-                    device.kov_vizsg = latestInspectionData.kovetkezoIdoszakosVizsgalat;
-                    // Restore ajanlatKeres mapping
-                    device.ajanlatKeres = latestInspectionData.ajanlatKeres || false;
-                } else {
-                    // No usage start active (or overridden/cleared) AND no inspection
-                    // device properties might be empty or defaults
-                }
-
-                // Finalized inspection URL
-                let finalizedInspectionQuery = db.collection('partners').doc(partnerId)
-                    .collection('devices').doc(device.id)
-                    .collection('inspections')
-                    .where('status', '==', 'finalized')
-                    .orderBy('finalizedAt', 'desc')
-                    .limit(1);
-
-                if (isEkvUser) {
-                     finalizedInspectionQuery = finalizedInspectionQuery.where('finalizedByUid', '==', userData.uid || firebase.auth().currentUser.uid);
-                }
-
-                const finalizedInspectionSnapshot = await finalizedInspectionQuery.get().catch(e => {
-                    console.warn("Error fetching finalized inspection (likely missing index or permission):", e);
-                    return { empty: true };
-                });
-
-                if (!finalizedInspectionSnapshot.empty) {
-                    device.finalizedFileUrl = finalizedInspectionSnapshot.docs[0].data().fileUrl;
-                } 
-                // Fallback: Check if device has a usage_start report in 'reports' collection? 
-                // The prompt says "Jegyzkönyvek (Reports) button correctly displays documents... even if they haven't had a finalized inspection".
-                // But specifically for the *list*, we might want to link the usage start doc?
-                // The current code links `dev.finalizedFileUrl` to the QR icon.
-                // If usage_start, maybe we should check for a report in 'reports' collection?
-                // The 'handleCreateUsageDocuments' created a report in 'reports' collection.
-                // We could query that here if needed, but for now let's stick to the visual column requirements.
-                // The user asked about "Megállapítások" and "Köv. Vizsg.".
-
-                return device;
-            });
-
-            devices = await Promise.all(deviceDataPromises);
 
             // Client-Side Logic (Filtering & Sorting)
             if (useClientSideLogic) {
