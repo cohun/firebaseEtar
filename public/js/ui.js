@@ -618,11 +618,27 @@ export function showPermissionManagementScreen(users, currentUserData) {
     }
 
     const renderUserList = (userList) => {
-        if (userList.length === 0) {
+        // Filter out hidden users first
+        const visibleUsers = userList.filter(user => {
+             // Check if user has EJK_inspector role (users with "Partnerek" button)
+            const isInspectorUser = user.roles && user.roles.includes('EJK_inspector');
+            // Check visibility rule: Hide if inspector AND viewer is NOT EJK Admin
+            if (!isAdminEJK && isInspectorUser) {
+                return false; 
+            }
+            return true;
+        });
+
+        if (visibleUsers.length === 0) {
             return '<p class="text-center text-gray-400">Nincsenek a feltételeknek megfelelő felhasználók.</p>';
         }
 
-        return userList.map(user => {
+        return visibleUsers.map(user => {
+            // Check if user has EJK_inspector role (users with "Partnerek" button)
+            const isInspectorUser = user.roles && user.roles.includes('EJK_inspector');
+            // We already filtered for visibility, so no need to check hiding logic here for the row itself
+            // but we still need isInspectorUser for the button condition logic
+
             // Check if user serves any pending role
             const hasPendingRole = user.associations.some(assoc => 
                 ['pending', 'pendingAdmin', 'pending_inspector'].includes(assoc.role)
@@ -698,20 +714,26 @@ export function showPermissionManagementScreen(users, currentUserData) {
                 `;
             }).join('');
     
+            // Role details content based on visibility
+            // Since we filter out hidden users, we always show details for visible ones
+            const rolesContentHtml = `
+                    <div class="mt-4 space-y-2">
+                        <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
+                        ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
+                    </div>
+                 `;
+
             return `
                 <div class="p-4 border ${cardBorderClass} rounded-lg mb-4">
                     <h3 class="text-xl font-bold ${nameColorClass} flex items-center gap-2">
                         ${user.name} 
                         ${hasPendingRole ? '<span class="text-sm text-yellow-400 border border-yellow-400 rounded px-2 py-0.5">Jóváhagyásra vár</span>' : ''}
-                        ${(user.roles && user.roles.includes('EJK_inspector')) ? 
+                        ${(isInspectorUser && isAdminEJK) ? 
                             `<button onclick="window.openInspectorPartnerModal('${user.id}', '${user.name.replace(/'/g, "\\'")}')" class="ml-2 text-xs bg-blue-700 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors" title="Partnerek kezelése"><i class="fas fa-edit mr-1"></i>Partnerek</button>` 
                             : ''}
                     </h3>
                     <p class="text-gray-400">${user.email}</p>
-                    <div class="mt-4 space-y-2">
-                        <h4 class="font-semibold">Kapcsolt Partnerek:</h4>
-                        ${associationsHtml.length > 0 ? associationsHtml : '<p class="text-gray-400">Nincsenek kapcsolt partnerek.</p>'}
-                    </div>
+                    ${rolesContentHtml}
                 </div>
             `;
         }).join('');
@@ -727,6 +749,12 @@ export function showPermissionManagementScreen(users, currentUserData) {
     };
 
     users.forEach(user => {
+        // Applyvisibility filter for stats as well
+        const isInspectorUser = user.roles && user.roles.includes('EJK_inspector');
+        if (!isAdminEJK && isInspectorUser) {
+            return; // Skip this user in counts
+        }
+
         if (user.associations) {
             user.associations.forEach(assoc => {
                 const role = assoc.role;
