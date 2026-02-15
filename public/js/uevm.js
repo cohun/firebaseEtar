@@ -52,7 +52,7 @@ export function getUevmModalHtml() {
                                 </div>
                             </div>
 
-                            <!-- Gép Adatai -->
+                        <!-- Gép Adatai -->
                             <div class="bg-gray-700/30 p-4 rounded-lg border border-gray-600/50 space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-400 mb-1">Emelőgép jellege/típusa</label>
@@ -76,6 +76,21 @@ export function getUevmModalHtml() {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-400 mb-1">Üzemóra / Km állás</label>
                                         <input type="text" name="uevm_uzemoraAllas" class="input-field w-full">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Vizsgálatot végző adatai -->
+                            <div class="bg-gray-700/30 p-4 rounded-lg border border-gray-600/50 space-y-4 md:col-span-2">
+                                <h4 class="text-blue-300 font-semibold mb-2">Vizsgálatot végző adatai</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-400 mb-1">Vizsgálatot végezte (Név)</label>
+                                        <input type="text" name="uevm_inspector_name" class="input-field w-full placeholder-gray-500" placeholder="Név">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-400 mb-1">Kamarai szám / Bizonyítványszám</label>
+                                        <input type="text" name="uevm_inspector_id" class="input-field w-full placeholder-gray-500" placeholder="Azonosító">
                                     </div>
                                 </div>
                             </div>
@@ -250,6 +265,21 @@ export function getUevmModalHtml() {
                                 </table>
                             </div>
                         </div>
+
+                        <!-- Következő Vizsgálat -->
+                        <div class="bg-gray-700/30 p-4 rounded-lg border border-gray-600/50">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-blue-300 mb-1">Következő vizsgálat időpontja</label>
+                                    <input type="date" name="uevm_kovetkezo_vizsgalat" class="input-field w-full text-white bg-gray-600 border-gray-500 rounded p-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-blue-300 mb-1">Következő vizsgálat jellege</label>
+                                    <input type="text" name="uevm_kovetkezo_vizsgalat_jellege" class="input-field w-full text-white bg-gray-600 border-gray-500 rounded p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Pl. Fővizsgálat">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Add meg kézzel a következő vizsgálat esedékességét és típusát.</p>
+                        </div>
                     </div>
 
                 </form>
@@ -321,6 +351,56 @@ export function initUevmModal(saveCallback, initialData = null) {
     const tabs = document.querySelectorAll('#uevm-modal [data-tab]');
     const tabContents = document.querySelectorAll('#uevm-modal .tab-content');
 
+    // Validation Status Element (Insert before buttons if not exists)
+    let validationStatus = document.getElementById('uevm-validation-status');
+    if (!validationStatus) {
+        validationStatus = document.createElement('div');
+        validationStatus.id = 'uevm-validation-status';
+        validationStatus.className = 'text-xs text-red-400 mr-4 flex-grow text-right self-center';
+        saveBtn.parentNode.insertBefore(validationStatus, cancelBtn);
+    }
+    
+    // State Tracking
+    const visitedTabs = new Set(['tab-general']); // Start with first tab visited
+
+    // Validation Function
+    const validateUevm = () => {
+        const errors = [];
+        
+        // 1. Check Tabs
+        const allTabsVisited = visitedTabs.size === 4; // Assuming 4 tabs
+        if (!allTabsVisited) {
+            const missing = 4 - visitedTabs.size;
+            errors.push(`${missing} fül nincs megtekintve`);
+        }
+
+        // 2. Check Qualification (Minősítés)
+        const minosites = form.querySelector('input[name="uevm_minosites"]:checked');
+        if (!minosites) {
+            errors.push('Minősítés hiányzik');
+        }
+
+        // 3. Check Next Inspection Date
+        const nextDate = form.querySelector('input[name="uevm_kovetkezo_vizsgalat"]');
+        if (!nextDate || !nextDate.value) {
+            errors.push('Következő vizsgálat ideje hiányzik');
+        }
+
+        // Update UI
+        if (errors.length > 0) {
+            saveBtn.disabled = true;
+            saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            saveBtn.classList.remove('hover:bg-blue-500');
+            validationStatus.textContent = `Hiányzik: ${errors.join(', ')}`;
+        } else {
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            saveBtn.classList.add('hover:bg-blue-500');
+            validationStatus.textContent = '';
+        }
+    };
+
+
     // 1. Show Modal
     modal.classList.remove('hidden');
 
@@ -347,6 +427,9 @@ export function initUevmModal(saveCallback, initialData = null) {
                  if (radio) radio.checked = true;
             }
         });
+        
+        // If data pre-filled, we might want to check initial validation state? 
+        // But tabs are definitely not visited yet except the first.
     }
 
     // 3. Tab Logic
@@ -369,8 +452,19 @@ export function initUevmModal(saveCallback, initialData = null) {
                      content.classList.add('hidden');
                  }
              });
+
+             // Validation Update
+             visitedTabs.add(targetId);
+             validateUevm();
         }
     });
+
+    // 4. Input Change Listeners for Validation
+    form.addEventListener('change', validateUevm);
+    form.addEventListener('input', validateUevm);
+
+    // Initial Validation Check
+    validateUevm();
 
     // 4. Close/Cancel
     const closeModal = () => {
@@ -384,6 +478,8 @@ export function initUevmModal(saveCallback, initialData = null) {
     saveBtn.onclick = (e) => {
         e.preventDefault();
         
+        if (saveBtn.disabled) return; // Should be handled by UI, but double check
+
         const formData = new FormData(form);
         const data = {};
         

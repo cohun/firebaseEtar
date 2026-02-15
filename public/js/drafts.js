@@ -114,14 +114,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (userData && userData.isEkvUser) {
                     // EKV users only see isI: true drafts AND only if they have inspector/subcontractor role for that partner
                     allEnrichedDrafts = allEnrichedDrafts.filter(draft => {
-                        if (draft.isI !== true) return false;
-                        
                         const role = userData.partnerRoles && draft.partnerId ? userData.partnerRoles[draft.partnerId] : null;
+                        
+                        // Internal inspectors see all their drafts (query already filters by createdByUid)
+                        if (role === 'internal_inspector' || role === 'external_inspector') return true;
+
+                        // Other EKV roles (subcontractor/subscriber) only see isI: true devices
+                        if (draft.isI !== true) {
+                            console.log(`Filtering out draft ${draft.id} because isI is ${draft.isI} and user is EKV`);
+                            return false;
+                        }
+                        
                         return role === 'inspector' || role === 'subcontractor' || role === 'subscriber';
                     });
                 } else {
                     // EJK users only see isI: false (or undefined) drafts
-                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => draft.isI !== true);
+                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => {
+                        const keep = draft.isI !== true;
+                        if (!keep) console.log(`Filtering out draft ${draft.id} because isI is true and user is EJK`);
+                        return keep;
+                    });
 
                     // EJK_inspector restriction: only see assigned partners
                     if (userRoles.includes('EJK_inspector') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
@@ -129,6 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
                          allEnrichedDrafts = allEnrichedDrafts.filter(draft => myPartnerIds.includes(draft.partnerId));
                     }
                 }
+
+                console.log("Final Enriched Drafts Count:", allEnrichedDrafts.length);
 
                 sortAndRender(); // Initial render with default sorting
                 populatePartnerDropdown(); // Populate the partner filter dropdown
@@ -424,7 +438,68 @@ if (generateDraftsButton) {
         const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
         const selectedDrafts = allEnrichedDrafts.filter(draft => selectedIds.includes(draft.id));
 
-        // 1. Open new tab immediately to avoid popup blockers (iPad fix)
+        // 1. Check for PDF files
+        const hasPdf = selectedDrafts.some(d => d.inspectionProtocol === 'pdf_feltoltes' || (d.fileUrl && d.fileUrl.toLowerCase().includes('.pdf')));
+
+        if (hasPdf) {
+            // Special Handling for PDFs
+            if (selectedDrafts.length === 1) {
+                // Single PDF: Open directly
+                const pdfUrl = selectedDrafts[0].fileUrl;
+                if (pdfUrl) {
+                    window.open(pdfUrl, '_blank');
+                } else {
+                    alert('Hiba: A kiválasztott piszkozathoz nem tartozik fájl URL.');
+                }
+                return;
+            } else {
+                // Multiple files with at least one PDF: List them
+                const newTab = window.open('', '_blank');
+                if (!newTab) {
+                    alert('A böngésző letiltotta a felugró ablakot. Kérjük, engedélyezze a felugró ablakokat az oldal számára.');
+                    return;
+                }
+
+                newTab.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="hu">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Piszkozatok Megtekintése</title>
+                        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                    </head>
+                    <body class="bg-gray-100 p-8">
+                        <div class="max-w-3xl mx-auto bg-white rounded shadow p-6">
+                            <h1 class="text-2xl font-bold mb-6 text-gray-800">Kiválasztott Piszkozatok</h1>
+                            <p class="mb-4 text-gray-600">A kiválasztott elemek között PDF fájlok is találhatók. Kérjük, nyissa meg őket az alábbi linkekre kattintva:</p>
+                            <ul class="space-y-3">
+                                ${selectedDrafts.map((draft, index) => `
+                                    <li>
+                                        ${(draft.fileUrl || (draft.inspectionProtocol === 'pdf_feltoltes')) ? 
+                                            `<a href="${draft.fileUrl || '#'}" target="_blank" class="block p-4 border rounded hover:bg-gray-50 bg-gray-50 flex items-center justify-between text-blue-600 font-semibold">
+                                                <span>${index + 1}. ${draft.serialNumber || 'Eszköz'} - ${draft.vizsgalatJellege || 'Vizsgálat'} (PDF)</span>
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                            </a>` 
+                                            : 
+                                            `<span class="block p-4 border rounded bg-gray-100 text-gray-500">
+                                                ${index + 1}. ${draft.serialNumber || 'Eszköz'} - Hagyományos HTML Sablon (Nem támogatott vegyes nézetben)
+                                            </span>`
+                                        }
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                newTab.document.close();
+                return;
+            }
+        }
+
+        // 2. Standard HTML Generation for non-PDF drafts
+        // Open new tab immediately to avoid popup blockers (iPad fix)
         const newTab = window.open('', '_blank');
         if (!newTab) {
             alert('A böngésző letiltotta a felugró ablakot. Kérjük, engedélyezze a felugró ablakokat az oldal számára.');
@@ -486,18 +561,34 @@ async function startFinalizationProcess(draftsToFinalize) {
             showLoadingModal(`Folyamatban: ${i + 1} / ${total} (${draft.serialNumber || 'N/A'}) generálása és feltöltése...`);
             
             if (draft.partnerId && draft.deviceId && draft.id) {
-                // Get the appropriate template for this specific draft
-                let htmlTemplateString;
-                try {
-                    htmlTemplateString = await getTemplateForDraft(draft);
-                } catch (err) {
-                    console.error("Failed to load template for draft:", draft.id, err);
-                    // Skip or continue? Let's skip this one to avoid bad data
-                    continue; 
-                }
+                let downloadURL;
 
-                // Generate HTML, upload, and get URL
-                const downloadURL = await generateAndUploadFinalizedHtml(htmlTemplateString, draft);
+                // 1. Check if it's a PDF draft (skip HTML generation)
+                // Note: 'pdf_feltoltes' is the protocol name for PDF uploads
+                if (draft.inspectionProtocol === 'pdf_feltoltes' || (draft.fileUrl && draft.fileUrl.toLowerCase().includes('.pdf'))) {
+                     console.log(`Finalizing PDF draft: ${draft.id}`);
+                     if (draft.fileUrl) {
+                         downloadURL = draft.fileUrl; 
+                     } else {
+                         console.error("PDF draft missing fileUrl:", draft);
+                         // Skip this one
+                         continue;
+                     }
+                } else {
+                    // 2. Standard HTML Generation
+                    // Get the appropriate template for this specific draft
+                    let htmlTemplateString;
+                    try {
+                        htmlTemplateString = await getTemplateForDraft(draft);
+                    } catch (err) {
+                        console.error("Failed to load template for draft:", draft.id, err);
+                        // Skip or continue? Let's skip this one to avoid bad data
+                        continue; 
+                    }
+
+                    // Generate HTML, upload, and get URL
+                    downloadURL = await generateAndUploadFinalizedHtml(htmlTemplateString, draft);
+                }
 
                 // Prepare the batch update
                 const docRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId).collection('inspections').doc(draft.id);
@@ -514,6 +605,7 @@ async function startFinalizationProcess(draftsToFinalize) {
                 
                 // --- NEW OPTIMIZATION 2024-02-05: Update Parent Device ---
                 // Denormalize next inspection date and expert to device document for fast statistics
+                // Also ensures QR code works for PDF uploads
                 if (draft.kovetkezoIdoszakosVizsgalat) {
                     const deviceRef = db.collection('partners').doc(draft.partnerId).collection('devices').doc(draft.deviceId);
                     const deviceUpdate = {
@@ -526,7 +618,8 @@ async function startFinalizationProcess(draftsToFinalize) {
                         finalizedFileUrl: downloadURL,
                         
                         kovetkezoIdoszakosVizsgalat: draft.kovetkezoIdoszakosVizsgalat,
-                        szakerto: draft.szakerto || auth.currentUser.displayName || 'Admin'
+                        szakerto: draft.szakerto || auth.currentUser.displayName || 'Admin',
+                        lastModificationDate: now
                     };
                     batch.update(deviceRef, deviceUpdate);
                 }

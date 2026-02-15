@@ -25,16 +25,23 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
     // Filter users based on admin's permissions
     const usersToProcess = allUsers.filter(user => {
         if (user.id === adminUser.uid) return false; // Exclude admin
-        if (user.isEkvUser) return false; // Exclude External Experts (EKV)
-
         if (isAdminEJK) {
             const isUserEjk = user.isEjkUser === true;
+            const isUserEkv = user.isEkvUser === true;
             
             // Check roles with more granularity
             const userPartnerEntries = Object.entries(user.partnerRoles || {});
             
-            // Allow if user is an EJK User (internal)
+            // Allow if user is an EJK User (internal) OR EKV User
             if (isUserEjk) return true;
+
+            // EKV Users are visible to EJK Admin
+            if (isUserEkv) {
+                // If they have NO partner roles yet (fresh registration), show them!
+                if (userPartnerEntries.length === 0) return true;
+                // If they have roles, we still show them.
+                return true;
+            }
 
             // Otherwise check specific roles
             return userPartnerEntries.some(([partnerId, role]) => {
@@ -90,7 +97,11 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
             return {
                 partnerId: partnerId,
                 role: role,
-                partnerDetails: partnerDetails
+                partnerDetails: partnerDetails,
+                // Fetch subscription from partnerSubscriptions (preferred) or partnerStatuses
+                subscription: (user.partnerSubscriptions && user.partnerSubscriptions[partnerId]) || 
+                              (user.partnerStatuses && user.partnerStatuses[partnerId]?.subscription) || 
+                              null
             };
         }).filter(a => a); // Filter out nulls if a partner doc didn't exist
 
@@ -100,6 +111,7 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
             email: user.email,
             roles: user.roles || [],
             isEjkUser: user.isEjkUser,
+            isEkvUser: user.isEkvUser,
             associations: associations
         };
     }));
@@ -267,11 +279,27 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
                 // True if user is NOT pending, AND has some valid role
                 // Valid roles: admin, write, read, inspector, subcontractor, subscriber
                 // Invalid/Pending: pending, pendingAdmin, pending_inspector
-                const shouldBeEjkUser = !newRole.startsWith('pending');
                 updates['isEjkUser'] = shouldBeEjkUser;
                 
                 console.log(`EJK Role Update: ${oldEjkRole} -> ${newEjkRole}. isEjkUser: ${shouldBeEjkUser}`);
             }
+
+            // 3. Logic for EKV Users: Remove 'EKV_pending' role if they get a valid role
+            // Valid roles for EKV: internal_inspector, external_inspector, subscriber_inspector, inspector
+            // We check if the user HAS the role 'EKV_pending' instead of relying on isEkvUser flag
+            const validActiveRoles = ['internal_inspector', 'external_inspector', 'subscriber_inspector', 'inspector'];
+            const isNewRoleActive = validActiveRoles.includes(newRole) || !newRole.includes('pending');
+
+            if (isNewRoleActive) {
+                 let currentRoles = updates['roles'] || userData.roles || [];
+                 if (currentRoles.includes('EKV_pending')) {
+                     currentRoles = currentRoles.filter(r => r !== 'EKV_pending');
+                     updates['roles'] = currentRoles;
+                     console.log("Removed EKV_pending role as user received active role:", newRole);
+                 }
+            }
+                
+            // End of EKV logic
 
             transaction.update(userRef, updates);
         });
@@ -280,6 +308,31 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
     } catch (error) {
         console.error("Hiba a felhasználói szerepkör frissítése közben: ", error);
         throw new Error("A felhasználói szerepkör frissítése sikertelen volt. " + error);
+    }
+}
+
+export async function updateUserPartnerStatus(userId, partnerId, newStatus) {
+    if (!userId || !partnerId || !newStatus) {
+        throw new Error("Hiányzó paraméterek a státusz frissítéséhez.");
+    }
+
+    const userRef = db.collection('users').doc(userId);
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) throw "A felhasználó nem található!";
+
+            const updates = {};
+            // Update the partnerStatuses map
+            updates[`partnerStatuses.${partnerId}`] = newStatus;
+
+            transaction.update(userRef, updates);
+        });
+        console.log(`User ${userId} status for partner ${partnerId} updated to ${newStatus}`);
+    } catch (error) {
+        console.error("Hiba a felhasználói státusz frissítése közben: ", error);
+        throw new Error("A státusz frissítése sikertelen volt.");
     }
 }
 
@@ -447,8 +500,9 @@ export async function checkAndEnforceSubscriptionExpiry(user) {
         let changed = false;
 
         for (const [partnerId, expiryTimestamp] of Object.entries(partnerSubscriptions)) {
-             // Only check if current role is 'subscriber'
-            if (partnerRoles[partnerId] === 'subscriber') {
+             // Check if current role is 'subscriber' or 'subscriber_inspector'
+            const role = partnerRoles[partnerId];
+            if (role === 'subscriber' || role === 'subscriber_inspector') {
                 if (now > expiryTimestamp) {
                     console.log(`Subscription expired for partner ${partnerId}. Downgrading...`);
                     
@@ -494,9 +548,26 @@ export async function saveInspectorPartners(userId, selectedPartnerIds) {
             // For now, we assume ALL partnerRoles are managed by EJK for an EJK user.
             
             // 2. Add 'write' role for selected partners
+            // Determine default role based on user type
+            const isEkvUser = userData.isEkvUser === true;
+            const defaultRole = isEkvUser ? 'pending_inspector' : 'write';
+
             selectedPartnerIds.forEach(partnerId => {
-                updates[`partnerRoles.${partnerId}`] = 'write';
-                updates[`ejkPartnerRoles.${partnerId}`] = 'write';
+                // Check if user already has a role for this partner
+                if (currentPartnerRoles[partnerId]) {
+                    // Start of change: Preserve existing role if it's not being removed
+                     // If we want to ensure it's still consistent with EJK roles:
+                     // updates[`partnerRoles.${partnerId}`] = currentPartnerRoles[partnerId]; 
+                     // But actually we don't need to add it to updates if we don't want to change it.
+                     // However, to be safe and ensure ejkPartnerRoles matches if it was missing:
+                     if (!currentEjkPartnerRoles[partnerId]) {
+                         updates[`ejkPartnerRoles.${partnerId}`] = currentPartnerRoles[partnerId];
+                     }
+                } else {
+                    // New assignment
+                    updates[`partnerRoles.${partnerId}`] = defaultRole;
+                    updates[`ejkPartnerRoles.${partnerId}`] = defaultRole;
+                }
             });
 
             // 3. Remove roles for partners that are NOT in the selected list
@@ -510,11 +581,16 @@ export async function saveInspectorPartners(userId, selectedPartnerIds) {
 
             // 4. Ensure EJK_inspector role and isEjkUser flag
             let currentRoles = userData.roles || [];
-            if (!currentRoles.includes('EJK_inspector')) {
-                currentRoles.push('EJK_inspector');
-                updates['roles'] = currentRoles;
+            if (!isEkvUser) { // EKV users do NOT get EJK_inspector role or isEjkUser flag
+                if (!currentRoles.includes('EJK_inspector')) {
+                    currentRoles.push('EJK_inspector');
+                    updates['roles'] = currentRoles;
+                }
+                updates['isEjkUser'] = true;
+            } else {
+                 // Ensure EKV users don't accidentally get these
+                 updates['isEjkUser'] = false;
             }
-            updates['isEjkUser'] = true;
 
             transaction.update(userRef, updates);
         });

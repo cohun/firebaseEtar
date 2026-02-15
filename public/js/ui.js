@@ -395,11 +395,11 @@ export function showJoinCompanyForm(isEkvFlow = false, userData = null) {
 
 
 
-function showEkvSuccessScreen() {
+export function showEkvSuccessScreen() {
     const successHtml = `
         <div class="card max-w-md mx-auto text-center">
-            <h2 class="text-2xl font-bold mb-4">Sikeres jelentkezés!</h2>
-            <p class="text-blue-300 mb-6">A továbblépéshez fel kell vennie a kapcsolatot egy ETAR adminisztrátorral, aki a belépését véglegesíti.</p>
+            <h2 class="text-2xl font-bold mb-4">Sikeres regisztráció!</h2>
+            <p class="text-blue-300 mb-6">Regisztrációját rögzítettük. Az ETAR Adminisztrátor hamarosan felveszi Önnel a kapcsolatot és beállítja a megfelelő hozzáféréseket.</p>
             <button id="backToLoginBtn" class="btn btn-secondary w-full">Vissza a bejelentkezéshez</button>
         </div>
     `;
@@ -478,8 +478,8 @@ export async function showMainScreen(user, userData) {
         // EKV users cannot create new companies, only join existing ones
         if (!userData.isEkvUser) {
             buttonsHtml += `<button id="registerAnotherCompanyBtn" class="btn btn-secondary w-full">Új céget regisztrálok</button>`;
+            buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
         }
-        buttonsHtml += `<button id="joinAnotherCompanyBtn" class="btn btn-secondary w-full">Csatlakozás másik céghez ETAR kóddal</button>`;
     }
 
     // TEMP MIGRATION BUTTON REMOVED
@@ -577,18 +577,21 @@ export async function showMainScreen(user, userData) {
     }
 
     if (isEjkUser) {
-        document.getElementById('externalExpertsBtn').addEventListener('click', async () => {
-            // Re-use the permissions loading screen style as it's similar
-            showPermissionManagementLoadingScreen(); 
-            try {
-                const experts = await getExternalExperts();
-                showExternalExpertsScreen(experts, userData);
-            } catch (error) {
-                console.error("Hiba a külső szakértők lekérése során:", error);
-                alert("Hiba történt az adatok lekérése közben.");
-                window.location.reload();
-            }
-        });
+        const externalExpertsBtn = document.getElementById('externalExpertsBtn');
+        if (externalExpertsBtn) {
+            externalExpertsBtn.addEventListener('click', async () => {
+                // Re-use the permissions loading screen style as it's similar
+                showPermissionManagementLoadingScreen(); 
+                try {
+                    const experts = await getExternalExperts();
+                    showExternalExpertsScreen(experts, userData);
+                } catch (error) {
+                    console.error("Hiba a külső szakértők lekérése során:", error);
+                    alert("Hiba történt az adatok lekérése közben.");
+                    window.location.reload();
+                }
+            });
+        }
     }
 
     // Listener for Migration REMOVED
@@ -618,7 +621,7 @@ import { attachPermissionManagementListeners } from './ui_helpers.js';
 export function showPermissionManagementScreen(users, currentUserData) {
     const isAdminEJK = currentUserData.isEjkUser;
 
-    const roleOptions = ['pending', 'admin', 'pendingAdmin', 'write', 'read', 'inspector', 'pending_inspector'];
+    const roleOptions = ['pending', 'admin', 'pendingAdmin', 'write', 'read', 'inspector', 'pending_inspector', 'internal_inspector', 'external_inspector', 'subscriber_inspector'];
     // Add 'subcontractor' and 'subscriber' to roleOptions for display purposes if not EJK
     if (!isAdminEJK) {
         roleOptions.push('subcontractor', 'subscriber');
@@ -627,11 +630,69 @@ export function showPermissionManagementScreen(users, currentUserData) {
     const renderUserList = (userList) => {
         // Filter out hidden users first
         const visibleUsers = userList.filter(user => {
-             // Check if user has EJK_inspector role (users with "Partnerek" button)
+            // Check if user has EJK_inspector role (users with "Partnerek" button)
             const isInspectorUser = user.roles && user.roles.includes('EJK_inspector');
-            // Check visibility rule: Hide if inspector AND viewer is NOT EJK Admin
-            if (!isAdminEJK && isInspectorUser) {
-                return false; 
+            const isEkvUser = user.isEkvUser === true;
+
+            // Check visibility rule: Hide if inspector OR EKV user AND viewer is NOT EJK Admin
+            // EXCEPTION: subscriber_inspector should be visible to Partner Admins for approval IF subscription is active!
+            // We must check if the user is a subscriber_inspector *FOR THE LOGGED-IN PARTNER(S)*
+            // and if THAT specific subscription is active.
+            let hasActiveSubscriberInspectorRole = false;
+            let daysDebug = 'N/A';
+            
+            if (!isAdminEJK) {
+                const viewerPartnerIds = Object.keys(currentUserData.partnerRoles || {});
+                
+                hasActiveSubscriberInspectorRole = user.associations.some(assoc => {
+                    // Check if this association belongs to one of the viewer's managed partners
+                    if (!viewerPartnerIds.includes(assoc.partnerId)) return false;
+                    
+                    // We allow 'subscriber_inspector' OR 'pending_inspector' (in case they were downgraded)
+                    // provided they have active days.
+                    // This allows the admin to see them and upgrade them back if needed.
+                     if (assoc.role === 'subscriber_inspector' || assoc.role === 'pending_inspector') {
+                         const now = Date.now();
+                         const expiry = assoc.subscription;
+                         
+                         if (!expiry) return false;
+                         
+                         let expiryMs = 0;
+                         if (expiry && typeof expiry.toMillis === 'function') {
+                             expiryMs = expiry.toMillis();
+                         } else if (expiry && typeof expiry.toDate === 'function') {
+                             expiryMs = expiry.toDate().getTime();
+                         } else if (typeof expiry === 'number') {
+                             expiryMs = expiry;
+                         } else {
+                             // Fallback for unexpected format (string, etc. - though usually number or Timestamp)
+                             try {
+                                 expiryMs = new Date(expiry).getTime();
+                             } catch (e) {
+                                 console.warn("Invalid expiry format", expiry);
+                                 return false;
+                             }
+                         }
+                         
+                         const msPerDay = 1000 * 60 * 60 * 24;
+                         const daysRemaining = Math.max(0, Math.ceil((expiryMs - now) / msPerDay));
+                         return daysRemaining > 0;
+                    }
+                    return false;
+                });
+            }
+
+            // VISIBILITY CHECK
+            if (!isAdminEJK) {
+                const viewerPartnerIds = Object.keys(currentUserData.partnerRoles || {});
+                if (hasActiveSubscriberInspectorRole) {
+                    return true;
+                }
+
+                // 2. Otherwise, apply standard blocking for Inspectors/EKV users (to avoid clutter)
+                if (isInspectorUser || isEkvUser) {
+                    return false; 
+                }
             }
             return true;
         });
@@ -642,21 +703,26 @@ export function showPermissionManagementScreen(users, currentUserData) {
 
         return visibleUsers.map(user => {
             // Check if user has EJK_inspector role (users with "Partnerek" button)
-            const isInspectorUser = user.roles && user.roles.includes('EJK_inspector');
-            // We already filtered for visibility, so no need to check hiding logic here for the row itself
-            // but we still need isInspectorUser for the button condition logic
-
-            // Check if user serves any pending role
+            const isInspectorUser = (user.roles && user.roles.includes('EJK_inspector')) || user.isEkvUser === true;
+            
+            // Pending formatting
             const hasPendingRole = user.associations.some(assoc => 
                 ['pending', 'pendingAdmin', 'pending_inspector'].includes(assoc.role)
-            );
+            ) || (user.roles && user.roles.includes('EKV_pending'));
 
-            // Styling variables
             const nameColorClass = hasPendingRole ? 'text-yellow-400' : 'text-blue-300';
             const cardBorderClass = hasPendingRole ? 'border-yellow-500' : 'border-blue-800';
+            
+            // Viewer Partner IDs for association filtering
+            const viewerPartnerIds = isAdminEJK ? [] : Object.keys(currentUserData.partnerRoles || {});
 
             const associationsHtml = user.associations.map(assoc => {
                 if (!assoc.partnerDetails) return '';
+                
+                // Hide associations that are NOT relevant to this Partner Admin
+                if (!isAdminEJK && !viewerPartnerIds.includes(assoc.partnerId)) {
+                    return '';
+                }    
     
                 const partnerId = assoc.partnerId;
     
@@ -680,23 +746,44 @@ export function showPermissionManagementScreen(users, currentUserData) {
                     }
                 }
     
-                const roleDropdown = `
-                    <div>
-                        <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
-                        <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
-                            ${roleOptions.map(opt => {
-                                // If it's a subcontractor showing as inspector (or i-vizsgáló)
-                                if (assoc.role === 'subcontractor' && opt === 'inspector') {
-                                    return `<option value="${assoc.role}" selected>${displayRole}</option>`;
-                                }
-                                 // Standard matching
-                                return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
-                            }).join('')}
-                            ${!roleOptions.includes(assoc.role) && assoc.role !== 'subcontractor' ? `<option value="${assoc.role}" selected>${assoc.role}</option>` : ''}
-                            ${assoc.role === 'subcontractor' ? '' : `<option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>`}
-                        </select>
-                    </div>
-                `;
+                let roleDropdown = '';
+                
+                // For subscriber_inspector with approval flow, we HIDE the standard role dropdown
+                // The user only wants the "Approve/Revoke" button.
+                // We'll calculate isSubscriberInspector early to decide.
+                const isSubscriberInspector = assoc.role === 'subscriber_inspector';
+                
+                if (!isSubscriberInspector || currentUserData.isEjkUser) {
+                    roleDropdown = `
+                        <div>
+                            <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                            <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
+                                ${roleOptions.map(opt => {
+                                    // If it's a subcontractor showing as inspector (or i-vizsgáló)
+                                    if (assoc.role === 'subcontractor' && opt === 'inspector') {
+                                        return `<option value="${assoc.role}" selected>${displayRole}</option>`;
+                                    }
+                                     // Standard matching
+                                    return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
+                                }).join('')}
+                                ${!roleOptions.includes(assoc.role) && assoc.role !== 'subcontractor' ? `<option value="${assoc.role}" selected>${assoc.role}</option>` : ''}
+                                ${assoc.role === 'subcontractor' ? '' : `<option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>`}
+                            </select>
+                        </div>
+                    `;
+                } else {
+                     // For subscriber_inspector, we might want to show a static label just for context, or nothing?
+                     // User said "azzal az egy(!) további opcióval".
+                     // Let's show a static text "Külső Szakértő (Előfizető)" so they know who it is, but no dropdown.
+                     roleDropdown = `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400">Szerepkör</label>
+                            <div class="mt-1 block w-full text-gray-300 bg-transparent py-2">
+                                Külső Szakértő (Előfizető)
+                            </div>
+                        </div>
+                     `;
+                }
                 
                 // Partner részleteinek megjelenítése
                 const partnerDetailsHtml = `
@@ -708,14 +795,52 @@ export function showPermissionManagementScreen(users, currentUserData) {
                 `;
     
                 // Mentés és Törlés gombok
-                const saveButtonHtml = `<button id="save-btn-${user.id}-${partnerId}" class="btn btn-primary w-full mt-2 hidden">Mentés</button>`;
-    
+                // Mentés és Törlés gombok
+                let saveButtonHtml = `<button id="save-btn-${user.id}-${partnerId}" class="btn btn-primary w-full mt-2 hidden">Mentés</button>`;
+                
+                // --- SUBSCRIBER INSPECTOR APPROVAL LOGIC ---
+                const partnerStatuses = user.partnerStatuses || {};
+                const currentStatus = partnerStatuses[partnerId];
+                const isApproved = currentStatus === 'approved';
+                
+                // Only for subscriber_inspector role AND active subscription (we assume active if role is subscriber_inspector? Or check expiry?)
+                // Actually, the user said "Ahogy egy EKV subscriber_inspector jogosultságot kap és a napok szám nagyobb mint nulla"
+                // So we check role and subscription.
+                // const isSubscriberInspector = assoc.role === 'subscriber_inspector'; // Already declared above
+                let approvalHtml = '';
+
+                if (isSubscriberInspector && !currentUserData.isEjkUser) { // Only ENY admins see this approval flow
+                     const now = Date.now();
+                     const expiry = assoc.subscription;
+                     const msPerDay = 1000 * 60 * 60 * 24;
+                     const daysRemaining = expiry ? Math.max(0, Math.ceil((expiry - now) / msPerDay)) : 0;
+                     
+                     if (daysRemaining > 0) {
+                         if (isApproved) {
+                             approvalHtml = `
+                                <div id="approval-container-${user.id}-${partnerId}" class="mt-2 text-center">
+                                    <span class="px-2 py-1 bg-green-900 text-green-300 text-xs rounded border border-green-700">Érvényes szakértő</span>
+                                    <button id="revoke-btn-${user.id}-${partnerId}" class="btn btn-sm btn-outline-danger w-full mt-2 text-xs">Jóváhagyás Visszavonása</button>
+                                </div>
+                             `;
+                         } else {
+                             approvalHtml = `
+                                <div id="approval-container-${user.id}-${partnerId}" class="mt-2 text-center">
+                                    <span class="px-2 py-1 bg-yellow-900 text-yellow-300 text-xs rounded border border-yellow-700">Engedélyre váró szakértő</span>
+                                    <button id="approve-btn-${user.id}-${partnerId}" class="btn btn-sm btn-outline-success w-full mt-2 text-xs">Szakértő Engedélyezése</button>
+                                </div>
+                             `;
+                         }
+                     }
+                }
+
                 return `
                 <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-start">
                     ${partnerDetailsHtml}
                     <div class="flex flex-col gap-2">
                         ${roleDropdown}
                         ${saveButtonHtml}
+                        ${approvalHtml}
                     </div>
                 </div>
                 `;
@@ -762,6 +887,10 @@ export function showPermissionManagementScreen(users, currentUserData) {
             return; // Skip this user in counts
         }
 
+        if (user.roles && user.roles.includes('EKV_pending')) {
+             roleCounts['pending']++;
+        }
+
         if (user.associations) {
             user.associations.forEach(assoc => {
                 const role = assoc.role;
@@ -787,8 +916,8 @@ export function showPermissionManagementScreen(users, currentUserData) {
         'subscriber': 'Előfizető'
     };
 
-     const statsHtml = Object.entries(roleCounts)
-        .filter(([_, count]) => count > 0 || ['admin', 'write', 'read', 'pending'].includes(_)) // Show main ones even if 0, others only if > 0
+    const statsHtml = Object.entries(roleCounts)
+        .filter(([role, _]) => ['admin', 'write', 'read', 'pending'].includes(role))
         .map(([role, count]) => {
             const label = roleLabels[role] || role;
             return `<span class="mr-3 whitespace-nowrap">${label}: <span class="text-blue-300 font-bold">${count} db</span></span>`;
@@ -866,7 +995,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
 }
 
 export function showExternalExpertsScreen(experts, userData) {
-    const roleOptions = ['pending_inspector', 'subcontractor', 'subscriber'];
+    const roleOptions = ['pending_inspector', 'subcontractor', 'subscriber', 'internal_inspector', 'external_inspector'];
 
     const userListHtml = experts.map(user => {
         const associationsHtml = user.associations.map(assoc => {
@@ -876,33 +1005,71 @@ export function showExternalExpertsScreen(experts, userData) {
 
             // Priority: ejkRole (saved by EJK) > role (current actual role)
             const roleToShow = assoc.ejkRole || assoc.role;
+            const isSubscriberRole = ['subscriber', 'subscriber_inspector'].includes(roleToShow);
 
-            let subscriptionHtml = '';
-            if (roleToShow === 'subscriber' && assoc.subscription) {
+            let daysRemainingInput = '';
+            if (isSubscriberRole) {
                 const now = Date.now();
                 const expiry = assoc.subscription;
                 const msPerDay = 1000 * 60 * 60 * 24;
-                const daysRemaining = Math.max(0, Math.ceil((expiry - now) / msPerDay));
-                const colorClass = daysRemaining < 10 ? 'text-red-500' : 'text-green-500';
                 
-                subscriptionHtml = `
-                    <span id="sub-counter-${user.id}-${partnerId}" 
-                          data-expiry="${expiry}" 
-                          class="${colorClass} font-bold cursor-pointer ml-2" 
-                          title="Kattintson a meghosszabbításhoz">
-                          ${daysRemaining} nap
-                    </span>`;
+                // Default to 0 if no subscription or expired (though logic for expired might need review if we want negative?)
+                // User said "defaults to 0". 
+                let daysRemaining = 0;
+                if (expiry) {
+                     daysRemaining = Math.max(0, Math.ceil((expiry - now) / msPerDay));
+                }
+
+                daysRemainingInput = `
+                    <input type="number" 
+                           id="sub-input-${user.id}-${partnerId}" 
+                           data-role="${roleToShow}"
+                           class="w-20 bg-gray-700 border border-gray-600 rounded mr-2 text-center text-white font-bold h-[38px]" 
+                           value="${daysRemaining}" 
+                           min="0"
+                           title="Előfizetés hátralévő napjai (szerkeszthető)">
+                `;
             }
 
-            const roleDropdown = `
-                <div>
-                    <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">
-                        Szerepkör ${subscriptionHtml}
+            const isAdmin = userData.roles && userData.roles.includes('EJK_admin');
+            
+            // Map roles to friendly names or keep ID if preferable. 
+            // User requested showing: pending_inspector, internal_inspector, external_inspector, subscriber_inspector
+            // We can just show the raw role ID as requested, or maybe capitalise it slightly? 
+            // Let's us the raw ID but styled nicely.
+            
+            const roleBadge = `
+                <div class="px-3 py-2 bg-gray-700 rounded border border-gray-600 font-mono text-sm text-blue-200 inline-block">
+                    ${roleToShow}
+                </div>
+            `;
+
+            const roleSection = `
+                 <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">
+                        Szerepkör
                     </label>
-                    <select id="role-select-${user.id}-${partnerId}" data-original-role="${roleToShow}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600">
-                        ${roleOptions.map(opt => `<option value="${opt}" ${roleToShow === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                        <option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>
-                    </select>
+                    ${roleBadge}
+                </div>
+            `;
+            
+            // If we have an input, wrap it with its own label
+            let daysSection = '';
+            if (daysRemainingInput) {
+                daysSection = `
+                    <div class="mr-4">
+                        <label class="block text-sm font-medium text-gray-400 mb-1">
+                            Napok száma
+                        </label>
+                        ${daysRemainingInput}
+                    </div>
+                `;
+            }
+
+            const roleDisplay = `
+                <div class="flex items-start">
+                    ${daysSection}
+                    ${roleSection}
                 </div>
             `;
             
@@ -920,7 +1087,7 @@ export function showExternalExpertsScreen(experts, userData) {
             <div class="p-3 bg-blue-900/50 rounded-md mt-2 flex flex-col md:flex-row gap-4 items-start">
                 ${partnerDetailsHtml}
                 <div class="flex flex-col gap-2">
-                    ${roleDropdown}
+                    ${roleDisplay}
                     ${saveButtonHtml}
                 </div>
             </div>
@@ -1274,9 +1441,26 @@ window.openInspectorPartnerModal = async function(userId, userName) {
                 hideLoadingModal();
                 modal.style.display = 'none';
                 alert('Partnerek sikeresen frissítve!');
-                // Refresh parent screen?
-                // Ideally we'd trigger a reload of the user list in the background or just reload page
-                window.location.reload(); 
+                // Refresh parent screen without full page reload
+                try {
+                    const currentUser = auth.currentUser;
+                    if (currentUser) {
+                         // We need the admin's user data to call getUsersForPermissionManagement
+                         const adminUserDoc = await db.collection('users').doc(currentUser.uid).get();
+                         if (adminUserDoc.exists) {
+                             const adminUserData = adminUserDoc.data();
+                             const users = await getUsersForPermissionManagement(currentUser, adminUserData);
+                             showPermissionManagementScreen(users, adminUserData);
+                         } else {
+                             window.location.reload(); // Fallback
+                         }
+                    } else {
+                        window.location.reload(); // Fallback
+                    }
+                } catch (refreshError) {
+                    console.error("Error refreshing permission screen:", refreshError);
+                    window.location.reload(); // Fallback on error
+                }
             } catch (error) {
                  hideLoadingModal();
                  console.error(error);

@@ -286,11 +286,40 @@ export function initPartnerWorkScreen(partner, userData) {
     // Only restrict if explicitly read-only. Default to allowing edit to prevent locking out admins.
     const isReadOnly = (role === 'read' && !isEjkUser);
     
-    console.log("Permissions:", { role, isEjkUser, isReadOnly, userDataPresent: !!userData });
+    // Check Subscriber Inspector Approval
+    const partnerStatuses = (userData && userData.partnerStatuses) ? userData.partnerStatuses : {};
+    const approvalStatus = partnerStatuses[partnerId];
+    const isSubscriberInspector = role === 'subscriber_inspector';
+    const isApproved = approvalStatus === 'approved';
+    const needsApproval = isSubscriberInspector && !isApproved; // If true, block access
+
+    // Inject Warning Banner if needs approval
+    const mainContainer = document.getElementById('deviceListScreen');
+    const existingBanner = document.getElementById(`approval-banner-${partnerId}`);
+    if (existingBanner) existingBanner.remove();
+
+    if (needsApproval) {
+        const banner = document.createElement('div');
+        banner.id = `approval-banner-${partnerId}`;
+        banner.className = 'bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4';
+        banner.role = 'alert';
+        banner.innerHTML = `
+            <p class="font-bold">Engedélyre vár</p>
+            <p>Ön jelenleg engedélyre váró szakértő ennél a partnernél. Kérjük várja meg az adminisztrátor jóváhagyását a vizsgálatok megkezdéséhez.</p>
+        `;
+        // Insert at the top of the container
+        if (mainContainer) mainContainer.insertBefore(banner, mainContainer.firstChild);
+    }
+    
+    console.log("Permissions:", { role, isEjkUser, isReadOnly, isSubscriberInspector, isApproved, needsApproval, userDataPresent: !!userData });
     window.editDevice = function(deviceId) {
         if (isReadOnly) {
             alert('Olvasási jogosultság esetén nem lehetséges adatot módosítani. Kérjük, forduljon a jogosultság osztójához.');
             return;
+        }
+        if (needsApproval) {
+             alert('Engedélyre váró szakértőként nem módosíthat adatokat. Kérjük várja meg a jóváhagyást.');
+             return;
         }
         console.log(`Redirecting to edit device: ${deviceId} for partner: ${partnerId}`);
         sessionStorage.setItem('editDeviceId', deviceId);
@@ -332,18 +361,93 @@ export function initPartnerWorkScreen(partner, userData) {
     }
 
     if (showNewInspectionBtn) {
-        showNewInspectionBtn.addEventListener('click', () => showScreen(newInspectionScreen));
+        if (needsApproval) {
+            showNewInspectionBtn.style.display = 'none';
+        } else {
+            showNewInspectionBtn.style.display = 'block'; 
+            showNewInspectionBtn.addEventListener('click', () => showScreen(newInspectionScreen));
+        }
     }
     if (showNewInspectionBtnMobile) {
-        showNewInspectionBtnMobile.addEventListener('click', () => showScreen(newInspectionScreen));
+        if (needsApproval) {
+             showNewInspectionBtnMobile.style.display = 'none';
+        } else {
+             showNewInspectionBtnMobile.style.display = 'block';
+             showNewInspectionBtnMobile.addEventListener('click', () => showScreen(newInspectionScreen));
+        }
     }
     
     // New Usage Listeners
     if (showNewUsageBtn) {
-        showNewUsageBtn.addEventListener('click', handleNewUsageClick);
+        if (needsApproval) {
+            showNewUsageBtn.style.display = 'none';
+        } else {
+            showNewUsageBtn.style.display = 'block';
+            showNewUsageBtn.addEventListener('click', handleNewUsageClick);
+        }
     }
     if (showNewUsageBtnMobile) {
-        showNewUsageBtnMobile.addEventListener('click', handleNewUsageClick);
+        if (needsApproval) {
+            showNewUsageBtnMobile.style.display = 'none';
+        } else {
+            showNewUsageBtnMobile.style.display = 'block';
+            showNewUsageBtnMobile.addEventListener('click', handleNewUsageClick);
+        }
+    }
+
+    // STRICT BLOCKING FOR UNAPPROVED SUBSCRIBER INSPECTORS
+    if (needsApproval) {
+        // 1. Hide Device List Content
+        const deviceListScreen = document.getElementById('deviceListScreen');
+        if (deviceListScreen) {
+            // Keep only the banner, hide everything else (table, search, etc.)
+            Array.from(deviceListScreen.children).forEach(child => {
+                if (child.id !== `approval-banner-${partnerId}`) {
+                    child.style.display = 'none';
+                }
+            });
+        }
+        
+        // 2. Hide Finalized Docs
+        const finalizedDocs = document.getElementById('finalizedDocsScreen');
+        if (finalizedDocs) finalizedDocs.style.display = 'none';
+        
+        // 3. DISABLE Header Buttons (Database, Upload, Protocol, etc.)
+        // We keep "Vissza" button functional.
+        // We disable others by adding opacity and removing pointer events.
+        const buttonsToDisable = [
+            'download-db-btn', 'uploadDeviceBtn', 'generate-protocol-btn',
+            'download-db-btn-mobile', 'uploadDeviceBtnMobile', 'generate-protocol-btn-mobile',
+            'delete-device-btn', 'decommission-reactivate-btn', 'permanent-scrap-btn',
+            'delete-device-btn-mobile', 'decommission-reactivate-btn-mobile', 'permanent-scrap-btn-mobile',
+            'showNewInspectionBtn', 'showNewInspectionBtnMobile', 
+            'showNewUsageBtn', 'showNewUsageBtnMobile'
+        ];
+        
+        buttonsToDisable.forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                // Ensure it is visible but disabled
+                btn.style.display = ''; 
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.style.pointerEvents = 'none'; 
+            }
+        });
+        
+        // Ensure Back button IS functional and visible
+        const backBtn = document.getElementById('backToMainFromWorkScreenBtn');
+        const backBtnMobile = document.getElementById('backToMainFromWorkScreenBtnMobile');
+        if (backBtn) {
+             backBtn.disabled = false;
+             backBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+             backBtn.style.pointerEvents = 'auto';
+        }
+        if (backBtnMobile) {
+             backBtnMobile.disabled = false;
+             backBtnMobile.classList.remove('opacity-50', 'cursor-not-allowed');
+             backBtnMobile.style.pointerEvents = 'auto';
+        }
     }
     if (cancelUsageBtn) {
         cancelUsageBtn.addEventListener('click', () => showScreen(deviceListScreen));
@@ -566,9 +670,35 @@ export function initPartnerWorkScreen(partner, userData) {
     }
 
     // --- PROTOCOL LOADING LOGIC (EKV Users) ---
+    // --- PROTOCOL LOADING LOGIC (EKV Users) ---
     async function loadProtocols() {
         const selectEl = document.getElementById('expertSelectNewInspection');
         if (!selectEl) return;
+
+        // EKV Internal Inspector Workflow - Specific Hardcoded Options
+        if (userData && userData.isEkvUser) {
+            selectEl.innerHTML = '<option value="" disabled selected>Válassz egy jegyzőkönyv típust...</option>';
+            
+            const options = [
+                { value: 'teherfelvevo', text: 'Teherfelvevő eszköz' },
+                { value: 'emelogep', text: 'Emelőgép (daru)' },
+                { value: 'pdf_feltoltes', text: 'PDF feltöltés' }
+            ];
+
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                selectEl.appendChild(option);
+            });
+            
+            // Trigger change event to update UI (e.g., UEVM header fields)
+            setTimeout(() => {
+                selectEl.dispatchEvent(new Event('change'));
+            }, 50);
+
+            return;
+        }
 
         try {
             // List files from Firebase Storage 'templates/foreign-doc'
@@ -638,7 +768,11 @@ export function initPartnerWorkScreen(partner, userData) {
     // Determine default filter based on user type
     
     if (isEkvUser) {
-        sourceFilter = 'external';
+        if (role === 'internal_inspector') {
+            sourceFilter = 'h-itb';
+        } else {
+            sourceFilter = 'external';
+        }
     } else if (isEjkUser) {
         sourceFilter = 'h-itb';
     } else {
@@ -3126,6 +3260,65 @@ export function initPartnerWorkScreen(partner, userData) {
     });
 
     updateUiForView(); // Kezdeti UI beállítása
+
+    // NEW (Fixed Location): Protocol Selection Change Listener (Delegated for robustness)
+    // Placed here to ensure it's active before loadProtocols/loadExperts populates options
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'expertSelectNewInspection') {
+            const val = e.target.value;
+            const uevmHeaderFields = document.getElementById('uevm-additional-header-fields');
+            const dataContainer = document.getElementById('inspection-main-data-container');
+            const copyBtn = document.getElementById('copyPreviousInspectionDataBtn');
+            const pdfContainer = document.getElementById('pdf-upload-container');
+
+            // Reset UI states (hide PDF by default)
+            if (pdfContainer) pdfContainer.classList.add('hidden');
+
+            if (val === 'emelogep') {
+                // Show UEVM Header Fields
+                if (uevmHeaderFields) uevmHeaderFields.classList.remove('hidden');
+                
+                // Hide Standard Data Form & Copy Button
+                if (dataContainer) dataContainer.classList.add('hidden');
+                if (copyBtn) copyBtn.classList.add('hidden');
+
+                // Pre-fill if empty
+                const nameInput = document.getElementById('uevmHeaderInspectorName');
+                const idInput = document.getElementById('uevmHeaderInspectorId');
+                
+                if (userData) {
+                        if (nameInput && !nameInput.value && userData.name) {
+                            nameInput.value = userData.name;
+                        }
+                        if (idInput && !idInput.value && userData.kamaraiSzam) {
+                            idInput.value = userData.kamaraiSzam;
+                        }
+                }
+
+            } else if (val === 'pdf_feltoltes') {
+                // Show PDF Upload
+                if (pdfContainer) pdfContainer.classList.remove('hidden');
+                
+                // Show Standard Data Form & Copy Button (for PDF meta-data?)
+                // Usually PDF upload replaces standard form, or accompanies it?
+                // Based on previous code: if pdf_feltoltes, show dataContainer.
+                if (dataContainer) dataContainer.classList.remove('hidden');
+                if (copyBtn) copyBtn.classList.remove('hidden');
+
+                // Hide UEVM Header
+                if (uevmHeaderFields) uevmHeaderFields.classList.add('hidden');
+
+            } else {
+                // Standard Inspection (Teherfelvevő)
+                if (uevmHeaderFields) uevmHeaderFields.classList.add('hidden');
+                
+                // Show Standard Data Form & Copy Button
+                if (dataContainer) dataContainer.classList.remove('hidden');
+                if (copyBtn) copyBtn.classList.remove('hidden');
+            }
+        }
+    });
+
     fetchDevices();
     if (isEkvUser) {
         loadProtocols();
@@ -3611,13 +3804,66 @@ export function initPartnerWorkScreen(partner, userData) {
             });
             await Promise.all(urlPromises);
 
+
             if (protocolUrls.length === 0) {
                 alert('A kiválasztott eszközök közül egyiknek sincs véglegesített jegyzőkönyve.');
                 newTab.close(); // Close the empty tab
                 return; 
             }
 
-            // 3. Fetch HTML content from each URL
+            // 3. Check for PDF files
+            // Simple heuristic: check if URL contains .pdf (ignoring query params if possible, but Firebase URLs usually have it in the path)
+            const hasPdf = protocolUrls.some(url => url.toLowerCase().includes('.pdf'));
+
+            if (hasPdf) {
+                // Special Handling for PDFs
+                if (protocolUrls.length === 1) {
+                    // Single PDF: Redirect immediately
+                    newTab.location.href = protocolUrls[0];
+                    generateProtocolBtn.innerHTML = originalButtonText;
+                    generateProtocolBtn.disabled = false;
+                    generateProtocolBtnMobile.disabled = false;
+                    return;
+                } else {
+                    // Multiple files with at least one PDF: List them instead of merging
+                     newTab.document.open();
+                     newTab.document.write(`
+                        <!DOCTYPE html>
+                        <html lang="hu">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                            <title>Jegyzőkönyvek</title>
+                            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                        </head>
+                        <body class="bg-gray-100 p-8">
+                            <div class="max-w-3xl mx-auto bg-white rounded shadow p-6">
+                                <h1 class="text-2xl font-bold mb-6 text-gray-800">Kiválasztott Jegyzőkönyvek</h1>
+                                <p class="mb-4 text-gray-600">A kiválasztott elemek között PDF fájlok is találhatók, amelyeket nem lehet automatikusan összefűzni. Kérjük, nyissa meg őket az alábbi linkekre kattintva:</p>
+                                <ul class="space-y-3">
+                                    ${protocolUrls.map((url, index) => `
+                                        <li>
+                                            <a href="${url}" target="_blank" class="block p-4 border rounded hover:bg-gray-50 bg-gray-50 flex items-center justify-between text-blue-600 font-semibold">
+                                                <span>${index + 1}. Jegyzőkönyv megnyitása</span>
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                            </a>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </body>
+                        </html>
+                     `);
+                     newTab.document.close();
+                     
+                     generateProtocolBtn.innerHTML = originalButtonText;
+                     generateProtocolBtn.disabled = false;
+                     generateProtocolBtnMobile.disabled = false;
+                     return;
+                }
+            }
+
+            // 4. Fetch HTML content from each URL (Only if NO PDFs found)
             const fetchPromises = protocolUrls.map(url => fetch(url).then(res => {
                 if (!res.ok) {
                     throw new Error(`Sikertelen letöltés: ${url} (${res.statusText})`);
@@ -3626,13 +3872,13 @@ export function initPartnerWorkScreen(partner, userData) {
             }));
             const htmlContents = await Promise.all(fetchPromises);
 
-            // 4. Process content: Extract styles and body
+            // 5. Process content: Extract styles and body
             let collectedStyles = '';
             const cleanedContents = htmlContents.map(html => {
                 // Extract style tags
                 const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
                 if (styleMatches) {
-                    collectedStyles += styleMatches.join('\n');
+                    collectedStyles += styleMatches.join('\\n');
                 }
 
                 // Extract link tags (stylesheets) - though mostly we rely on Tailwind CDN now
@@ -3640,7 +3886,7 @@ export function initPartnerWorkScreen(partner, userData) {
                 if (linkMatches) {
                     // We might want to include these if they are not the main tailwind one, 
                     // but for now let's rely on the injected Tailwind and collected inline styles.
-                    // collectedStyles += linkMatches.join('\n'); 
+                    // collectedStyles += linkMatches.join('\\n'); 
                 }
 
                 // Extract body content
@@ -3650,7 +3896,7 @@ export function initPartnerWorkScreen(partner, userData) {
 
             const combinedHtml = cleanedContents.join('<div style="page-break-after: always; height: 20px;"></div>');
 
-            // 5. Write final content to the tab
+            // 6. Write final content to the tab
             newTab.document.open();
             newTab.document.write(`
                 <!DOCTYPE html>
@@ -3772,6 +4018,15 @@ export function initPartnerWorkScreen(partner, userData) {
             if (expertSelect) sessionStorage.setItem('persist_return_expert', expertSelect.value);
             if (placeInput) sessionStorage.setItem('persist_return_place', placeInput.value);
             if (dateInput) sessionStorage.setItem('persist_return_date', dateInput.value);
+
+            // Persist UEVM Header Fields
+            const uevmName = document.getElementById('uevmHeaderInspectorName');
+            const uevmId = document.getElementById('uevmHeaderInspectorId');
+            const uevmStandards = document.getElementById('uevmHeaderStandards');
+
+            if (uevmName) sessionStorage.setItem('persist_return_uevm_name', uevmName.value);
+            if (uevmId) sessionStorage.setItem('persist_return_uevm_id', uevmId.value);
+            if (uevmStandards) sessionStorage.setItem('persist_return_uevm_standards', uevmStandards.value);
             
             // Set flag to indicate we want to return here
             console.log("Setting returnToNewInspection flag to true");
@@ -3932,13 +4187,7 @@ export function initPartnerWorkScreen(partner, userData) {
                     id: 'id'
                 };
 
-                // Check if modal container exists, if not add it
-                if (!document.getElementById('uevm-modal-container')) {
-                    const modalContainer = document.createElement('div');
-                    modalContainer.id = 'uevm-modal-container';
-                    modalContainer.innerHTML = getUevmModalHtml();
-                    document.body.appendChild(modalContainer);
-                }
+
 
                 let detailsHtml = '<h3 class="text-xl font-bold mb-4 text-green-300">Megtalált eszköz adatai</h3>';
                 detailsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-left">';
@@ -3999,7 +4248,7 @@ export function initPartnerWorkScreen(partner, userData) {
                 detailsHtml += '</div>';
 
                 detailsHtml += `
-                    <div class="mt-6 pt-4 border-t border-blue-700">
+                    <div id="inspection-main-data-container" class="mt-6 pt-4 border-t border-blue-700">
                         <h3 class="text-xl font-bold mb-4 text-green-300">Vizsgálati adatok rögzítése</h3>
                         <div id="new-inspection-form" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                             <div>
@@ -4032,10 +4281,17 @@ export function initPartnerWorkScreen(partner, userData) {
                                         <option>Nem felelt meg</option>
                                     </select>
                                     ${(userData && userData.isEkvUser) ? `
-                                    <button type="button" id="openUevmBtn" class="ml-2 px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded border border-blue-500 transition-colors">
-                                        <i class="fas fa-paperclip mr-1"></i> Vizsgálati melléklet
-                                    </button>
-                                    <div id="uevm-status-indicator" class="ml-2 text-xs text-gray-500 hidden"><i class="fas fa-check text-green-500"></i> Csatolva</div>
+                                    <!-- UEVM Status Indicator (Hidden by default) -->
+                                    <div id="uevm-status-indicator" class="ml-2 text-xs text-green-500 hidden font-bold"><i class="fas fa-check"></i> UEVM Csatolva</div>
+                                    
+                                    <!-- PDF Upload Container (Hidden by default, shown via JS if 'pdf_feltoltes' selected) -->
+                                    <div id="pdf-upload-container" class="hidden ml-2 flex items-center gap-2">
+                                        <input type="file" id="pdf-upload-input" accept="application/pdf" class="hidden">
+                                        <button type="button" id="pdf-upload-btn" class="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded border border-gray-500 transition-colors">
+                                            <i class="fas fa-upload mr-1"></i> PDF Feltöltés
+                                        </button>
+                                        <span id="pdf-upload-status" class="text-xs text-gray-400">Nincs fájl</span>
+                                    </div>
                                     ` : `
                                     <div class="flex items-center ml-2 border border-gray-600 rounded px-2 py-1 bg-gray-700">
                                         <input type="checkbox" id="ajanlatKeresInput" name="ajanlat_keres" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
@@ -4063,14 +4319,51 @@ export function initPartnerWorkScreen(partner, userData) {
                                 <textarea name="felhasznalt_anyagok" class="input-field" rows="2"></textarea>
                             </div>
                         </div>
-                        <div class="mt-6 flex gap-4">
-                            <button id="saveInspectionButton" class="btn btn-primary">Vizsgálat mentése</button>
-                            <button type="button" id="copyPreviousInspectionDataBtn" class="btn btn-info">Előző adatok másolása</button>
-                        </div>
+                    </div>
+                    <div class="mt-6 flex gap-4">
+                        <button type="button" id="saveInspectionButton" class="btn btn-primary">Vizsgálat mentése</button>
+                        <button type="button" id="copyPreviousInspectionDataBtn" class="btn btn-info">Előző adatok másolása</button>
                     </div>
                 `;
 
                 deviceSearchResult.innerHTML = detailsHtml;
+
+                // EKV Specific: Auto-trigger UEVM if 'emelogep' is selected
+                if (userData && userData.isEkvUser) {
+                    const protocolSelect = document.getElementById('expertSelectNewInspection');
+                    if (protocolSelect && protocolSelect.value === 'emelogep') {
+                        // Small timeout to ensure DOM is ready and transition is smooth
+                        setTimeout(() => {
+                             if (!window.currentUevmData) { // Only if not already filled
+                                 // Pre-fill Inspector Data from HEADER fields
+                                 const headerName = document.getElementById('uevmHeaderInspectorName').value;
+                                 const headerId = document.getElementById('uevmHeaderInspectorId').value;
+                                 const headerStandards = document.getElementById('uevmHeaderStandards').value;
+
+                                 const defaultUevmData = {
+                                     uevm_inspector_name: headerName || ((userData && userData.isEkvUser) ? (userData.name || '') : ''),
+                                     uevm_inspector_id: headerId || ((userData.kamaraiSzam) ? userData.kamaraiSzam : ''),
+                                     uevm_specifikusSzabvany: headerStandards || 'EBSZ 47/1999. (VIII. 4.) GM r., Mvt., MSZ 9721-1:2020; MSZ EN 9721, DIN 6327'
+                                 };
+
+                                 initUevmModal((data) => {
+                                    window.currentUevmData = data;
+                                    const indicator = document.getElementById('uevm-status-indicator');
+                                    if (indicator) {
+                                        indicator.classList.remove('hidden');
+                                        indicator.innerHTML = '<i class="fas fa-check"></i> UEVM Csatolva';
+                                    }
+                                }, defaultUevmData);
+                             }
+                        }, 500);
+                    }
+                    
+                    // Also ensure PDF container is visible if pdf_feltoltes is selected
+                    if (protocolSelect && protocolSelect.value === 'pdf_feltoltes') {
+                        const pdfContainer = document.getElementById('pdf-upload-container');
+                        if (pdfContainer) pdfContainer.classList.remove('hidden');
+                    }
+                }
 
                 // --- AUTO-DATE LOGIC FOR 'NEM FELELT MEG' ---
                 const vizsgalatEredmenyeSelect = document.querySelector('[name="vizsgalat_eredmenye"]');
@@ -4191,198 +4484,373 @@ export function initPartnerWorkScreen(partner, userData) {
                 setupDictation('dictate-material-btn', 'felhasznalt_anyagok');
                 // --- DICTATION LOGIC END ---
 
-            // UEVM Button Logic
-            const openUevmBtn = document.getElementById('openUevmBtn');
-            if (openUevmBtn) {
-                    openUevmBtn.addEventListener('click', () => {
-                        initUevmModal((data) => {
-                            window.currentUevmData = data; // Save to global/window for persistence
-                            // Update UI to show it's attached
-                            const indicator = document.getElementById('uevm-status-indicator');
-                            if (indicator) {
-                                indicator.classList.remove('hidden');
-                            }
-                            openUevmBtn.classList.remove('bg-blue-700', 'border-blue-500');
-                            openUevmBtn.classList.add('bg-green-700', 'border-green-500');
-                            openUevmBtn.innerHTML = '<i class="fas fa-edit mr-1"></i> Melléklet szerkesztése';
-                        }, window.currentUevmData || null);
-                    });
-            }
+                // --- DATE CALCULATION LOGIC ---
+                const calculateNextDate = (periodSelectName, dateInputName) => {
+                    const periodSelect = document.querySelector(`[name="${periodSelectName}"]`);
+                    const dateInput = document.querySelector(`[name="${dateInputName}"]`);
+                    const inspectionDateInput = document.getElementById('inspectionDateInput');
 
-            // Automatikus scroll az eredményhez
-                const copyButton = document.getElementById('copyPreviousInspectionDataBtn');
-                if (copyButton) {
-                    copyButton.addEventListener('click', () => {
-                        const fieldsToLoad = [
-                            'kov_idoszakos_vizsgalat_period',
-                            'kov_idoszakos_vizsgalat',
-                            'kov_terhelesi_proba_period',
-                            'kov_terhelesi_proba',
-                            'vizsgalat_eredmenye',
-                            'feltart_hiba',
-                            'felhasznalt_anyagok'
-                        ];
-                        fieldsToLoad.forEach(name => {
-                            const field = document.querySelector(`[name="${name}"]`);
-                            const savedValue = sessionStorage.getItem(`persist_${name}`);
-                            if (field && savedValue !== null) {
-                                field.value = savedValue;
-                                field.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (periodSelect && dateInput && inspectionDateInput) {
+                        periodSelect.addEventListener('change', () => {
+                            const period = parseFloat(periodSelect.value);
+                            const inspectionDateVal = inspectionDateInput.value;
+
+                            if (!period || !inspectionDateVal) return;
+
+                            const inspectionDate = new Date(inspectionDateVal);
+                            let nextDate = new Date(inspectionDate);
+
+                            if (period === 0.25) {
+                                nextDate.setMonth(nextDate.getMonth() + 3);
+                            } else if (period === 0.5) {
+                                nextDate.setMonth(nextDate.getMonth() + 6);
+                            } else if (period === 0.75) {
+                                nextDate.setMonth(nextDate.getMonth() + 9);
+                            } else if (period === 1) {
+                                nextDate.setFullYear(nextDate.getFullYear() + 1);
                             }
+
+                            // Format YYYY-MM-DD
+                            const yyyy = nextDate.getFullYear();
+                            const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
+                            const dd = String(nextDate.getDate()).padStart(2, '0');
+                            
+                            dateInput.value = `${yyyy}-${mm}-${dd}`;
                         });
-                    });
-                }
-
-                const inspectionDateInputForCalc = document.getElementById('inspectionDateInput');
-                const kovIdoszakosVizsgalatPeriod = document.querySelector('[name="kov_idoszakos_vizsgalat_period"]');
-                const kovIdoszakosVizsgalatDate = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
-                const kovTerhelesiProbaPeriod = document.querySelector('[name="kov_terhelesi_proba_period"]');
-                const kovTerhelesiProbaDate = document.querySelector('[name="kov_terhelesi_proba"]');
-
-                function calculateNextDate(baseDate, years) {
-                    if (!baseDate || !years || isNaN(years)) return '';
-                    const date = new Date(baseDate);
-                    const monthsToAdd = Math.floor(years * 12);
-                    date.setMonth(date.getMonth() + monthsToAdd);
-                    return date.toISOString().slice(0, 10);
-                }
-
-                if (kovIdoszakosVizsgalatPeriod) {
-                    kovIdoszakosVizsgalatPeriod.addEventListener('change', (e) => {
-                        const period = parseFloat(e.target.value);
-                        const baseDate = inspectionDateInputForCalc.value;
-                        kovIdoszakosVizsgalatDate.value = calculateNextDate(baseDate, period);
-                    });
-                }
-
-                if (kovTerhelesiProbaPeriod) {
-                    kovTerhelesiProbaPeriod.addEventListener('change', (e) => {
-                        const period = parseFloat(e.target.value);
-                        const baseDate = inspectionDateInputForCalc.value;
-                        kovTerhelesiProbaDate.value = calculateNextDate(baseDate, period);
-                    });
-                }
-
-                inspectionDateInputForCalc.addEventListener('change', () => {
-                    if (kovIdoszakosVizsgalatPeriod) {
-                        const idoszakosPeriod = parseFloat(kovIdoszakosVizsgalatPeriod.value);
-                        kovIdoszakosVizsgalatDate.value = calculateNextDate(inspectionDateInputForCalc.value, idoszakosPeriod);
                     }
-                    if (kovTerhelesiProbaPeriod) {
-                        const terhelesiPeriod = parseFloat(kovTerhelesiProbaPeriod.value);
-                        kovTerhelesiProbaDate.value = calculateNextDate(inspectionDateInputForCalc.value, terhelesiPeriod);
-                    }
-                });
+                };
 
-                const saveInspectionButton = document.getElementById('saveInspectionButton');
-                if (saveInspectionButton) {
-                    saveInspectionButton.addEventListener('click', async () => {
+                calculateNextDate('kov_idoszakos_vizsgalat_period', 'kov_idoszakos_vizsgalat');
+                calculateNextDate('kov_terhelesi_proba_period', 'kov_terhelesi_proba');
+
+
+
+            // Refactored Save Logic - Defined here to be accessible by all listeners in this scope
+            let isSaving = false;
+
+            const saveInspection = async () => {
+                    if (isSaving) return;
+                    isSaving = true;
+
+                    const saveBtn = document.getElementById('saveInspectionButton');
+                    const pdfBtn = document.getElementById('pdf-upload-btn');
+                    if (saveBtn) saveBtn.disabled = true;
+                    if (pdfBtn) pdfBtn.disabled = true;
+
+                    try {
                         // Hide keyboard on mobile
                         if (document.activeElement) {
                             document.activeElement.blur();
                         }
 
-                        const user = auth.currentUser;
-                        if (!user || !currentInspectedDevice) {
-                            alert('Hiba: Nincs bejelentkezett felhasználó vagy kiválasztott eszköz.');
-                            return;
-                        }
+                    const user = auth.currentUser;
+                    if (!user || !currentInspectedDevice) {
+                        alert('Hiba: Nincs bejelentkezett felhasználó vagy kiválasztott eszköz.');
+                        return;
+                    }
 
-                        const fieldsToSave = [
-                            'kov_idoszakos_vizsgalat_period',
-                            'kov_idoszakos_vizsgalat',
-                            'kov_terhelesi_proba_period',
-                            'kov_terhelesi_proba',
-                            'vizsgalat_eredmenye',
-                            'feltart_hiba',
-                            'felhasznalt_anyagok'
-                        ];
-                        fieldsToSave.forEach(name => {
-                            const field = document.querySelector(`[name="${name}"]`);
-                            if (field) {
-                                sessionStorage.setItem(`persist_${name}`, field.value);
+                    const fieldsToSave = [
+                        'kov_idoszakos_vizsgalat_period',
+                        'kov_idoszakos_vizsgalat',
+                        'kov_terhelesi_proba_period',
+                        'kov_terhelesi_proba',
+                        'vizsgalat_eredmenye',
+                        'feltart_hiba',
+                        'felhasznalt_anyagok'
+                    ];
+                    fieldsToSave.forEach(name => {
+                        const field = document.querySelector(`[name="${name}"]`);
+                        if (field) {
+                            sessionStorage.setItem(`persist_${name}`, field.value);
+                        }
+                    });
+
+                    const selectedProtocol = (userData && userData.isEkvUser) ? document.getElementById('expertSelectNewInspection').value : null;
+
+                    const inspectionData = {
+                        deviceId: currentInspectedDevice.id,
+                        partnerId: partnerId,
+                        vizsgalatJellege: document.getElementById('templateSelectNewInspection').value,
+                        szakerto: (userData && userData.isEkvUser) ? (user.displayName || user.email) : document.getElementById('expertSelectNewInspection').value,
+                        inspectionProtocol: selectedProtocol,
+                        vizsgalatHelye: document.getElementById('inspectionLocationInput').value,
+                        vizsgalatIdopontja: document.getElementById('inspectionDateInput').value,
+                        
+                        // Get values safely
+                        kovetkezoIdoszakosVizsgalat: document.querySelector('[name="kov_idoszakos_vizsgalat"]') ? document.querySelector('[name="kov_idoszakos_vizsgalat"]').value : '',
+                        kovetkezoTerhelesiProba: document.querySelector('[name="kov_terhelesi_proba"]') ? document.querySelector('[name="kov_terhelesi_proba"]').value : '',
+                        vizsgalatEredmenye: document.querySelector('[name="vizsgalat_eredmenye"]') ? document.querySelector('[name="vizsgalat_eredmenye"]').value : '',
+                        feltartHiba: document.querySelector('[name="feltart_hiba"]') ? document.querySelector('[name="feltart_hiba"]').value : '',
+                        felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]') ? document.querySelector('[name="felhasznalt_anyagok"]').value : '',
+
+                        ajanlatKeres: document.getElementById('ajanlatKeresInput') ? document.getElementById('ajanlatKeresInput').checked : false,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdBy: user.displayName || user.email,
+                        createdByUid: user.uid, // Save UID for EKV filtering
+                        status: 'draft', // Piszkozat állapot beállítása
+                        uevmData: window.currentUevmData || null, // Save UEVM data if exists
+                        // Save Header Data for UEVM if present
+                        uevmHeaderData: (selectedProtocol === 'emelogep') ? {
+                            inspectorName: document.getElementById('uevmHeaderInspectorName').value,
+                            inspectorId: document.getElementById('uevmHeaderInspectorId').value,
+                            standards: document.getElementById('uevmHeaderStandards').value
+                        } : null
+                    };
+
+                    // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden)
+                    if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') { 
+                            inspectionData.kovetkezoTerhelesiProba = ''; 
+                    }
+
+
+                    // UEVM Report Handling
+                    if (inspectionData.inspectionProtocol === 'emelogep' && inspectionData.uevmData) {
+                        // Defer upload to Finalization.
+                        inspectionData.inspectionProtocol = null; 
+                    }
+
+                    const dataToHash = `${inspectionData.deviceId}${inspectionData.szakerto}${inspectionData.vizsgalatIdopontja}`;
+                    inspectionData.hash = await generateHash(dataToHash);
+
+                    // Validation
+                    let requiredFields = [];
+                    const protocolSelect = document.getElementById('expertSelectNewInspection');
+
+                    // UEVM Bypass Logic
+                    if (userData.isEkvUser && (protocolSelect.value === 'emelogep' || inspectionData.uevmData)) {
+                            // EKV UEVM: Standard data fields are hidden, so we skip their validation.
+                            if (!inspectionData.uevmData) {
+                                alert('Kérjük, csatolja az UEVM adatlapot!');
+                                return;
                             }
-                        });
+                            
+                            // Validate Manual Next Inspection Date
+                            if (!inspectionData.uevmData.uevm_kovetkezo_vizsgalat) {
+                                alert('Kérjük, adja meg a "Következő vizsgálat időpontját" az UEVM űrlap "Összegzés" fülén!');
+                                return;
+                            }
+                            
+                            // Set defaults for hidden fields
+                            // 1. Result (Minősítés)
+                            inspectionData.vizsgalatEredmenye = (inspectionData.uevmData.uevm_minosites === 'w4' || inspectionData.uevmData.uevm_minosites === 'w3' || inspectionData.uevmData.uevm_minosites === 'w2') ? 'Megfelelt' : 'Nem felelt meg';
 
-                        const inspectionData = {
-                            deviceId: currentInspectedDevice.id,
-                            partnerId: partnerId,
-                            vizsgalatJellege: document.getElementById('templateSelectNewInspection').value,
-                            szakerto: (userData && userData.isEkvUser) ? (user.displayName || user.email) : document.getElementById('expertSelectNewInspection').value,
-                            inspectionProtocol: (userData && userData.isEkvUser) ? document.getElementById('expertSelectNewInspection').value : null,
-                            vizsgalatHelye: document.getElementById('inspectionLocationInput').value,
-                            vizsgalatIdopontja: document.getElementById('inspectionDateInput').value,
-                            kovetkezoIdoszakosVizsgalat: document.querySelector('[name="kov_idoszakos_vizsgalat"]').value,
-                            kovetkezoTerhelesiProba: document.querySelector('[name="kov_terhelesi_proba"]').value,
-                            vizsgalatEredmenye: document.querySelector('[name="vizsgalat_eredmenye"]').value,
-                            feltartHiba: document.querySelector('[name="feltart_hiba"]').value,
-                            felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]').value,
+                            // 2. Next Inspection Date (Következő időszakos vizsgálat)
+                            if (inspectionData.uevmData.uevm_kovetkezo_vizsgalat) {
+                                inspectionData.kovetkezoIdoszakosVizsgalat = inspectionData.uevmData.uevm_kovetkezo_vizsgalat;
+                                inspectionData.kov_idoszakos_vizsgalat_period = '1'; 
+                            }
+                    } else {
+                            // Standard Validation
+                            requiredFields = [
+                                inspectionData.vizsgalatJellege,
+                                inspectionData.szakerto,
+                                inspectionData.vizsgalatHelye,
+                                inspectionData.vizsgalatIdopontja,
+                                inspectionData.kovetkezoIdoszakosVizsgalat,
+                                inspectionData.vizsgalatEredmenye
+                            ];
 
-                            ajanlatKeres: document.getElementById('ajanlatKeresInput') ? document.getElementById('ajanlatKeresInput').checked : false,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            createdBy: user.displayName || user.email,
-                            createdByUid: user.uid, // Save UID for EKV filtering
-                            status: 'draft', // Piszkozat állapot beállítása
-                            uevmData: window.currentUevmData || null // Save UEVM data if exists
-                        };
+                            if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln') {
+                                    requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
+                            }
+                            
+                            if (requiredFields.some(field => !field || field.trim() === '')) {
+                                alert('Kérjük, töltse ki az összes kötelező mezőt a vizsgálat mentéséhez! (A "Feltárt hiba" és a "Felhasznált anyagok" nem kötelező).');
+                                return;
+                            }
+                    }
 
-                        // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden),
-                        // de a validáció miatt ne akadjon el, illetve ne mentsünk be hülyeséget.
-                        if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') { // Note: Lastaufnahmemitteln DOES need load test, so we exclude it here
-                             inspectionData.kovetkezoTerhelesiProba = ''; // Clear it
+
+                        console.log("Data to be saved as draft:", inspectionData);
+
+                        // EKV Specific: PDF Upload Handling
+                        if (userData.isEkvUser && inspectionData.inspectionProtocol === 'pdf_feltoltes') {
+                            const pdfInput = document.getElementById('pdf-upload-input');
+                            if (!pdfInput || !pdfInput.files || !pdfInput.files[0]) {
+                                alert('Kérjük, töltsön fel egy PDF fájlt a mentéshez!');
+                                return;
+                            }
+                            
+                            const file = pdfInput.files[0];
+                            // Sanitize filename: remove spaces and special chars, keep extension
+                            const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                            const storagePath = `partners/${partnerId}/devices/${currentInspectedDevice.id}/inspections/${Date.now()}_${safeName}`;
+                            
+                            console.log("--- PDF UPLOAD DEBUG START ---");
+                            console.log("User UID:", user.uid);
+                            console.log("User Email:", user.email);
+                            console.log("Partner ID:", partnerId);
+                            console.log("Device ID:", currentInspectedDevice.id);
+                            console.log("File Name:", file.name);
+                            console.log("Safe Name:", safeName);
+                            console.log("Target Storage Path:", storagePath);
+                            console.log("Storage Bucket:", storage.app.options.storageBucket);
+                            console.log("-------------------------------");
+                            
+                            const storageRef = storage.ref(storagePath);
+                            
+                            showLoadingModal('PDF feltöltése folyamatban... <div class="loader-small inline-block ml-2"></div>');
+
+                            await storageRef.put(file);
+                            const downloadUrl = await storageRef.getDownloadURL();
+                            
+                            inspectionData.fileUrl = downloadUrl;
+                            inspectionData.status = 'draft'; // Piszkozatként mentjük
+                            
+                            // REMOVED: Immediate finalization and device update.
+                            // This now happens only when the user clicks "Véglegesítés" in the Drafts menu.
+                        }
+                        
+                        // EKV Specific: Inspector Name Override
+                        if (userData.isEkvUser && userData.kamaraiSzam) {
+                                inspectionData.szakerto = `${user.displayName} (${userData.kamaraiSzam})`;
+                        }
+                        
+                        // EKV Specific: Protocol ID cleanup
+                        if (userData.isEkvUser && (inspectionData.inspectionProtocol === 'teherfelvevo' || inspectionData.inspectionProtocol === 'emelogep')) {
+                            inspectionData.inspectionProtocol = null; // trigger standard generation
                         }
 
-                        const dataToHash = `${inspectionData.deviceId}${inspectionData.szakerto}${inspectionData.vizsgalatIdopontja}`;
-                        inspectionData.hash = await generateHash(dataToHash);
+                        // 1. Save Draft
+                        const newInspectionRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id).collection('inspections');
+                        await newInspectionRef.add(inspectionData);
 
-                        // Validation
-                        const requiredFields = [
-                            inspectionData.vizsgalatJellege,
-                            inspectionData.szakerto,
-                            inspectionData.vizsgalatHelye,
-                            inspectionData.vizsgalatIdopontja,
-                            inspectionData.kovetkezoIdoszakosVizsgalat,
-                            inspectionData.vizsgalatEredmenye
-                        ];
+                        showSuccessModal(`Vizsgálat sikeresen mentve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${currentInspectedDevice.serialNumber}</span>`);
+                        // Reset UI
+                        deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
+                        serialNumberInput.value = ''; 
+                        serialNumberInput.focus(); 
 
-                        // Csak akkor kötelező a terhelési, ha NEM Rögzítőeszköz vizsgálat (és nem a német változata)
-                        // A Lastaufnahmemitteln (Lastfelvétel) viszont IGÉNYEL terhelésit.
-                        if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln') {
-                             requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
-                        }
+                    } catch (error) {
+                        console.error("Hiba a vizsgálati piszkozat mentésekor: ", error);
+                        const modal = document.getElementById('custom-success-modal');
+                        if (modal) modal.classList.add('hidden');
+                        alert('Hiba történt a vizsgálati piszkozat mentésekor: ' + error.message);
+                    } finally {
+                        isSaving = false;
+                        if (saveBtn) saveBtn.disabled = false;
+                        if (pdfBtn) pdfBtn.disabled = false;
+                    }
 
-                        if (requiredFields.some(field => !field || field.trim() === '')) {
-                            alert('Kérjük, töltse ki az összes kötelező mezőt a vizsgálat mentéséhez! (A "Feltárt hiba" és a "Felhasznált anyagok" nem kötelező).');
-                            return;
-                        }
+            };
+            
+            const expertSelectNew = document.getElementById('expertSelectNewInspection');
+            if (userData && userData.isEkvUser && expertSelectNew) {
+                // Event Listener for Protocol Changes
 
-                        try {
-                            console.log("Data to be saved as draft:", inspectionData);
-                            // 1. Csak a vizsgálati piszkozatot mentjük az 'inspections' alkollekcióba
-                            const newInspectionRef = db.collection('partners').doc(partnerId).collection('devices').doc(currentInspectedDevice.id).collection('inspections');
-                            await newInspectionRef.add(inspectionData);
 
-                            // 2. Az eszköz dokumentum azonnali frissítése eltávolítva.
-                            //    Ez majd a véglegesítéskor fog megtörténni.
+                // PDF Upload Logic
+                const pdfInput = document.getElementById('pdf-upload-input');
+                const pdfBtn = document.getElementById('pdf-upload-btn');
+                const pdfStatus = document.getElementById('pdf-upload-status');
 
-                            // alert('Vizsgálati piszkozat sikeresen mentve!');
-                            showSuccessModal(`Vizsgálati piszkozat sikeresen mentve!<br><br>Gyári szám:<br><span class="font-bold text-2xl text-yellow-500">${currentInspectedDevice.serialNumber}</span>`);
-                            // A felület ürítése és visszajelzés a felhasználónak
-                            deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálati piszkozat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
-                            serialNumberInput.value = ''; // Gyári szám mező ürítése
-                            // serialNumberInput.focus(); // Fókusz vissza a gyári szám mezőre - REMOVED to prevent keyboard from reopening on mobile
-
-                        } catch (error) {
-                            console.error("Hiba a vizsgálati piszkozat mentésekor: ", error);
-                            alert('Hiba történt a vizsgálati piszkozat mentésekor: ' + error.message);
+                if (pdfInput && pdfBtn) {
+                    pdfBtn.addEventListener('click', () => pdfInput.click());
+                    pdfInput.addEventListener('change', (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                            if (pdfStatus) {
+                                pdfStatus.textContent = e.target.files[0].name;
+                                pdfStatus.classList.add('text-green-400');
+                                pdfStatus.classList.remove('text-gray-400');
+                            }
+                        } else {
+                            if (pdfStatus) {
+                                pdfStatus.textContent = 'Nincs fájl';
+                                pdfStatus.classList.remove('text-green-400');
+                                pdfStatus.classList.add('text-gray-400');
+                            }
                         }
                     });
                 }
+                
+                // Trigger initial check in case protocol was selected before device search
+                const initialProtocol = expertSelectNew.value;
+                const pdfContainer = document.getElementById('pdf-upload-container');
+                const dataContainer = document.getElementById('inspection-main-data-container');
+                const copyBtn = document.getElementById('copyPreviousInspectionDataBtn');
+
+                if (initialProtocol === 'pdf_feltoltes') {
+                    if (pdfContainer) pdfContainer.classList.remove('hidden');
+                    if (dataContainer) dataContainer.classList.remove('hidden'); 
+                    if (copyBtn) copyBtn.classList.remove('hidden');
+                } else if (initialProtocol === 'emelogep') {
+                    if (dataContainer) dataContainer.classList.add('hidden'); 
+                    if (copyBtn) copyBtn.classList.add('hidden'); 
+                    if (!window.currentUevmData) {
+                            // Pre-fill Inspector Data
+                            const currentUser = auth.currentUser;
+                            const defaultUevmData = {
+                                uevm_inspector_name: (currentUser && userData.isEkvUser) ? (currentUser.displayName || currentUser.email) : (userData.name || ''),
+                                uevm_inspector_id: (userData.kamaraiSzam) ? userData.kamaraiSzam : ''
+                            };
+
+                            initUevmModal((data) => {
+                                window.currentUevmData = data;
+                                const indicator = document.getElementById('uevm-status-indicator');
+                                if (indicator) {
+                                    indicator.classList.remove('hidden');
+                                    indicator.innerHTML = '<i class="fas fa-check"></i> UEVM Csatolva';
+                                }
+                                // Auto-save on UEVM modal save
+                                saveInspection();
+                            }, defaultUevmData);
+                    }
+                } else {
+                    if (pdfContainer) pdfContainer.classList.add('hidden');
+                    if (dataContainer) dataContainer.classList.remove('hidden');
+                    if (copyBtn) copyBtn.classList.remove('hidden');
+                }
+
             }
-        } catch (error) {
-            console.error("Hiba az eszköz keresésekor:", error);
-            deviceSearchResult.innerHTML = `<p class="text-red-400">Hiba történt a keresés során.</p>`;
+
+            // Attach Save Button Listener (MOVED HERE - Available for ALL users)
+            const saveInspectionButton = document.getElementById('saveInspectionButton');
+            if (saveInspectionButton) {
+                saveInspectionButton.addEventListener('click', saveInspection);
+            }
+
+            // Copy Previous Data Listener
+            const copyBtn = document.getElementById('copyPreviousInspectionDataBtn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    const fieldsToRestore = [
+                        'kov_idoszakos_vizsgalat_period',
+                        'kov_idoszakos_vizsgalat',
+                        'kov_terhelesi_proba_period',
+                        'kov_terhelesi_proba',
+                        'vizsgalat_eredmenye',
+                        'feltart_hiba',
+                        'felhasznalt_anyagok'
+                    ];
+                    
+                    let restoredCount = 0;
+                    fieldsToRestore.forEach(name => {
+                        const storedValue = sessionStorage.getItem(`persist_${name}`);
+                        const field = document.querySelector(`[name="${name}"]`);
+                        if (storedValue !== null && field) {
+                            field.value = storedValue;
+                            // Trigger change event for logic updates (e.g. date calcs)
+                            field.dispatchEvent(new Event('change'));
+                            restoredCount++;
+                        }
+                    });
+                    
+                    if (restoredCount > 0) {
+                        // Optional: Show a small toast or visual feedback
+                         // alert('Előző adatok bemásolva!');
+                    } else {
+                        alert('Nincsenek mentett előző adatok ebben a munkamenetben.');
+                    }
+                });
+            }
         }
+    } catch (error) {
+            console.error("Hiba az eszköz keresésekor:", error);
+            if (deviceSearchResult) {
+                 deviceSearchResult.innerHTML = `<p class="text-red-400">Hiba történt a keresés során.</p>`;
+            }
+        }
+
     });
     // Custom Success Modal Function
     function showSuccessModal(messageHtml) {
@@ -4394,16 +4862,16 @@ export function initPartnerWorkScreen(partner, userData) {
             modal.innerHTML = `
                 <div class="bg-gray-800 border border-orange-500 rounded-lg p-6 max-w-sm w-full shadow-2xl transform transition-all">
                     <div class="text-center">
-                        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-900/50 mb-4 ring-2 ring-green-500">
+                        <div id="modal-icon-container" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-900/50 mb-4 ring-2 ring-green-500">
                             <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <h3 class="text-xl font-bold text-white mb-2">Siker!</h3>
+                        <h3 id="modal-title" class="text-xl font-bold text-white mb-2">Siker!</h3>
                         <div class="mt-2 mb-6">
                             <p class="text-gray-300" id="modal-success-message"></p>
                         </div>
-                        <div>
+                        <div id="modal-btn-container">
                             <button id="modal-success-ok-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:text-sm">
                                 Rendben
                             </button>
@@ -4412,16 +4880,97 @@ export function initPartnerWorkScreen(partner, userData) {
                 </div>
             `;
             document.body.appendChild(modal);
-            
-            document.getElementById('modal-success-ok-btn').addEventListener('click', () => {
-                 modal.classList.add('hidden');
-            });
+        } else {
+            // Restore functionality if reused from loading state
+            // 1. Restore Icon
+            const iconContainer = document.getElementById('modal-icon-container');
+            if (iconContainer) {
+                 iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-900/50 mb-4 ring-2 ring-green-500';
+                 iconContainer.innerHTML = `
+                    <svg class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                 `;
+            }
+            // 2. Restore Title
+            const title = document.getElementById('modal-title');
+            if(title) title.textContent = 'Siker!';
+
+            // 3. Restore Button Visibility
+            const okBtn = document.getElementById('modal-success-ok-btn');
+            if (okBtn) okBtn.classList.remove('hidden');
+        }
+
+        const modalMessage = document.getElementById('modal-success-message');
+        if (modalMessage) {
+            modalMessage.innerHTML = messageHtml;
         }
         
-        document.getElementById('modal-success-message').innerHTML = messageHtml;
+        modal.classList.remove('hidden');
+
+        const okBtn = document.getElementById('modal-success-ok-btn');
+        if (okBtn) {
+            // Remove existing listeners by cloning the button
+            const newOkBtn = okBtn.cloneNode(true);
+            okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+            
+            
+            newOkBtn.addEventListener('click', () => {
+                 modal.classList.add('hidden');
+                 if (document.getElementById('serialNumberInput')) {
+                     document.getElementById('serialNumberInput').focus();
+                 }
+            });
+        }
+    }
+
+    // Custom Loading Modal Function (No buttons, just spinner)
+    function showLoadingModal(messageHtml) {
+        let modal = document.getElementById('custom-success-modal'); // Reuse the same modal container
+        if (!modal) {
+            // If it doesn't exist, create it (reuse structure from showSuccessModal)
+             modal = document.createElement('div');
+             modal.id = 'custom-success-modal';
+             modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50';
+             modal.innerHTML = `
+                <div class="bg-gray-800 border border-blue-500 rounded-lg p-6 max-w-sm w-full shadow-2xl transform transition-all">
+                    <div class="text-center">
+                        <div id="modal-icon-container" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-900/50 mb-4 ring-2 ring-blue-500">
+                             <div class="loader-small"></div>
+                        </div>
+                        <h3 id="modal-title" class="text-xl font-bold text-white mb-2">Folyamatban...</h3>
+                        <div class="mt-2 mb-6">
+                            <p class="text-gray-300" id="modal-success-message"></p>
+                        </div>
+                        <div id="modal-btn-container">
+                             <button id="modal-success-ok-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-orange-600 text-base font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 sm:text-sm hidden">
+                                Rendben
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } else {
+             // Update existing modal to loading state
+             const iconContainer = document.getElementById('modal-icon-container');
+             if(iconContainer) {
+                 iconContainer.className = 'mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-900/50 mb-4 ring-2 ring-blue-500';
+                 iconContainer.innerHTML = '<div class="loader-small"></div>';
+             }
+             const title = document.getElementById('modal-title');
+             if(title) title.textContent = 'Folyamatban...';
+
+             const okBtn = document.getElementById('modal-success-ok-btn');
+             if (okBtn) okBtn.classList.add('hidden');
+        }
+
+        const modalMessage = document.getElementById('modal-success-message');
+        if (modalMessage) modalMessage.innerHTML = messageHtml;
+        
         modal.classList.remove('hidden');
     }
-    }
+    
     // --- RETURNING FROM NEW DEVICE CREATION ---
     if (sessionStorage.getItem('returnToNewInspection') === 'true') {
         sessionStorage.removeItem('returnToNewInspection'); // Clear flag immediately
@@ -4474,12 +5023,33 @@ export function initPartnerWorkScreen(partner, userData) {
             if (expSel && savedExpert) {
                 if (expSel.options.length > 1) {
                     expSel.value = savedExpert;
+                    // Trigger delegated listener to update UI
+                    expSel.dispatchEvent(new Event('change', { bubbles: true }));
                     console.log("Restoration: Expert restored to", savedExpert);
                 } else {
                     console.log("Restoration: Expert options not loaded yet, retrying...");
                     setTimeout(restoreSelects, 200);
                     return;
                 }
+            }
+
+            // Restore UEVM Header Fields
+            const uevmName = sessionStorage.getItem('persist_return_uevm_name');
+            const uevmId = sessionStorage.getItem('persist_return_uevm_id');
+            const uevmStandards = sessionStorage.getItem('persist_return_uevm_standards');
+            
+            const uevmNameInput = document.getElementById('uevmHeaderInspectorName');
+            const uevmIdInput = document.getElementById('uevmHeaderInspectorId');
+            const uevmStandardsInput = document.getElementById('uevmHeaderStandards');
+            const uevmHeaderFields = document.getElementById('uevm-additional-header-fields');
+
+            if (uevmName && uevmNameInput) uevmNameInput.value = uevmName;
+            if (uevmId && uevmIdInput) uevmIdInput.value = uevmId;
+            if (uevmStandards && uevmStandardsInput) uevmStandardsInput.value = uevmStandards;
+            
+            // Show container if it was emelogep
+            if (savedExpert === 'emelogep' && uevmHeaderFields) {
+                uevmHeaderFields.classList.remove('hidden');
             }
             
             // Clean up stored values
@@ -4488,6 +5058,9 @@ export function initPartnerWorkScreen(partner, userData) {
             sessionStorage.removeItem('persist_return_expert');
             sessionStorage.removeItem('persist_return_place');
             sessionStorage.removeItem('persist_return_date');
+            sessionStorage.removeItem('persist_return_uevm_name');
+            sessionStorage.removeItem('persist_return_uevm_id');
+            sessionStorage.removeItem('persist_return_uevm_standards');
         };
 
         // Start trying to restore selects
@@ -4527,6 +5100,8 @@ export function initPartnerWorkScreen(partner, userData) {
 // PARTNER MUNKA KÉPERNYŐ (KERET)
 // ===================================================================================
 
+}
+
 function getNewInspectionScreenHtml(userData) {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD formátum
     const isEkvUser = (userData && userData.isEkvUser) || false;
@@ -4563,6 +5138,26 @@ function getNewInspectionScreenHtml(userData) {
                 <div>
                     <h3 class="text-lg font-semibold mb-3">4. Vizsgálat időpontja</h3>
                     <input type="date" id="inspectionDateInput" class="input-field" value="${today}">
+                </div>
+            </div>
+
+            <!-- NEW: UEVM Additional Header Fields (Hidden by default) -->
+            <div id="uevm-additional-header-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-blue-800 pb-8 bg-blue-900/20 p-4 rounded-lg">
+                <div class="md:col-span-2">
+                    <h3 class="text-lg font-bold text-blue-300 mb-4 border-b border-blue-700 pb-2">UEVM Fejléc Adatok</h3>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">5. Emelőgép szakértő neve</h3>
+                    <input type="text" id="uevmHeaderInspectorName" class="input-field" placeholder="Név">
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">6. Jogosultsági szám</h3>
+                    <input type="text" id="uevmHeaderInspectorId" class="input-field" placeholder="Kamarai szám">
+                </div>
+                <div class="md:col-span-2">
+                    <h3 class="text-lg font-semibold mb-3">7. Alkalmazott szabványok</h3>
+                    <input type="text" id="uevmHeaderStandards" class="input-field" placeholder="Pl. MSZ 9721-1:2020..." value="MSZ 9721-1:2020; MSZ EN 9721, DIN 6327">
+                    <p class="text-xs text-gray-400 mt-1">Alapértelmezett: EBSZ 47/1999. (VIII. 4.) GM r., Mvt., MSZ 9721-1:2020</p>
                 </div>
             </div>
 
@@ -4719,6 +5314,7 @@ function getNewUsageScreenHtml() {
         </div>
     `;
 }
+
 
 export function getPartnerWorkScreenHtml(partner, userData) {
     const user = auth.currentUser;

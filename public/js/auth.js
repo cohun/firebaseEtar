@@ -92,8 +92,9 @@ export async function registerUser(email, password, name, isEkvUser = false, sza
         email: user.email,
         name: name,
         partnerRoles: {},
-        roles: [],
-        isEkvUser: isEkvUser
+        roles: isEkvUser ? ['EKV_pending'] : [],
+        isEkvUser: isEkvUser,
+        isEjkUser: false // Ensure EKV users are NOT EJK initially
     };
 
     if (isEkvUser) {
@@ -107,7 +108,15 @@ export async function registerUser(email, password, name, isEkvUser = false, sza
     
     // Explicitly update UI to ensure correct state with userData, 
     // covering cases where onAuthStateChanged fired too early.
-    showCompanyRegistrationOptions(userData);
+    if (isEkvUser) {
+        // Dynamic import to avoid circular dependency issues if possible, or just assume it's available via module system
+        // But since showEkvSuccessScreen is in ui.js which we import, we just need to make sure it's exported there.
+        // Assuming we add export to ui.js
+        const { showEkvSuccessScreen } = await import('./ui.js');
+        showEkvSuccessScreen();
+    } else {
+        showCompanyRegistrationOptions(userData);
+    }
 }
 
 /**

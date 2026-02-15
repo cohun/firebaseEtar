@@ -1,19 +1,23 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // A templates mappa tartalmának olvasását engedélyezzük minden bejelentkezett felhasználó számára.
-    match /templates/{allPaths=**} {
-      allow read: if request.auth != null;
+    // ÚJ SZABÁLY: Eszköz vizsgálati mellékletek (pl. PDF feltöltés, UEVM képek ha lennének)
+    match /partners/{partnerId}/devices/{deviceId}/inspections/{allPaths=**} {
+      allow read, write: if request.auth != null;
     }
-
-    // A generált jegyzőkönyvek írását és olvasását engedélyezzük a bejelentkezett felhasználóknak.
-    // A kliens oldali kód felelős a felhasználói szerepkör (admin/write) ellenőrzéséért a feltöltés előtt.
-    match /generated-inspections/{allPaths=**} {
+    
+    // Fallback for potential casing issues
+    match /partners/{partnerId}/devices/{deviceId}/Inspections/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
 
     // Használatba vételi dokumentumok
     match /partners/{partnerId}/usage_docs/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Generált vizsgálati jegyzőkönyvek (HTML)
+    match /generated-inspections/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
   }
