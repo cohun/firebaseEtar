@@ -32,7 +32,7 @@ service cloud.firestore {
     // ÚJ FÜGGVÉNY: Ellenőrzi, hogy a felhasználó EJK admin, EJK író vagy ÉRVÉNYES SZEREPKÖRREL rendelkezik.
     function canWriteInspection(partnerId) {
       return getUserData().roles.hasAny(['EJK_admin', 'EJK_write']) || 
-             (isEkvUser() && getRoleForPartner(partnerId) in ['inspector', 'internal_inspector', 'subcontractor', 'subscriber', 'external_inspector']) ||
+             (isEkvUser() && getRoleForPartner(partnerId) in ['inspector', 'internal_inspector', 'subcontractor', 'subscriber', 'external_inspector', 'subscriber_inspector']) ||
              getRoleForPartner(partnerId) in ['admin', 'write'];
     }
 
@@ -50,7 +50,7 @@ service cloud.firestore {
 
     match /partners/{partnerId}/devices/{deviceId} {
       allow read, list: if isEjkUser() || (isEkvUser() && resource.data.isI == true) || getRoleForPartner(partnerId) != null;
-			allow create, update: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write', 'inspector', 'subcontractor', 'internal_inspector', 'external_inspector'];
+			allow create, update: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write', 'inspector', 'subcontractor', 'internal_inspector', 'external_inspector', 'subscriber_inspector'];
 			allow delete: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write'];
     }
 

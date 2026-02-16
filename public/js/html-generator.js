@@ -201,6 +201,16 @@ function prepareUevmData(uevmData, generalData) {
     flat.jegyzokonyvSorszam = flat.sorszam; // alias
     flat.szakertoiCim = flat.szakertoiCim || flat.VizsgalaoCegCime || '';
     flat.specifikusSzabvany = flat.specifikusSzabvany || 'MSZ 9721-1:2020'; // Default if empty
+    // Convert newlines to <br> for HTML rendering, bold the sub-headers, add spacing after semicolons
+    if (flat.specifikusSzabvany) {
+        flat.specifikusSzabvany = flat.specifikusSzabvany
+            .replace(/\r\n/g, '\n')           // Normalize line endings
+            .replace(/;\s*\n/g, ';<br>')       // Semicolon + newline → semicolon + <br>
+            .replace(/\n\n/g, '<br><br>')      // Double newline (blank line) → double <br>
+            .replace(/\n/g, '<br>')            // Remaining single newlines → <br>
+            .replace(/(Jogszabályok:)/g, '<div style="margin-top: 2px; margin-bottom: 2px;"><strong>$1</strong></div>')
+            .replace(/(Szabványok:)/g, '<div style="margin-top: 6px; margin-bottom: 2px;"><strong>$1</strong></div>');
+    }
 
     // Inspector Override & Mapping
     // Template uses {{szakertoNev}} but general data has {{szakerto_nev}}

@@ -290,7 +290,13 @@ export function initPartnerWorkScreen(partner, userData) {
     const partnerStatuses = (userData && userData.partnerStatuses) ? userData.partnerStatuses : {};
     const approvalStatus = partnerStatuses[partnerId];
     const isSubscriberInspector = role === 'subscriber_inspector';
-    const isApproved = approvalStatus === 'approved';
+    
+    // For subscriber_inspector: approval requires BOTH status = 'subscriber_approved' AND active subscription
+    // Using 'subscriber_approved' (not 'approved') prevents stale approval from a previous role from granting access
+    const partnerSubscriptions = (userData && userData.partnerSubscriptions) ? userData.partnerSubscriptions : {};
+    const subscriptionExpiry = partnerSubscriptions[partnerId];
+    const hasActiveSubscription = subscriptionExpiry && subscriptionExpiry > Date.now();
+    const isApproved = approvalStatus === 'subscriber_approved' && hasActiveSubscription;
     const needsApproval = isSubscriberInspector && !isApproved; // If true, block access
 
     // Inject Warning Banner if needs approval
@@ -311,7 +317,13 @@ export function initPartnerWorkScreen(partner, userData) {
         if (mainContainer) mainContainer.insertBefore(banner, mainContainer.firstChild);
     }
     
-    console.log("Permissions:", { role, isEjkUser, isReadOnly, isSubscriberInspector, isApproved, needsApproval, userDataPresent: !!userData });
+    console.log("=== SUBSCRIBER INSPECTOR CHECK ===");
+    console.log("Role:", role, "| isSubscriberInspector:", isSubscriberInspector);
+    console.log("partnerStatuses (full):", JSON.stringify(partnerStatuses));
+    console.log("approvalStatus for", partnerId, ":", approvalStatus);
+    console.log("subscriptionExpiry:", subscriptionExpiry, "| hasActiveSubscription:", hasActiveSubscription);
+    console.log("isApproved:", isApproved, "| needsApproval:", needsApproval);
+    console.log("Permissions:", { role, isEjkUser, isEkvUser, isReadOnly, isSubscriberInspector, isApproved, needsApproval, hasActiveSubscription, userDataPresent: !!userData });
     window.editDevice = function(deviceId) {
         if (isReadOnly) {
             alert('Olvasási jogosultság esetén nem lehetséges adatot módosítani. Kérjük, forduljon a jogosultság osztójához.');
@@ -448,6 +460,10 @@ export function initPartnerWorkScreen(partner, userData) {
              backBtnMobile.classList.remove('opacity-50', 'cursor-not-allowed');
              backBtnMobile.style.pointerEvents = 'auto';
         }
+        
+        // CRITICAL: Exit early to prevent device data from being loaded/rendered
+        console.log("Blocked: subscriber_inspector awaiting approval for partner", partnerId);
+        return;
     }
     if (cancelUsageBtn) {
         cancelUsageBtn.addEventListener('click', () => showScreen(deviceListScreen));
@@ -3295,6 +3311,12 @@ export function initPartnerWorkScreen(partner, userData) {
                         }
                 }
 
+                // Auto-update standards for Emelőgép
+                const standardsInput = document.getElementById('uevmHeaderStandards');
+                if (standardsInput) {
+                    standardsInput.value = `Jogszabályok:\n47/1999. (VIII. 4.) GM rendelet \u2013 Emelőgép Biztonsági Szabályzat kiadásáról (EBSZ);\n1993. évi XCIII. törvény \u2013 A munkavédelemről (Mvt.);\n16/2008. (VIII. 30.) NFGM rendelet \u2013 A gépek biztonsági követelményeiről és megfelelőségének tanúsításáról;\n\nSzabványok:\nMSZ 9721-1:2020 \u2013 Emelőgépek időszakos vizsgálata. 1. rész: Általános előírások;\nMSZ 9721-2:2020 \u2013 Emelőgépek időszakos vizsgálata. 2. rész: Híd- és bakdaruk időszakos vizsgálata;\nMSZ 775:1979 \u2013 Üzemeltetési dokumentáció;\nMSZ 9725:2018 \u2013 Emelőgépek üzemviteli dokumentuma (Emelőgép-napló / Darukönyv);\nMSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelményei`;
+                }
+
             } else if (val === 'pdf_feltoltes') {
                 // Show PDF Upload
                 if (pdfContainer) pdfContainer.classList.remove('hidden');
@@ -3312,6 +3334,12 @@ export function initPartnerWorkScreen(partner, userData) {
                 // Standard Inspection (Teherfelvevő)
                 if (uevmHeaderFields) uevmHeaderFields.classList.add('hidden');
                 
+                // Reset standards to default
+                const standardsInput = document.getElementById('uevmHeaderStandards');
+                if (standardsInput) {
+                    standardsInput.value = 'MSZ 9721-1:2020; MSZ EN 9721, DIN 6327';
+                }
+
                 // Show Standard Data Form & Copy Button
                 if (dataContainer) dataContainer.classList.remove('hidden');
                 if (copyBtn) copyBtn.classList.remove('hidden');
@@ -3368,24 +3396,25 @@ export function initPartnerWorkScreen(partner, userData) {
                 .where('partnerId', '==', partnerId)
                 .where('status', '==', 'finalized');
             
-            // EKV users only see inspections they finalized
-            if (isEkvUser) {
+            // Subscriber_inspector and external_inspector users only see inspections they finalized
+            const isInspectorRole = role === 'subscriber_inspector' || role === 'external_inspector';
+            if (isInspectorRole) {
                 // IMPORTANT: This requires composite index: partnerId + status + finalizedByUid
                 inspectionsQuery = inspectionsQuery.where('finalizedByUid', '==', userData.uid || firebase.auth().currentUser.uid);
             }
 
-            // 2. New Usage Reports Query (Only fetch if not EKV user, or if EKV users are allowed to see these? Assuming yes for now, or maybe only if they created them?)
-            // For now, let's assume usage reports are visible to all focused on the partner (except maybe restricted by roles, but the UI hides the section if not accessible? No, UI shows it).
-            // Let's implicitely assume EKV users assume the same restriction if consistent, but 'reports' collection doesn't have finalizedByUid yet. 
-            // However, "Usage Start" is done by Admin/Write users (ENY), not EKV usually.
-            // So we just fetch them.
-            let reportsQuery = db.collection('partners').doc(partnerId).collection('reports')
-                 .orderBy('createdAt', 'desc');
+            // 2. New Usage Reports Query
+            // Inspector roles don't create usage start docs, so skip for them
+            let reportsQuery = null;
+            if (!isInspectorRole) {
+                reportsQuery = db.collection('partners').doc(partnerId).collection('reports')
+                    .orderBy('createdAt', 'desc');
+            }
 
             // Run in parallel
             const [inspectionsSn, reportsSn] = await Promise.all([
                 inspectionsQuery.get(),
-                reportsQuery.get()
+                reportsQuery ? reportsQuery.get() : Promise.resolve({ forEach: () => {} })
             ]);
 
             let mergedItems = [];
@@ -4340,10 +4369,26 @@ export function initPartnerWorkScreen(partner, userData) {
                                  const headerId = document.getElementById('uevmHeaderInspectorId').value;
                                  const headerStandards = document.getElementById('uevmHeaderStandards').value;
 
+                                 const isEmelogep = protocolSelect && protocolSelect.value === 'emelogep';
+                                 
+                                 const emelogepStandards = `Jogszabályok:
+47/1999. (VIII. 4.) GM rendelet \u2013 Emelőgép Biztonsági Szabályzat kiadásáról (EBSZ);
+1993. évi XCIII. törvény \u2013 A munkavédelemről (Mvt.);
+16/2008. (VIII. 30.) NFGM rendelet \u2013 A gépek biztonsági követelményeiről és megfelelőségének tanúsításáról;
+
+Szabványok:
+MSZ 9721-1:2020 \u2013 Emelőgépek időszakos vizsgálata. 1. rész: Általános előírások;
+MSZ 9721-2:2020 \u2013 Emelőgépek időszakos vizsgálata. 2. rész: Híd- és bakdaruk időszakos vizsgálata;
+MSZ 775:1979 \u2013 Üzemeltetési dokumentáció;
+MSZ 9725:2018 \u2013 Emelőgépek üzemviteli dokumentuma (Emelőgép-napló / Darukönyv);
+MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelményei`;
+
+                                 const defaultStandards = headerStandards || 'EBSZ 47/1999. (VIII. 4.) GM r., Mvt., MSZ 9721-1:2020; MSZ EN 9721, DIN 6327';
+
                                  const defaultUevmData = {
                                      uevm_inspector_name: headerName || ((userData && userData.isEkvUser) ? (userData.name || '') : ''),
                                      uevm_inspector_id: headerId || ((userData.kamaraiSzam) ? userData.kamaraiSzam : ''),
-                                     uevm_specifikusSzabvany: headerStandards || 'EBSZ 47/1999. (VIII. 4.) GM r., Mvt., MSZ 9721-1:2020; MSZ EN 9721, DIN 6327'
+                                     uevm_specifikusSzabvany: isEmelogep ? emelogepStandards : defaultStandards
                                  };
 
                                  initUevmModal((data) => {
@@ -4419,6 +4464,37 @@ export function initPartnerWorkScreen(partner, userData) {
 
                     templateSelect.addEventListener('change', handleTemplateChange);
                     handleTemplateChange(); // Initial check
+                }
+
+                // --- EKV: Standards Auto-Update Logic ---
+                const protocolSelect2 = document.getElementById('expertSelectNewInspection');
+                if (protocolSelect2) {
+                    protocolSelect2.addEventListener('change', (e) => {
+                        const standardsInput = document.getElementById('uevmHeaderStandards');
+                        if (!standardsInput) return;
+
+                        const emelogepStandards = `Jogszabályok:
+47/1999. (VIII. 4.) GM rendelet \u2013 Emelőgép Biztonsági Szabályzat kiadásáról (EBSZ);
+1993. évi XCIII. törvény \u2013 A munkavédelemről (Mvt.);
+16/2008. (VIII. 30.) NFGM rendelet \u2013 A gépek biztonsági követelményeiről és megfelelőségének tanúsításáról;
+
+Szabványok:
+MSZ 9721-1:2020 \u2013 Emelőgépek időszakos vizsgálata. 1. rész: Általános előírások;
+MSZ 9721-2:2020 \u2013 Emelőgépek időszakos vizsgálata. 2. rész: Híd- és bakdaruk időszakos vizsgálata;
+MSZ 775:1979 \u2013 Üzemeltetési dokumentáció;
+MSZ 9725:2018 \u2013 Emelőgépek üzemviteli dokumentuma (Emelőgép-napló / Darukönyv);
+MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelményei`;
+
+                        const defaultStandards = 'EBSZ 47/1999. (VIII. 4.) GM r., Mvt., MSZ 9721-1:2020; MSZ EN 9721, DIN 6327';
+
+                        if (e.target.value === 'emelogep') {
+                            standardsInput.value = emelogepStandards;
+                        } else {
+                            // Optional: Reset to default if switching away? 
+                            // Or keep user edits? Let's reset to default to be safe/clean
+                            standardsInput.value = defaultStandards; 
+                        }
+                    });
                 }
 
                 // --- DICTATION LOGIC START ---
@@ -5156,8 +5232,18 @@ function getNewInspectionScreenHtml(userData) {
                 </div>
                 <div class="md:col-span-2">
                     <h3 class="text-lg font-semibold mb-3">7. Alkalmazott szabványok</h3>
-                    <input type="text" id="uevmHeaderStandards" class="input-field" placeholder="Pl. MSZ 9721-1:2020..." value="MSZ 9721-1:2020; MSZ EN 9721, DIN 6327">
-                    <p class="text-xs text-gray-400 mt-1">Alapértelmezett: EBSZ 47/1999. (VIII. 4.) GM r., Mvt., MSZ 9721-1:2020</p>
+                    <textarea id="uevmHeaderStandards" class="input-field" rows="8" placeholder="Pl. MSZ 9721-1:2020...">Jogszabályok:
+47/1999. (VIII. 4.) GM rendelet \u2013 Emelőgép Biztonsági Szabályzat kiadásáról (EBSZ);
+1993. évi XCIII. törvény \u2013 A munkavédelemről (Mvt.);
+16/2008. (VIII. 30.) NFGM rendelet \u2013 A gépek biztonsági követelményeiről és megfelelőségének tanúsításáról;
+
+Szabványok:
+MSZ 9721-1:2020 \u2013 Emelőgépek időszakos vizsgálata. 1. rész: Általános előírások;
+MSZ 9721-2:2020 \u2013 Emelőgépek időszakos vizsgálata. 2. rész: Híd- és bakdaruk időszakos vizsgálata;
+MSZ 775:1979 \u2013 Üzemeltetési dokumentáció;
+MSZ 9725:2018 \u2013 Emelőgépek üzemviteli dokumentuma (Emelőgép-napló / Darukönyv);
+MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelményei</textarea>
+                    <p class="text-xs text-gray-400 mt-1">Alapértelmezett emelőgép szabványok. Szükség szerint módosítható.</p>
                 </div>
             </div>
 

@@ -114,7 +114,7 @@ export function attachPermissionManagementListeners(users, currentUserData) {
                             try {
                                 btn.disabled = true;
                                 btn.textContent = 'Engedélyezés...';
-                                await updateUserPartnerStatus(user.id, partnerId, 'approved');
+                                await updateUserPartnerStatus(user.id, partnerId, 'subscriber_approved');
                                 // Success! Update UI
                                 renderApprovedState();
                             } catch (e) {

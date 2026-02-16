@@ -112,6 +112,7 @@ export async function getUsersForPermissionManagement(adminUser, adminUserData) 
             roles: user.roles || [],
             isEjkUser: user.isEjkUser,
             isEkvUser: user.isEkvUser,
+            partnerStatuses: user.partnerStatuses || {},
             associations: associations
         };
     }));
@@ -241,6 +242,19 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
 
             // 1. Update the partnerRoles map
             updates[`partnerRoles.${partnerId}`] = newRole;
+
+            // 1b. Reset approval status when role changes TO subscriber_inspector
+            // This prevents stale 'approved' status from a previous role (e.g. external_inspector)
+            const previousRole = userData.partnerRoles?.[partnerId];
+            if (newRole === 'subscriber_inspector' && previousRole !== 'subscriber_inspector') {
+                // Force re-approval by clearing old status
+                updates[`partnerStatuses.${partnerId}`] = firebase.firestore.FieldValue.delete();
+                console.log(`Reset partnerStatuses for ${partnerId}: role changed from ${previousRole} to subscriber_inspector`);
+            } else if (previousRole === 'subscriber_inspector' && newRole !== 'subscriber_inspector') {
+                // Clean up approval status when leaving subscriber_inspector role
+                updates[`partnerStatuses.${partnerId}`] = firebase.firestore.FieldValue.delete();
+                console.log(`Cleared partnerStatuses for ${partnerId}: role changed from subscriber_inspector to ${newRole}`);
+            }
 
             // Update EJK specific memory of the role if this is an EJK action
             if (isEjkAction) {

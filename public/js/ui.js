@@ -801,7 +801,7 @@ export function showPermissionManagementScreen(users, currentUserData) {
                 // --- SUBSCRIBER INSPECTOR APPROVAL LOGIC ---
                 const partnerStatuses = user.partnerStatuses || {};
                 const currentStatus = partnerStatuses[partnerId];
-                const isApproved = currentStatus === 'approved';
+                const isApproved = currentStatus === 'subscriber_approved';
                 
                 // Only for subscriber_inspector role AND active subscription (we assume active if role is subscriber_inspector? Or check expiry?)
                 // Actually, the user said "Ahogy egy EKV subscriber_inspector jogosultságot kap és a napok szám nagyobb mint nulla"

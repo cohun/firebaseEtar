@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const role = userData.partnerRoles && draft.partnerId ? userData.partnerRoles[draft.partnerId] : null;
                         
                         // Internal inspectors see all their drafts (query already filters by createdByUid)
-                        if (role === 'internal_inspector' || role === 'external_inspector') return true;
+                        if (role === 'internal_inspector' || role === 'external_inspector' || role === 'subscriber_inspector') return true;
 
                         // Other EKV roles (subcontractor/subscriber) only see isI: true devices
                         if (draft.isI !== true) {
