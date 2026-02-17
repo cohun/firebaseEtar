@@ -2238,8 +2238,8 @@ export function initPartnerWorkScreen(partner, userData) {
             const rowClass = dev.ajanlatKeres ? 'bg-yellow-900/40' : 'hover:bg-gray-700/50';
             // The 'qr-link-active' class is removed from here
             const qrCodeHtml = dev.finalizedFileUrl
-                ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése">${qrCanvas}</a>`
-                : qrCanvas;
+                ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése" onclick="event.stopPropagation();">${qrCanvas}</a>`
+                : `<div class="cursor-pointer" onclick="window.openSingleReport(event, '${dev.id}', '${dev.serialNumber || ''}')" title="Jegyzőkönyv keresése és megnyitása">${qrCanvas}</div>`;
             
             let chipClass = '';
             let confirmMessage = '';
@@ -3731,6 +3731,65 @@ export function initPartnerWorkScreen(partner, userData) {
 
     downloadDbBtn.addEventListener('click', generateExcel);
     downloadDbBtnMobile.addEventListener('click', generateExcel);
+
+
+    // --- SINGLE REPORT OPEN LOGIC (QR CODE CLICK) ---
+    window.openSingleReport = async (event, deviceId, serialNumber) => {
+        event.stopPropagation(); // Access the row click
+        
+        const originalCursor = document.body.style.cursor;
+        document.body.style.cursor = 'wait';
+        
+        try {
+            let foundUrl = null;
+
+            // 1. Try to find Finalized Inspection
+            const snapshot = await db.collection('partners').doc(partnerId)
+                .collection('devices').doc(deviceId)
+                .collection('inspections')
+                .where('status', '==', 'finalized')
+                .orderBy('finalizedAt', 'desc')
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+                const data = snapshot.docs[0].data();
+                if (data.fileUrl) {
+                    foundUrl = data.fileUrl;
+                }
+            }
+
+            // 2. If no inspection, try to find Usage Start Document
+            if (!foundUrl && serialNumber) {
+                 const reportSnapshot = await db.collection('partners').doc(partnerId)
+                    .collection('reports')
+                    .where('deviceSerialNumber', '==', serialNumber)
+                    .where('type', '==', 'usage_start')
+                    .orderBy('createdAt', 'desc')
+                    .limit(1)
+                    .get();
+                
+                if (!reportSnapshot.empty) {
+                    const data = reportSnapshot.docs[0].data();
+                    if (data.downloadUrl) {
+                        foundUrl = data.downloadUrl;
+                    }
+                }
+            }
+
+            if (foundUrl) {
+                window.open(foundUrl, '_blank');
+            } else {
+                alert('Ehhez az eszközhöz nem található véglegesített jegyzőkönyv vagy használatbavételi dokumentum.');
+            }
+
+        } catch (error) {
+            console.error("Error fetching single report:", error);
+            alert("Hiba történt a jegyzőkönyv megnyitása közben.");
+        } finally {
+            document.body.style.cursor = originalCursor;
+        }
+    };
 
 
     // --- PROTOCOL PREVIEW LOGIC (NEW TAB) ---

@@ -1,0 +1,7 @@
+{
+  "name": "H-ITB Emelőgép Szakértő",
+  "description": "Interaktív szakértői chatbot az H-ITB Kft. és az ETAR rendszer támogatásával, emelőgép üzemeltetők számára.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

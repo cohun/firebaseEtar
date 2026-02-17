@@ -8,7 +8,9 @@
       "http://127.0.0.1:5002",
       "http://localhost:5002",
       "https://etarrendszer.web.app",
-      "https://etarrendszer.firebaseapp.com"
+      "https://etarrendszer.firebaseapp.com",
+      "https://etar.cloud",
+      "https://www.etar.cloud"
     ],
     "method": ["GET"],
     "maxAgeSeconds": 3600
