@@ -46,7 +46,7 @@ const App: React.FC = () => {
                     <ShieldCheck size={24} />
                   </div>
                   <h4 className="font-bold text-gray-900 mb-1">Hivatalos Szakvélemény</h4>
-                  <p className="text-xs text-gray-500">Minden válaszunk megfelel a hatályos MBSZ előírásoknak.</p>
+                  <p className="text-xs text-gray-500">Minden válaszunk megfelel a hatályos EBSZ előírásoknak.</p>
                </div>
                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center mb-3">

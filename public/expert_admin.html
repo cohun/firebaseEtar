@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETAR Szakértő - Tudástár Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; }
+        .knowledge-card { transition: transform 0.2s; cursor: pointer; }
+        .knowledge-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .status-badge { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 shadow">
+    <div class="container">
+        <a class="navbar-brand" href="#"><i class="fas fa-brain me-2"></i>ETAR Szakértő Admin</a>
+        <div class="d-flex text-white align-items-center">
+            <span id="userEmail" class="me-3"></span>
+            <button id="logoutBtn" class="btn btn-outline-light btn-sm">Kijelentkezés</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-book-open me-2"></i>Szakértői Tudástár</h2>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#editModal" onclick="prepareAdd()">
+            <i class="fas fa-plus me-2"></i>Új Szabály Hozzáadása
+        </button>
+    </div>
+
+    <!-- Alert functionality -->
+    <div id="alertContainer"></div>
+
+    <!-- Filters -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Keresés...">
+                </div>
+                <div class="col-md-3">
+                    <select id="categoryFilter" class="form-select">
+                        <option value="">Minden kategória</option>
+                        <option value="General">Általános</option>
+                        <option value="Legal">Jogszabály</option>
+                        <option value="Standard">Szabvány</option>
+                        <option value="Technical">Műszaki</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledge List -->
+    <div id="knowledgeList" class="row g-4">
+        <!-- Cards will be injected here -->
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Betöltés...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit/Add Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="modalTitle">Szabály Szerkesztése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="knowledgeForm">
+                    <input type="hidden" id="editId">
+                    <div class="mb-3">
+                        <label class="form-label">Cím / Téma</label>
+                        <input type="text" class="form-control" id="editTitle" required placeholder="Pl. Láncos feszítők használata">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Kategória</label>
+                            <select class="form-select" id="editCategory">
+                                <option value="General">Általános</option>
+                                <option value="Legal">Jogszabály</option>
+                                <option value="Standard">Szabvány</option>
+                                <option value="Technical">Műszaki</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Státusz</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="editIsActive" checked>
+                                <label class="form-check-label" for="editIsActive">Aktív (A szakértő használja)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tartalom (Szabály szövege)</label>
+                        <textarea class="form-control" id="editContent" rows="10" placeholder="Másold ide a pontos szakmai szöveget..."></textarea>
+                        <div class="form-text">Ez a szöveg kerül be közvetlenül a modell "agyába".</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">PDF Csatolmány (Opcionális)</label>
+                        <input class="form-control" type="file" id="pdfUpload" accept="application/pdf">
+                        <div class="form-text text-muted">Ha szabványt vagy ábrás dokumentumot töltesz fel, a szöveges tartalom mező maradhat üres (de ajánlott rövid leírást adni).</div>
+                        <div id="currentFileLink" class="mt-2"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                <button type="button" class="btn btn-primary" onclick="saveKnowledge()">Mentés</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+<!-- App Logic -->
+<script type="module" src="js/expert_admin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

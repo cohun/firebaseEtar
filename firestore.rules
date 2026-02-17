@@ -82,6 +82,12 @@ service cloud.firestore {
        // Allow creating/updating references for reports if needed (currently only add is used)
     }
 
+    // ÚJ SZABÁLY: Szakértői Tudástár
+    match /expert_knowledge/{docId} {
+      allow read, list: if true;
+      allow write: if canWriteInspection('admin'); // Only admins or high-privileged users
+    }
+
   }
 }
 

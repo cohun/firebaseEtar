@@ -20,5 +20,10 @@ service firebase.storage {
     match /generated-inspections/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
+
+    // Szakértői Tudástár Fájlok (PDF szabványok, leírások)
+    match /expert_knowledge_files/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
