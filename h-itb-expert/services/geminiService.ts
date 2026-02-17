@@ -42,7 +42,13 @@ async function fetchPdfAsBase64(url: string): Promise<string> {
   });
 }
 
+// Cache for expert knowledge to prevent redundant Firestore fetches
+let cachedExpertKnowledge: { systemText: string, contextParts: Array<{ text?: string, inlineData?: { mimeType: string, data: string } }> } | null = null;
+
 async function getExpertKnowledge(): Promise<{ systemText: string, contextParts: Array<{ text?: string, inlineData?: { mimeType: string, data: string } }> }> {
+  // Return cached data if available
+  if (cachedExpertKnowledge) return cachedExpertKnowledge;
+
   try {
     const q = query(collection(db, "expert_knowledge"), where("isActive", "==", true));
     const snapshot = await getDocs(q);
@@ -50,7 +56,10 @@ async function getExpertKnowledge(): Promise<{ systemText: string, contextParts:
     let systemText = "";
     const contextParts: Array<{ text?: string, inlineData?: { mimeType: string, data: string } }> = [];
 
-    if (snapshot.empty) return { systemText: "", contextParts: [] };
+    if (snapshot.empty) {
+        cachedExpertKnowledge = { systemText: "", contextParts: [] };
+        return cachedExpertKnowledge;
+    }
 
     systemText += "\n\nKÖTELEZŐ SZAKMAI TUDÁSBÁZIS (Ezeket a szabályokat szigorúan be kell tartani):\n";
 
@@ -79,7 +88,9 @@ async function getExpertKnowledge(): Promise<{ systemText: string, contextParts:
       }
     }
 
-    return { systemText, contextParts };
+    // Save to cache
+    cachedExpertKnowledge = { systemText, contextParts };
+    return cachedExpertKnowledge;
   } catch (error) {
     console.error("Error fetching expert knowledge:", error);
     return { systemText: "", contextParts: [] };
@@ -90,18 +101,72 @@ export const sendMessageToExpert = async (message: string, history: { role: stri
   if (!apiKey) throw new Error("API Key is missing");
 
   try {
-    // 1. Fetch dynamic knowledge
+    // 1. Fetch dynamic knowledge (cached)
     const { systemText, contextParts } = await getExpertKnowledge();
     
     // 2. Construct System Instruction (Text Only)
+    // Always include system text rules in system instruction
     const fullSystemInstruction = SYSTEM_INSTRUCTION + systemText;
 
     // 3. Construct History
-    // If we have multimodal content (PDFs), we inject them as a "User" message at the start of history
-    // followed by a "Model" acknowledgement.
+    // If we have multimodal content (PDFs), we inject them as a "User" message.
+    // OPTIMIZATION: Only inject large context (PDFs) if this is the start of a conversation (history is empty)
+    // or if the implementation requires it. Since `history` passed here contains previous turns,
+    // if `history` has existing items, we assume the context was already established in the session memory of the client/server interaction
+    // OR we need to include it if the API is stateless.
+    // The Gemini API `chat.sendMessage` is stateful for the `Chat` instance, but here we create a new `Chat` instance every time
+    // using the `history` passed from the UI.
+    // So, we must ensure the context is inside `history` if it's not already there.
+    // However, sending base64 PDFs on *every* request is expensive and high latency.
+    // Best practice: The `history` prop from UI should technically accumulate the context we sent back?
+    // Reviewing `ChatBox.tsx` (from memory/previous view): it manages `messages` state.
+    // If we prepend context here, does `ChatBox` save it? Likely not, `ChatBox` only saves User/Model text.
+    // So we DO need to send context every time if we create a new Chat instance, UNLESS we rely on caching (feature of new SDK/Gemini 1.5+).
+    // But for `gemini-2.0-flash` / `gemini-3.0`, standard caching isn't manual like this.
+    // For now, to solve "slow response", we must avoid re-uploading heavy PDF data if possible.
+    // But since we are stateless here, we have to send it.
+    // BUT `getExpertKnowledge` was fetching from Firestore every time. Caching THAT will save the Firestore latency (hundreds of ms).
+    // Sending the base64 to Gemini is also slow.
+    // Compromise: We only send the PDF context if the history is empty (first turn). 
+    // WARN: If we don't send it on subsequent turns, does the model "remember" it from previous turns in the `history` array?
+    // YES, providing we pass the *full* history including the first turn with the PDF.
+    // The `history` arg comes from `ChatBox`. Does `ChatBox` keep the "System/Context" messages we injected?
+    // Looking at typical implementations: UI usually only keeps User/AI text.
+    // If UI doesn't keep the "PDF injection" message, then `history` won't have it, and we'd lose context on 2nd message.
+    // FIX: We will prepend it if it's NOT in the history.
+    // Since checking binary data in history is hard, we can assume if `history.length === 0` we add it. 
+    // IF `history.length > 0`, we assume the model *context window* might handle it? 
+    // NO, if we create a new `genAI.chats.create` with `history` that *lacks* the PDF message, the model won't see it.
+    // So we MUST include it in `history`.
+    // The performance bottleneck was likely the *Firestore Download* of PDFs every time.
+    // In-memory cache solves the download.
+    // Uploading base64 to Gemini is unavoidable without true "Context Caching" API usage (which costs money/different structure).
+    // So: Caching `getExpertKnowledge` is the big win here.
+
     let fullHistory = [...history];
     
+    // Check if we need to inject context. 
+    // Strategy: Only inject if history is empty. 
+    // IF the UI doesn't persist our injected messages, multi-turn chat will lose access to PDFs.
+    // Let's assume for now we perform the "Injection" every time if the UI doesn't hold it. 
+    // Actually, if we send it, the model replies. The UI appends that reply.
+    // Next request: UI sends [User, Model]. 
+    // If we *don't* prepend PDF again, we send [User, Model, User2]. The PDF is gone.
+    // So we MUST prepend PDF every time if the UI doesn't store it.
+    // The only way to optimize *bandwidth* to Gemini is if we use the same `Chat` instance, but here we are stateless server-side function (or client-side acting structure).
+    // Wait, this file is `geminiService.ts`, running in the Browser (Client Side).
+    // So we *could* keep a persistent `ChatSession` instance!
+    // But the current code exports `sendMessageToExpert` which takes `history`. This implies statelessness or "re-init every time" pattern.
+    // Let's stick to the stateless pattern for reliability, but rely on the RAM cache to avoid re-downloading PDFs from Firestore.
+    // That alone is a huge speedup.
+    
+    // We will inject context if it's present.
     if (contextParts.length > 0) {
+        // Optimization: Use a lightweight marker to check if history already has context?
+        // Hard to do reliably with simple array.
+        // Let's just prepend. The latency from *uploading* cached base64 is consistently high but unavoidable without session persistence.
+        // However, the Firestore fetch was likely the variable "very, very slow" part (network round trips).
+        
         const contextMessage = {
             role: "user",
             parts: [...contextParts, { text: "Ezek a hivatkozott szakmai dokumentumok (szabványok, ábrák). Vedd figyelembe őket a válaszoknál." }]
@@ -110,26 +175,19 @@ export const sendMessageToExpert = async (message: string, history: { role: stri
             role: "model",
             parts: [{ text: "Értettem, a csatolt szakmai dokumentumokat feldolgoztam és alkalmazni fogom." }]
         };
-        // Prepend to history
-        // Use 'any' to bypass strict typing issues with custom history structure vs SDK Content type temporarily
+        
+        // We prepend. 
+        // Note: usage of `any` cast is preserved from previous fix.
         fullHistory = [contextMessage as any, contextAck as any, ...history];
     }
 
-    // Initialize chat with the new SDK structure
-    // Note: The new SDK manages history differently. We might need to map `fullHistory` to strictly typed `Content[]`.
-    
-    // Cast history to Content[] to satisfy TypeScript if needed, or rely on loose typing if compatible
+    // Cast history to Content[]
     const formattedHistory: Content[] = fullHistory.map(entry => ({
       role: entry.role,
       parts: entry.parts.map(part => {
-        // Handle potential inlineData or text
         if ('text' in part && typeof part.text === 'string') {
             return { text: part.text };
         }
-        // If inlineData exists (from our PDFs), pass it through. 
-        // Note: The `history` argument to this function is typed as only having `text` parts, 
-        // but `contextParts` injects `inlineData`. So we need to be careful.
-        // We cast to `any` above for `contextMessage`, so let's handle it here.
         return part as Part;
       })
     }));
@@ -139,22 +197,17 @@ export const sendMessageToExpert = async (message: string, history: { role: stri
       config: {
         systemInstruction: fullSystemInstruction,
         temperature: 0.7,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 8000, // Increased from 1000
       },
       history: formattedHistory
     });
 
-    // Send the message using the new SDK syntax
-    // The example in genai.d.ts shows { message: string }
+    // Send the message
     const result = await chat.sendMessage({
-      message: message // SDK expects 'message' property which can be PartListUnion (string | Part | Part[])
-    }); 
+      message: message
+    });
 
     console.log("Gemini Response:", result);
-    // The response structure might be slightly different. Usually `result.text` or `result.response.text()`
-    // Based on new SDK, it returns a response object directly which usually has a text helper.
-    // Let's assume `result.text` exists or is a property.
-    
     return result.text || "No response text available."; 
   } catch (error) {
     console.error("Gemini Chat Error:", error);

@@ -1,4 +1,4 @@
-const apiKey = 'AIzaSyAhYECnbn34-Bl7k8006Hi-NYWrlKvGGvg';
+const apiKey = process.env.GEMINI_API_KEY || 'YOUR_API_KEY';
 const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
 
 fetch(url)
