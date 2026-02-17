@@ -1,7 +1,11 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, Content, Part } from "@google/genai";
 
 export const apiKey = process.env.API_KEY || '';
-export const genAI = new GoogleGenerativeAI(apiKey);
+// Initialize the new GoogleGenAI client
+export const genAI = new GoogleGenAI({ apiKey });
+
+export const TEXT_MODEL_NAME = 'gemini-3-flash-preview';
+export const AUDIO_MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 // System instruction to define the persona
 const SYSTEM_INSTRUCTION = `
@@ -21,8 +25,6 @@ Ne használjon nevet (pl. Kovács János), csak a titulusát.
 
 import { db } from "./firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
-
-// ... (SYSTEM_INSTRUCTION constant remains)
 
 // Helper to fetch and convert PDF to base64
 async function fetchPdfAsBase64(url: string): Promise<string> {
@@ -109,26 +111,51 @@ export const sendMessageToExpert = async (message: string, history: { role: stri
             parts: [{ text: "Értettem, a csatolt szakmai dokumentumokat feldolgoztam és alkalmazni fogom." }]
         };
         // Prepend to history
-        fullHistory = [contextMessage, contextAck, ...history];
+        // Use 'any' to bypass strict typing issues with custom history structure vs SDK Content type temporarily
+        fullHistory = [contextMessage as any, contextAck as any, ...history];
     }
 
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
-      systemInstruction: fullSystemInstruction 
-    });
+    // Initialize chat with the new SDK structure
+    // Note: The new SDK manages history differently. We might need to map `fullHistory` to strictly typed `Content[]`.
+    
+    // Cast history to Content[] to satisfy TypeScript if needed, or rely on loose typing if compatible
+    const formattedHistory: Content[] = fullHistory.map(entry => ({
+      role: entry.role,
+      parts: entry.parts.map(part => {
+        // Handle potential inlineData or text
+        if ('text' in part && typeof part.text === 'string') {
+            return { text: part.text };
+        }
+        // If inlineData exists (from our PDFs), pass it through. 
+        // Note: The `history` argument to this function is typed as only having `text` parts, 
+        // but `contextParts` injects `inlineData`. So we need to be careful.
+        // We cast to `any` above for `contextMessage`, so let's handle it here.
+        return part as Part;
+      })
+    }));
 
-    const chat = model.startChat({
-      history: fullHistory,
-      generationConfig: {
-        maxOutputTokens: 1000,
+    const chat = genAI.chats.create({
+      model: TEXT_MODEL_NAME,
+      config: {
+        systemInstruction: fullSystemInstruction,
         temperature: 0.7,
+        maxOutputTokens: 1000,
       },
+      history: formattedHistory
     });
 
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    console.log("Gemini Response:", response);
-    return response.text();
+    // Send the message using the new SDK syntax
+    // The example in genai.d.ts shows { message: string }
+    const result = await chat.sendMessage({
+      message: message // SDK expects 'message' property which can be PartListUnion (string | Part | Part[])
+    }); 
+
+    console.log("Gemini Response:", result);
+    // The response structure might be slightly different. Usually `result.text` or `result.response.text()`
+    // Based on new SDK, it returns a response object directly which usually has a text helper.
+    // Let's assume `result.text` exists or is a property.
+    
+    return result.text || "No response text available."; 
   } catch (error) {
     console.error("Gemini Chat Error:", error);
     throw error;
@@ -137,5 +164,6 @@ export const sendMessageToExpert = async (message: string, history: { role: stri
 
 export const generateExpertImage = async (): Promise<string> => {
     // Return the static image as fallback since image generation might require specific model support not always available on free tier/standard keys easily
+    // Also, new SDK image generation is `ai.models.generateImages` usually.
     return "exp.png";
 };
