@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Send, User, Bot, Loader2, Lock, X } from 'lucide-react';
 import { Message } from '../types';
 import { sendMessageToExpert } from '../services/geminiService';
+import { auth } from '../services/firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 export const ChatBox: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -14,6 +16,8 @@ export const ChatBox: React.FC = () => {
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [showAuthAlert, setShowAuthAlert] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -24,6 +28,27 @@ export const ChatBox: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        setShowAuthAlert(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleInputInteraction = (e: React.MouseEvent | React.FocusEvent) => {
+    if (!user) {
+      e.preventDefault();
+      // Blur the input to prevent typing if it was a focus event
+      if (e.target instanceof HTMLInputElement) {
+        e.target.blur();
+      }
+      setShowAuthAlert(true);
+    }
+  };
 
   const handleSend = async () => {
     if (!inputText.trim() || isTyping) return;
@@ -126,7 +151,7 @@ export const ChatBox: React.FC = () => {
                 role: 'model',
                 text: responseText,
                 timestamp: new Date()
-              }];
+             }];
          }
       });
 
@@ -152,6 +177,35 @@ export const ChatBox: React.FC = () => {
   return (
     <div className="flex flex-col h-[500px] md:h-[600px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden relative">
       
+      {/* Auth Alert Overlay */}
+      {showAuthAlert && (
+        <div className="absolute inset-0 z-50 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full border border-red-100 relative transform transition-all scale-100 animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setShowAuthAlert(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-1">
+                <Lock size={24} />
+              </div>
+              <h3 className="font-bold text-gray-900 text-lg">Bejelentkezés Szükséges</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A szakértővel való kommunikációhoz kérjük, előbb jelentkezzen be a fiókjába!
+              </p>
+              <button 
+                onClick={() => setShowAuthAlert(false)}
+                className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                >
+                Rendben, értem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 flex items-center gap-3 transition-colors duration-300 bg-[#004e8e]">
         <div className="relative">
@@ -227,13 +281,15 @@ export const ChatBox: React.FC = () => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyPress}
+                onClick={handleInputInteraction}
+                onFocus={handleInputInteraction}
                 disabled={isTyping}
             />
             <button 
                 onClick={handleSend}
-                disabled={!inputText.trim() || isTyping}
+                disabled={!inputText.trim() || isTyping || !user}
                 className={`p-2 rounded-full transition-colors ${
-                !inputText.trim() || isTyping
+                !inputText.trim() || isTyping || !user
                     ? 'text-gray-400 cursor-not-allowed' 
                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
                 }`}
