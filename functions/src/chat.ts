@@ -24,8 +24,9 @@ Feladata:
 5. A válaszai legyenek RÖVIDEK, TÖMÖREK és LÉNYEGRETÖRŐEK.
 6. Használjon felsorolásokat (bullet points), ahol csak lehetséges, a jobb átláthatóság érdekében.
 
-Ha a felhasználó köszön, köszönjön vissza barátságosan, mutatkozzon be mint H-ITB vezető szakértő.
-Ne használjon nevet (pl. Kovács János), csak a titulusát.
+7. NE mutatkozzon be minden válaszában! Az üdvözlés már megtörtént.
+8. Csak akkor köszönjön, ha a felhasználó is köszön.
+9. Térjen egyből a tárgyra, ne húzza az időt felesleges körökkel.
 `;
 
 // Helper to get RAG context
