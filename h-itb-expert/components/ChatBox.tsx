@@ -36,12 +36,12 @@ export const ChatBox: React.FC = () => {
     };
 
     setMessages(prev => [...prev, userMsg]);
+    const currentInputText = inputText; // Capture current input
     setInputText('');
     setIsTyping(true);
 
     try {
       // Convert state messages to API history format
-      // filter out the welcome message or any leading model message because Gemini API history must start with 'user'
       const history = messages
         .filter(m => m.id !== 'welcome')
         .map(m => ({
@@ -49,22 +49,94 @@ export const ChatBox: React.FC = () => {
           parts: [{ text: m.text }]
         }));
 
-      const responseText = await sendMessageToExpert(inputText, history);
-
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'model',
-        text: responseText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMsg]);
-    } catch (error) {
+      console.log('--- User Clicked Send ---');
+      console.time('Total User Wait Time');
+      
+      const botMsgId = (Date.now() + 1).toString();
+      
+      // Create a placeholder bot message immediately for the filler text
       setMessages(prev => [...prev, {
-        id: Date.now().toString(),
+        id: botMsgId,
         role: 'model',
-        text: 'Elnézést, technikai hiba történt. Kérem, próbálja újra később.',
+        text: '', 
         timestamp: new Date()
       }]);
+
+      // FILLER ANIMATION: Type out a waiting message locally
+      const fillerText = "Egy kis türelmet kérek, áttekintem a vonatkozó szakmai előírásokat és szabványokat...";
+      let fillerIndex = 0;
+      let isRealResponseStarted = false;
+      
+      const fillerInterval = setInterval(() => {
+          if (isRealResponseStarted) {
+              clearInterval(fillerInterval);
+              return;
+          }
+          if (fillerIndex < fillerText.length) {
+              const nextChar = fillerText[fillerIndex];
+              setMessages(prev => prev.map(msg => 
+                  msg.id === botMsgId 
+                      ? { ...msg, text: (msg.text || '') + nextChar }
+                      : msg
+              ));
+              fillerIndex++;
+          } else {
+              // Pulse or something? For now just stop typing.
+              clearInterval(fillerInterval);
+          }
+      }, 50); // Speed of filler typing
+
+      const responseText = await sendMessageToExpert(
+          currentInputText, 
+          history,
+          (partialText) => {
+              // Real response started!
+              if (!isRealResponseStarted) {
+                  isRealResponseStarted = true;
+                  clearInterval(fillerInterval);
+                  // On first chunk, we REPLACE the filler text with the real partial text
+                  // This visual jump is expected but acceptable as it means "Answer found!"
+              }
+              
+              setMessages(prev => prev.map(msg => 
+                  msg.id === botMsgId 
+                      ? { ...msg, text: partialText }
+                      : msg
+              ));
+          }
+      );
+      
+      // Ensure interval is cleared if it wasn't already
+      clearInterval(fillerInterval);
+      
+      console.timeEnd('Total User Wait Time');
+
+      // Ensure final text is set (if not already by callback)
+      setMessages(prev => {
+         const existing = prev.find(m => m.id === botMsgId);
+         if (existing) {
+             return prev.map(msg => 
+                  msg.id === botMsgId 
+                      ? { ...msg, text: responseText }
+                      : msg
+              );
+         } else {
+             return [...prev, {
+                id: botMsgId,
+                role: 'model',
+                text: responseText,
+                timestamp: new Date()
+              }];
+         }
+      });
+
+    } catch (error) {
+      // If error, likely remove the filler message and show error
+      setMessages(prev => prev.map(msg => 
+        msg.id === (Date.now() + 1).toString()
+            ? { ...msg, text: 'Elnézést, technikai hiba történt. Kérem, próbálja újra később.' }
+            : msg
+      ));
     } finally {
       setIsTyping(false);
     }
@@ -121,15 +193,21 @@ export const ChatBox: React.FC = () => {
             </div>
           </div>
         ))}
-        {isTyping && (
+        
+        {/* Typing Indicator - Only show if typing AND last message is User */}
+        {isTyping && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
           <div className="flex justify-start">
-             <div className="flex max-w-[80%] gap-2">
+            <div className="flex max-w-[80%] gap-2">
                 <div className="w-8 h-8 rounded-full bg-[#9e0b0f] text-white flex-shrink-0 flex items-center justify-center">
                     <Bot size={16} />
                 </div>
                 <div className="bg-white border border-gray-200 p-3 rounded-2xl rounded-bl-none shadow-sm flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                    <span className="text-xs text-gray-400">Gépelés...</span>
+                    <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    </div>
+                    <span className="text-xs text-gray-400 font-medium">Gépelés...</span>
                 </div>
              </div>
           </div>

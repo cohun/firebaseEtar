@@ -8,6 +8,7 @@ export const TEXT_MODEL_NAME = 'gemini-3-flash-preview';
 export const AUDIO_MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 // System instruction to define the persona
+// System instruction to define the persona
 const SYSTEM_INSTRUCTION = `
 Ön a H-ITB Kft. vezető emelőgép szakértője.
 A munkája során az ETAR (Emelőgép és Teherfelvevő eszközök Adminisztrációs Rendszere) rendszert használja a nyilvántartáshoz.
@@ -17,7 +18,8 @@ Feladata:
 2. Legyen mindig udvarias, türelmes és segítőkész.
 3. Használjon közérthető, de szakmailag pontos nyelvezetet.
 4. Ha adminisztrációról van szó, mindig említse meg az ETAR rendszer előnyeit (papírmentesség, átláthatóság).
-5. A válaszai legyenek részletesek, szakmailag alaposak és kimerítőek. Bátran fejtse ki a szakmai indoklást.
+5. A válaszai legyenek RÖVIDEK, TÖMÖREK és LÉNYEGRETÖRŐEK.
+6. Használjon felsorolásokat (bullet points), ahol csak lehetséges, a jobb átláthatóság érdekében.
 
 Ha a felhasználó köszön, köszönjön vissza barátságosan, mutatkozzon be mint H-ITB vezető szakértő.
 Ne használjon nevet (pl. Kovács János), csak a titulusát.
@@ -97,120 +99,104 @@ async function getExpertKnowledge(): Promise<{ systemText: string, contextParts:
   }
 }
 
-export const sendMessageToExpert = async (message: string, history: { role: string; parts: { text: string }[] }[]): Promise<string> => {
+// Persistent chat session
+let chatSession: any = null;
+
+export const sendMessageToExpert = async (
+    message: string, 
+    history: { role: string; parts: { text: string }[] }[],
+    onChunk?: (text: string) => void
+): Promise<string> => {
   if (!apiKey) throw new Error("API Key is missing");
+  
+  console.log("--- Gemini Service Operation Started ---");
+  console.time("Total Service Duration");
 
   try {
-    // 1. Fetch dynamic knowledge (cached)
-    const { systemText, contextParts } = await getExpertKnowledge();
-    
-    // 2. Construct System Instruction (Text Only)
-    // Always include system text rules in system instruction
-    const fullSystemInstruction = SYSTEM_INSTRUCTION + systemText;
-
-    // 3. Construct History
-    // If we have multimodal content (PDFs), we inject them as a "User" message.
-    // OPTIMIZATION: Only inject large context (PDFs) if this is the start of a conversation (history is empty)
-    // or if the implementation requires it. Since `history` passed here contains previous turns,
-    // if `history` has existing items, we assume the context was already established in the session memory of the client/server interaction
-    // OR we need to include it if the API is stateless.
-    // The Gemini API `chat.sendMessage` is stateful for the `Chat` instance, but here we create a new `Chat` instance every time
-    // using the `history` passed from the UI.
-    // So, we must ensure the context is inside `history` if it's not already there.
-    // However, sending base64 PDFs on *every* request is expensive and high latency.
-    // Best practice: The `history` prop from UI should technically accumulate the context we sent back?
-    // Reviewing `ChatBox.tsx` (from memory/previous view): it manages `messages` state.
-    // If we prepend context here, does `ChatBox` save it? Likely not, `ChatBox` only saves User/Model text.
-    // So we DO need to send context every time if we create a new Chat instance, UNLESS we rely on caching (feature of new SDK/Gemini 1.5+).
-    // But for `gemini-2.0-flash` / `gemini-3.0`, standard caching isn't manual like this.
-    // For now, to solve "slow response", we must avoid re-uploading heavy PDF data if possible.
-    // But since we are stateless here, we have to send it.
-    // BUT `getExpertKnowledge` was fetching from Firestore every time. Caching THAT will save the Firestore latency (hundreds of ms).
-    // Sending the base64 to Gemini is also slow.
-    // Compromise: We only send the PDF context if the history is empty (first turn). 
-    // WARN: If we don't send it on subsequent turns, does the model "remember" it from previous turns in the `history` array?
-    // YES, providing we pass the *full* history including the first turn with the PDF.
-    // The `history` arg comes from `ChatBox`. Does `ChatBox` keep the "System/Context" messages we injected?
-    // Looking at typical implementations: UI usually only keeps User/AI text.
-    // If UI doesn't keep the "PDF injection" message, then `history` won't have it, and we'd lose context on 2nd message.
-    // FIX: We will prepend it if it's NOT in the history.
-    // Since checking binary data in history is hard, we can assume if `history.length === 0` we add it. 
-    // IF `history.length > 0`, we assume the model *context window* might handle it? 
-    // NO, if we create a new `genAI.chats.create` with `history` that *lacks* the PDF message, the model won't see it.
-    // So we MUST include it in `history`.
-    // The performance bottleneck was likely the *Firestore Download* of PDFs every time.
-    // In-memory cache solves the download.
-    // Uploading base64 to Gemini is unavoidable without true "Context Caching" API usage (which costs money/different structure).
-    // So: Caching `getExpertKnowledge` is the big win here.
-
-    let fullHistory = [...history];
-    
-    // Check if we need to inject context. 
-    // Strategy: Only inject if history is empty. 
-    // IF the UI doesn't persist our injected messages, multi-turn chat will lose access to PDFs.
-    // Let's assume for now we perform the "Injection" every time if the UI doesn't hold it. 
-    // Actually, if we send it, the model replies. The UI appends that reply.
-    // Next request: UI sends [User, Model]. 
-    // If we *don't* prepend PDF again, we send [User, Model, User2]. The PDF is gone.
-    // So we MUST prepend PDF every time if the UI doesn't store it.
-    // The only way to optimize *bandwidth* to Gemini is if we use the same `Chat` instance, but here we are stateless server-side function (or client-side acting structure).
-    // Wait, this file is `geminiService.ts`, running in the Browser (Client Side).
-    // So we *could* keep a persistent `ChatSession` instance!
-    // But the current code exports `sendMessageToExpert` which takes `history`. This implies statelessness or "re-init every time" pattern.
-    // Let's stick to the stateless pattern for reliability, but rely on the RAM cache to avoid re-downloading PDFs from Firestore.
-    // That alone is a huge speedup.
-    
-    // We will inject context if it's present.
-    if (contextParts.length > 0) {
-        // Optimization: Use a lightweight marker to check if history already has context?
-        // Hard to do reliably with simple array.
-        // Let's just prepend. The latency from *uploading* cached base64 is consistently high but unavoidable without session persistence.
-        // However, the Firestore fetch was likely the variable "very, very slow" part (network round trips).
+    // Initialize session if it doesn't exist
+    if (!chatSession) {
+        console.log("Initializing new Chat Session...");
+        // 1. Fetch dynamic knowledge (cached)
+        console.time("Fetch Expert Knowledge (Firestore/Cache)");
+        const { systemText, contextParts } = await getExpertKnowledge();
+        console.timeEnd("Fetch Expert Knowledge (Firestore/Cache)");
         
-        const contextMessage = {
-            role: "user",
-            parts: [...contextParts, { text: "Ezek a hivatkozott szakmai dokumentumok (szabványok, ábrák). Vedd figyelembe őket a válaszoknál." }]
-        };
-        const contextAck = {
-            role: "model",
-            parts: [{ text: "Értettem, a csatolt szakmai dokumentumokat feldolgoztam és alkalmazni fogom." }]
-        };
+        console.time("Context Preparation");
+        // 2. Construct System Instruction (Text Only)
+        const fullSystemInstruction = SYSTEM_INSTRUCTION + systemText;
+
+        // 3. Construct Initial History (Context Injection)
+        // We only do this ONCE per session now.
+        let initialHistory: Content[] = [];
         
-        // We prepend. 
-        // Note: usage of `any` cast is preserved from previous fix.
-        fullHistory = [contextMessage as any, contextAck as any, ...history];
+        if (contextParts.length > 0) {
+            const contextMessage = {
+                role: "user",
+                parts: [...contextParts, { text: "Ezek a hivatkozott szakmai dokumentumok (szabványok, ábrák). Vedd figyelembe őket a válaszoknál." }]
+            };
+            const contextAck = {
+                role: "model",
+                parts: [{ text: "Értettem, a csatolt szakmai dokumentumokat feldolgoztam és alkalmazni fogom." }]
+            };
+            
+             initialHistory = [contextMessage as any, contextAck as any].map(entry => ({
+                role: entry.role,
+                parts: entry.parts.map(part => {
+                    if ('text' in part && typeof part.text === 'string') {
+                        return { text: part.text };
+                    }
+                    return part as Part;
+                })
+            }));
+        }
+
+        // We ignore the 'history' passed from UI for the *session initialization* 
+        // because we want to start fresh or the UI history is already in sync if we match it.
+        // Ideally, if the user reloads the page, 'history' has previous items, but 'chatSession' is null.
+        // So we should append 'history' to 'initialHistory' if we want to restore context.
+        // However, 'history' contains the raw text messages.
+        
+        // Let's filter out the "Context" messages if they were somehow preserved (unlikely in this UI).
+        const uiHistory = history.map(entry => ({
+            role: entry.role,
+            parts: entry.parts.map(part => ({ text: part.text }))
+        }));
+
+        chatSession = genAI.chats.create({
+            model: TEXT_MODEL_NAME,
+            config: {
+                systemInstruction: fullSystemInstruction,
+                temperature: 0.7,
+                maxOutputTokens: 8000, 
+            },
+            history: [...initialHistory, ...uiHistory]
+        });
+        console.timeEnd("Context Preparation");
     }
 
-    // Cast history to Content[]
-    const formattedHistory: Content[] = fullHistory.map(entry => ({
-      role: entry.role,
-      parts: entry.parts.map(part => {
-        if ('text' in part && typeof part.text === 'string') {
-            return { text: part.text };
-        }
-        return part as Part;
-      })
-    }));
-
-    const chat = genAI.chats.create({
-      model: TEXT_MODEL_NAME,
-      config: {
-        systemInstruction: fullSystemInstruction,
-        temperature: 0.7,
-        maxOutputTokens: 8000, // Increased from 1000
-      },
-      history: formattedHistory
-    });
-
-    // Send the message
-    const result = await chat.sendMessage({
+    // Send the message with STREAMING using the persistent session
+    console.time("Gemini API Network Call (Stream Start)");
+    const result = await chatSession.sendMessageStream({
       message: message
     });
+    console.timeEnd("Gemini API Network Call (Stream Start)");
 
-    console.log("Gemini Response:", result);
-    return result.text || "No response text available."; 
+    let fullText = "";
+    for await (const chunk of result) {
+        const chunkText = chunk.text;
+        fullText += chunkText;
+        if (onChunk) {
+            onChunk(fullText);
+        }
+    }
+
+    console.timeEnd("Total Service Duration");
+    return fullText || "No response text available."; 
   } catch (error) {
     console.error("Gemini Chat Error:", error);
+    console.timeEnd("Total Service Duration");
+    // If session is borked, reset it
+    chatSession = null;
     throw error;
   }
 };
