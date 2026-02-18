@@ -36,10 +36,26 @@ export function showScreen(screenId) {
     }
 }
 
+const virtualExpertLinkLogin = `<a href="#" id="virtualExpertBtnLogin" class="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors flex items-center">
+                    Virtuális Szakértő <i class="fas fa-user-tie ml-2"></i>
+                </a>`;
+
+const virtualExpertLinkMain = `<a href="#" id="virtualExpertBtnMain" class="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors flex items-center">
+                    Virtuális Szakértő <i class="fas fa-user-tie ml-2"></i>
+                </a>`;
+
 export function showLoginScreen() {
     document.body.classList.remove('ekv-mode'); // Clean up EKV mode styles
     const loginHtml = `
-        <div class="card max-w-md mx-auto">
+        <div class="card max-w-md mx-auto relative">
+             <!-- New Navigation Header -->
+            <div class="flex justify-between items-center mb-6">
+                <button id="backToHomeBtn" class="text-gray-400 hover:text-blue-500 transition-colors" title="Vissza a főoldalra">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </button>
+                ${virtualExpertLinkLogin}
+            </div>
+
             <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto mb-8 w-64 h-auto rounded-lg shadow-md">
             <h1 class="text-3xl sm:text-4xl font-bold mb-2">ETAR Rendszer</h1>
             <p class="mb-6 text-blue-300">Kérjük, jelentkezzen be a használathoz.</p>
@@ -60,7 +76,19 @@ export function showLoginScreen() {
     screens.login.innerHTML = loginHtml;
     showScreen('login');
 
+    // Back button listener
+    document.getElementById('backToHomeBtn').addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
+    
+    // Virtual Expert listener
+    document.getElementById('virtualExpertBtnLogin').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.open('/szakerto/', '_blank');
+    });
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        // ... (rest of logic)
         e.preventDefault();
         const email = document.getElementById('emailInput').value;
         const password = document.getElementById('passwordInput').value;
@@ -83,6 +111,7 @@ export function showLoginScreen() {
         showForgotPasswordScreen();
     });
 }
+
 
 export function showForgotPasswordScreen() {
     const forgotPasswordHtml = `
@@ -500,7 +529,15 @@ export async function showMainScreen(user, userData) {
     `;
 
     const mainHtml = `
-        <div class="card max-w-md mx-auto text-center">
+        <div class="card max-w-md mx-auto text-center relative">
+             <!-- New Navigation Header for Dashboard -->
+            <div class="flex justify-between items-center mb-6">
+                <button id="dashboardBackToHomeBtn" class="text-gray-400 hover:text-blue-500 transition-colors" title="Vissza a főoldalra">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </button>
+                ${virtualExpertLinkMain}
+            </div>
+
             <img src="images/logo.jpg" alt="ETAR Logó" class="mx-auto mb-8 w-64 h-auto rounded-lg shadow-md">
             <h1 class="text-3xl sm:text-4xl font-bold mb-2">ETAR Rendszer</h1>
             <p class="mb-2 text-blue-300">Bejelentkezve mint: ${userData.name || user.displayName || user.email}</p>
@@ -512,6 +549,19 @@ export async function showMainScreen(user, userData) {
     showScreen('main');
 
     // --- Event Listeners ---
+    
+    // Back button listener for dashboard
+    document.getElementById('dashboardBackToHomeBtn').addEventListener('click', () => {
+         window.location.href = 'index.html';
+    });
+
+    // Virtual Expert listener
+    document.getElementById('virtualExpertBtnMain').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.open('/szakerto/', '_blank');
+        // Refresh the page to ensure the correct logged-in state is displayed
+        window.location.reload();
+    });
 
     document.getElementById('signOutButton').addEventListener('click', () => {
         sessionStorage.removeItem('lastPartnerId');

@@ -196,7 +196,7 @@ export const ChatBox: React.FC = () => {
                 A szakértővel való kommunikációhoz kérjük, előbb jelentkezzen be a fiókjába!
               </p>
               <button 
-                onClick={() => setShowAuthAlert(false)}
+                onClick={() => window.location.href = '/'}
                 className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
                 >
                 Rendben, értem
