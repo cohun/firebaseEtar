@@ -3,7 +3,7 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAhYECnbn34-Bl7k8006Hi-NYWrlKvGGvg",
+  apiKey: "AIzaSyCWmKP4phZqMIwYHLmieRNk3zprUj1NJyM",
   authDomain: "etarrendszer.firebaseapp.com",
   projectId: "etarrendszer",
   storageBucket: "etarrendszer.firebasestorage.app",
