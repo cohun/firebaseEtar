@@ -1,714 +1,55 @@
 {
   "indexes": [
     {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "effectiveLength",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "effectiveLength",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "effectiveLength",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "effectiveLength",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "operatorId",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "operatorId",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "serialNumber",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "type",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "isI",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "type",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "kov_vizsg",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "kov_vizsg",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "operatorId",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "operatorId",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "serialNumber",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "type",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "type",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "vizsg_idopont",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "comment",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "vizsg_idopont",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "operatorId",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "operatorId",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "type",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "serialNumber",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "type",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "vizsg_idopont",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "vizsg_idopont",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "description",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
+      "collectionGroup": "chunks",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
-          "fieldPath": "createdByUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 768,
+            "flat": {}
+          }
         }
       ]
     },
     {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "finalizedByUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "partnerId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "finalizedByUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "partnerId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "finalizedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION_GROUP",
+      "collectionGroup": "devices",
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "partnerId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "status",
+          "fieldPath": "nextMvDate",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION_GROUP",
+      "collectionGroup": "devices",
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "partnerId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "status",
+          "fieldPath": "nextUevmDate",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
+          "fieldPath": "__name__",
           "order": "DESCENDING"
         }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "partnerId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "finalizedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "createdByUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "inspections",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "finalizedByUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "finalizedAt",
-          "order": "DESCENDING"
-        }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "inspections",
@@ -721,8 +62,13 @@
         {
           "fieldPath": "finalizedAt",
           "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "reports",
@@ -739,8 +85,13 @@
         {
           "fieldPath": "createdAt",
           "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     }
   ],
   "fieldOverrides": []
