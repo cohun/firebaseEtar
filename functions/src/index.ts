@@ -33,7 +33,10 @@ function chunkText(text: string, chunkSize: number = 800, overlap: number = 100)
   return chunks;
 }
 
-export const indexExpertKnowledge = onDocumentWritten("expert_knowledge/{docId}", async (event) => {
+export const indexExpertKnowledge = onDocumentWritten({
+  document: "expert_knowledge/{docId}",
+  memory: "1GiB",
+}, async (event) => {
   const docId = event.params.docId;
   const oldData = event.data?.before.data();
   const newData = event.data?.after.data();
