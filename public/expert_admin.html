@@ -101,15 +101,15 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tartalom (Szabály szövege)</label>
-                        <textarea class="form-control" id="editContent" rows="10" placeholder="Másold ide a pontos szakmai szöveget..."></textarea>
-                        <div class="form-text">Ez a szöveg kerül be közvetlenül a modell "agyába".</div>
+                        <label class="form-label">Módszertani utasítás (Szabály szövege helyett)</label>
+                        <textarea class="form-control" id="editContent" rows="10" placeholder="Ide írd a belső utasításokat (pl. milyen hangnemet használjon, hogyan válaszoljon bizonyos esetekben)..."></textarea>
+                        <div class="form-text">Ez a szöveg a modell "alapszemélyiségének" (System Instruction) részévé válik.</div>
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">PDF Csatolmány (Opcionális)</label>
                         <input class="form-control" type="file" id="pdfUpload" accept="application/pdf">
-                        <div class="form-text text-muted">Ha szabványt vagy ábrás dokumentumot töltesz fel, a szöveges tartalom mező maradhat üres (de ajánlott rövid leírást adni).</div>
+                        <div class="form-text text-muted">A hosszú szakmai szövegeket, szabványokat (a "klexikális tudást") ide töltsd fel PDF formátumban. A modell elsődlegesen ezekben fog keresni.</div>
                         <div id="currentFileLink" class="mt-2"></div>
                     </div>
                 </form>
