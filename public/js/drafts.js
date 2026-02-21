@@ -9,10 +9,16 @@ let currentSortDirection = 'desc';
 // Filter state
 let showK = true;
 let showB = true;
+let showEKV = false;
 let selectedPartnerFilter = null; // null means "Összes"
 
 function isK(expertName) {
     return expertName === 'Gerőly Iván' || expertName === 'Szadlon Norbert';
+}
+
+function isB(expertName) {
+    if (!expertName) return false;
+    return expertName.includes('Nagy') || expertName.includes('Bagyinszki');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -195,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filter listeners
     const filterK = document.getElementById('filterK');
     const filterB = document.getElementById('filterB');
+    const filterEKV = document.getElementById('filterEKV');
     if (filterK) {
         filterK.addEventListener('change', (e) => {
             showK = e.target.checked;
@@ -204,6 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filterB) {
         filterB.addEventListener('change', (e) => {
             showB = e.target.checked;
+            sortAndRender();
+        });
+    }
+    if (filterEKV) {
+        filterEKV.addEventListener('change', (e) => {
+            showEKV = e.target.checked;
             sortAndRender();
         });
     }
@@ -253,8 +266,12 @@ function sortAndRender() {
         // For EKV users, controls are hidden, defaults are TRUE, so no impact.
         
         const isExpertK = isK(draft.szakerto);
+        const isExpertB = isB(draft.szakerto);
+        const isExpertEKV = !isExpertK && !isExpertB;
+        
         if (isExpertK && !showK) return false;
-        if (!isExpertK && !showB) return false;
+        if (isExpertB && !showB) return false;
+        if (isExpertEKV && !showEKV) return false;
         
         // Partner Filter
         if (selectedPartnerFilter && draft.partnerName !== selectedPartnerFilter) {
