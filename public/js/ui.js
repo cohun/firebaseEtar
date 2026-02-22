@@ -671,10 +671,13 @@ import { attachPermissionManagementListeners } from './ui_helpers.js';
 export function showPermissionManagementScreen(users, currentUserData) {
     const isAdminEJK = currentUserData.isEjkUser;
 
-    const roleOptions = ['pending', 'admin', 'pendingAdmin', 'write', 'read', 'inspector', 'pending_inspector', 'internal_inspector', 'external_inspector', 'subscriber_inspector'];
-    // Add 'subcontractor' and 'subscriber' to roleOptions for display purposes if not EJK
-    if (!isAdminEJK) {
-        roleOptions.push('subcontractor', 'subscriber');
+    let roleOptions;
+    if (isAdminEJK) {
+        // EJK Admin láthatja az összes opciót
+        roleOptions = ['pending', 'admin', 'pendingAdmin', 'write', 'read', 'inspector', 'pending_inspector', 'internal_inspector', 'external_inspector', 'subscriber_inspector'];
+    } else {
+        // ENY Admin csak ezeket láthatja
+        roleOptions = ['pending', 'read', 'write', 'admin'];
     }
 
     const renderUserList = (userList) => {
@@ -809,13 +812,12 @@ export function showPermissionManagementScreen(users, currentUserData) {
                             <label for="role-select-${user.id}-${partnerId}" class="block text-sm font-medium text-gray-400">Szerepkör</label>
                             <select id="role-select-${user.id}-${partnerId}" data-original-role="${assoc.role}" class="input-field mt-1 block w-full bg-gray-700 border-gray-600 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" ${isDisabled ? 'disabled' : ''}>
                                 ${roleOptions.map(opt => {
-                                    // If it's a subcontractor showing as inspector (or i-vizsgáló)
                                     if (assoc.role === 'subcontractor' && opt === 'inspector') {
                                         return `<option value="${assoc.role}" selected>${displayRole}</option>`;
                                     }
-                                     // Standard matching
                                     return `<option value="${opt}" ${assoc.role === opt ? 'selected' : ''}>${opt}</option>`;
                                 }).join('')}
+                                ${assoc.role === 'subcontractor' && !roleOptions.includes('inspector') ? `<option value="${assoc.role}" selected>${displayRole}</option>` : ''}
                                 ${!roleOptions.includes(assoc.role) && assoc.role !== 'subcontractor' ? `<option value="${assoc.role}" selected>${assoc.role}</option>` : ''}
                                 ${assoc.role === 'subcontractor' ? '' : `<option value="Törlés" class="text-red-500">Kapcsolat Törlése</option>`}
                             </select>
