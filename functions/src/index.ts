@@ -8,10 +8,68 @@
  */
 
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onObjectFinalized, onObjectDeleted } from "firebase-functions/v2/storage";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import pdf from "pdf-parse";
 import axios from "axios";
+
+// -----------------------------------------------------------------------------------------
+// Storage Quota Functions
+// -----------------------------------------------------------------------------------------
+
+// Helper to check if file is an attached document and extract partner ID
+function getPartnerIdFromPath(filePath: string): string | null {
+  // Expected path format: partners/{partnerId}/devices/{deviceId}/attached_documents/{fileName}
+  const match = filePath.match(/^partners\/([^\/]+)\/devices\/[^\/]+\/attached_documents\//);
+  return match ? match[1] : null;
+}
+
+export const onStorageFileUploaded = onObjectFinalized(async (event) => {
+  const filePath = event.data.name;
+  if (!filePath) return;
+
+  const partnerId = getPartnerIdFromPath(filePath);
+  if (!partnerId) return;
+
+  const fileSize = Number(event.data.size);
+  if (isNaN(fileSize) || fileSize === 0) return;
+
+  console.log(`[Storage Quota] File uploaded: ${filePath} (${fileSize} bytes) for partner ${partnerId}`);
+  
+  const partnerRef = db.collection('partners').doc(partnerId);
+  try {
+    await partnerRef.update({
+      storageUsedBytes: admin.firestore.FieldValue.increment(fileSize)
+    });
+    console.log(`[Storage Quota] Successfully incremented storage for partner ${partnerId}`);
+  } catch (error) {
+    console.error(`[Storage Quota] Error updating storage for partner ${partnerId}:`, error);
+  }
+});
+
+export const onStorageFileDeleted = onObjectDeleted(async (event) => {
+  const filePath = event.data.name;
+  if (!filePath) return;
+
+  const partnerId = getPartnerIdFromPath(filePath);
+  if (!partnerId) return;
+
+  const fileSize = Number(event.data.size);
+  if (isNaN(fileSize) || fileSize === 0) return;
+
+  console.log(`[Storage Quota] File deleted: ${filePath} (${fileSize} bytes) for partner ${partnerId}`);
+  
+  const partnerRef = db.collection('partners').doc(partnerId);
+  try {
+    await partnerRef.update({
+      storageUsedBytes: admin.firestore.FieldValue.increment(-fileSize)
+    });
+    console.log(`[Storage Quota] Successfully decremented storage for partner ${partnerId}`);
+  } catch (error) {
+    console.error(`[Storage Quota] Error updating storage for partner ${partnerId}:`, error);
+  }
+});
 
 admin.initializeApp();
 const db = admin.firestore();

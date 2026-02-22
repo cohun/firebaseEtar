@@ -14,6 +14,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <!-- Common Styles -->
     <link rel="stylesheet" href="style.css">
 
@@ -71,13 +74,44 @@
                 <div id="customIdsContainer" class="contents"></div>
             </form>
 
-            <div class="grid grid-cols-2 gap-3 mt-6 md:flex md:justify-start md:gap-4">
+            <div class="grid grid-cols-2 gap-3 mt-6 md:flex md:justify-start md:gap-4 mb-8">
                 <button id="backButton" class="btn btn-secondary">Vissza</button>
                 <button id="loadPreviousButton" type="button" class="btn btn-secondary">Előző adatok betöltése</button>
                 <button id="excelReadButton" class="btn btn-info">excel adatolvasás</button>
                 <button id="chipScanButton" type="button" class="btn btn-secondary text-glow" style="border: 1px solid #3b82f6;">CHIP</button>
                 <button id="saveButton" class="btn btn-primary">Mentés</button>
             </div>
+
+            <!-- Attached Documents Section (Only visible in Edit Mode) -->
+            <div id="attachedDocumentsSection" class="hidden border-t border-blue-800 pt-6 mt-6">
+                <h3 class="text-xl font-semibold mb-4">Csatolt Dokumentumok</h3>
+                
+                <div id="storage-quota-warning" class="hidden mb-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-200 font-bold">
+                    A rendelkezésre álló tárhely megtelt. A bővítésért vedd fel a kapcsolatot a szolgáltatóval.
+                </div>
+
+                <!-- Upload Area -->
+                <div id="documentUploadArea" class="border-2 border-dashed border-gray-500 rounded-lg p-6 text-center hover:bg-gray-800 transition-colors cursor-pointer mb-6 relative">
+                    <input type="file" id="documentFileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".pdf, .jpg, .jpeg, .png">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-blue-400 mb-2"></i>
+                    <p class="text-gray-300 font-medium">Húzza ide a fájlt a feltöltéshez, vagy kattintson a tallózáshoz.</p>
+                    <p class="text-xs text-gray-400 mt-1">Maximum 10 MB per fájl. Engedélyezett: PDF, JPG, PNG.</p>
+                    
+                    <div id="uploadProgressContainer" class="hidden absolute inset-0 bg-gray-800/90 rounded-lg flex flex-col items-center justify-center p-4">
+                        <div class="w-full bg-gray-600 rounded-full h-2 mb-2">
+                            <div id="uploadProgressBar" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p id="uploadProgressText" class="text-sm font-bold text-blue-300">0%</p>
+                    </div>
+                </div>
+
+                <!-- Document List -->
+                <div id="attachedDocumentsList" class="space-y-3">
+                    <!-- Documents will be injected here -->
+                    <p class="text-gray-400 text-sm text-center italic" id="noDocumentsPlaceholder">Nincsenek csatolt dokumentumok.</p>
+                </div>
+            </div>
+
         </div>
     </div>
 

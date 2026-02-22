@@ -54,6 +54,12 @@ service cloud.firestore {
 			allow delete: if isEjkUser() || getRoleForPartner(partnerId) in ['admin', 'write'];
     }
 
+    // ÚJ SZABÁLY: Eszközökhöz csatolt dokumentumok
+    match /partners/{partnerId}/devices/{deviceId}/attached_documents/{docId} {
+      allow create, update, delete: if canWriteInspection(partnerId) || request.auth.token.email == 'attila.hitb@gmail.com';
+      allow read, list: if isEjkUser() || getRoleForPartner(partnerId) != null;
+    }
+
     // VÉGLEGES SZABÁLY, IDEIGLENESEN KIBŐVÍTVE A MIGRÁCIÓHOZ
 		match /partners/{partnerId}/devices/{deviceId}/inspections/{inspectionId} {
   		allow create, update: if canWriteInspection(partnerId) || request.auth.token.email == 'attila.hitb@gmail.com';

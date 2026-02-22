@@ -19,6 +19,10 @@ function getEszkozListaHtml() {
                     <p class="mt-2 text-sm text-gray-300">A partnerhez rendelt eszközök listája. A fejlécen kattintva rendezhet.</p>
                 </div>
             </div>
+            
+            <!-- Storage Quota Progress Bar Container -->
+            <div id="storage-quota-container" class="mt-4 mb-2 hidden"></div>
+
             <!-- Szűrő és Kereső Vezérlők -->
             <div id="inactive-view-warning" class="hidden mb-4 p-3 bg-yellow-900/50 border border-yellow-600 rounded text-yellow-200 text-center font-bold">
                 Jelenleg a leselejtezett (inaktív) eszközök listáját látja. A visszatéréshez vegye ki a pipát az 'Inaktívak' jelölőnégyzetből!
@@ -291,6 +295,47 @@ export function initPartnerWorkScreen(partner, userData) {
     const approvalStatus = partnerStatuses[partnerId];
     const isSubscriberInspector = role === 'subscriber_inspector';
     
+    // --- STORAGE QUOTA LOGIC ---
+    const storageUsed = partner.storageUsedBytes || 0;
+    let storageLimit = partner.storageLimitBytes || 52428800; // 50MB default
+    let storageTier = partner.storageTier || 'Free';
+    
+    // Enforce automatic fallback to Free tier (50MB) if subscription expired
+    if (partner.storageRenewalDate) {
+        const renewalDate = new Date(partner.storageRenewalDate);
+        if (new Date() > renewalDate) {
+            storageLimit = 52428800; // Force 50MB
+            storageTier = 'Free (Lejárt)';
+        }
+    }
+    
+    const storagePercent = Math.min(100, (storageUsed / storageLimit) * 100).toFixed(1);
+    
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 MB';
+        const mb = bytes / (1024 * 1024);
+        return mb.toFixed(1) + ' MB';
+    }
+
+    const quotaContainer = document.getElementById('storage-quota-container');
+    if (quotaContainer) {
+        let barColor = 'bg-blue-500';
+        if (storagePercent >= 90) barColor = 'bg-red-500';
+        else if (storagePercent >= 75) barColor = 'bg-yellow-500';
+
+        quotaContainer.innerHTML = `
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-sm font-medium text-gray-300">Tárhely felhasználás (${storageTier}):</span>
+                <span class="text-sm font-medium text-gray-300">${formatBytes(storageUsed)} / ${formatBytes(storageLimit)} (${storagePercent}%)</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                <div class="${barColor} h-2.5 rounded-full transition-all duration-500" style="width: ${storagePercent}%"></div>
+            </div>
+        `;
+        quotaContainer.classList.remove('hidden');
+    }
+    // ---------------------------
+
     // For subscriber_inspector: approval requires BOTH status = 'subscriber_approved' AND active subscription
     // Using 'subscriber_approved' (not 'approved') prevents stale approval from a previous role from granting access
     const partnerSubscriptions = (userData && userData.partnerSubscriptions) ? userData.partnerSubscriptions : {};
@@ -326,9 +371,10 @@ export function initPartnerWorkScreen(partner, userData) {
     console.log("Permissions:", { role, isEjkUser, isEkvUser, isReadOnly, isSubscriberInspector, isApproved, needsApproval, hasActiveSubscription, userDataPresent: !!userData });
     window.editDevice = function(deviceId) {
         if (isReadOnly) {
-            alert('Olvasási jogosultság esetén nem lehetséges adatot módosítani. Kérjük, forduljon a jogosultság osztójához.');
-            return;
+            console.log("Read-only user accessing device details...");
         }
+        
+        sessionStorage.setItem('isReadOnlyMode', isReadOnly ? 'true' : 'false');
         if (needsApproval) {
              alert('Engedélyre váró szakértőként nem módosíthat adatokat. Kérjük várja meg a jóváhagyást.');
              return;

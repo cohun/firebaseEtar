@@ -293,6 +293,7 @@ export async function updateUserPartnerRole(userId, partnerId, newRole, isEjkAct
                 // True if user is NOT pending, AND has some valid role
                 // Valid roles: admin, write, read, inspector, subcontractor, subscriber
                 // Invalid/Pending: pending, pendingAdmin, pending_inspector
+                const shouldBeEjkUser = !['pending', 'pendingAdmin', 'pending_inspector'].includes(newRole);
                 updates['isEjkUser'] = shouldBeEjkUser;
                 
                 console.log(`EJK Role Update: ${oldEjkRole} -> ${newEjkRole}. isEjkUser: ${shouldBeEjkUser}`);

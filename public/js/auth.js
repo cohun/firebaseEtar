@@ -131,11 +131,19 @@ export async function registerNewCompany(companyName, companyAddress) {
     const etarCode = generateEtarCode();
 
     // 1. Create partner document and get its ID
+    const renewalDate = new Date();
+    renewalDate.setFullYear(renewalDate.getFullYear() + 1);
+
     const partnerRef = await db.collection('partners').add({
         name: companyName,
         address: companyAddress,
         etarCode: etarCode,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        // Storage Feature defaults
+        storageUsedBytes: 0,
+        storageLimitBytes: 52428800, // 50 MB in bytes
+        storageTier: 'Free',
+        storageRenewalDate: renewalDate.toISOString() // Store as ISO string for easiest parsing
     });
     const partnerId = partnerRef.id;
 

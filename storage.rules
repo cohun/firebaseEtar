@@ -11,6 +11,16 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
 
+    // ÚJ SZABÁLY: Eszközökhöz csatolt dokumentumok feltöltése és limitációi
+    // Maximum 10MB (10 * 1024 * 1024 bytes) és csak PDF, JPG, PNG engedélyezett.
+    match /partners/{partnerId}/devices/{deviceId}/attached_documents/{fileName} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                   && request.resource.size <= 10 * 1024 * 1024 // 10 MB limit
+                   && request.resource.contentType.matches('application/pdf|image/jpeg|image/png');
+      allow delete: if request.auth != null;
+    }
+
     // Használatba vételi dokumentumok
     match /partners/{partnerId}/usage_docs/{allPaths=**} {
       allow read, write: if request.auth != null;

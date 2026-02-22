@@ -1,6 +1,6 @@
 
 console.log("--- DEBUG: adatbevitel.js LOADED ---");
-import { auth, db } from './firebase.js';
+import { auth, db, storage } from './firebase.js';
 
 document.addEventListener('DOMContentLoaded', function () {
     const backButton = document.getElementById('backButton');
@@ -50,13 +50,40 @@ document.addEventListener('DOMContentLoaded', function () {
         // MÓDOSÍTÁS ÜZEMMÓD
         // =================================
         console.log(`--- DEBUG: EDIT MODE --- Device: ${editDeviceId}, Partner: ${partnerIdForEdit}`);
-        
-        // UI elemek módosítása
-        document.querySelector('h2').textContent = 'Eszköz adatainak módosítása';
-        saveButton.textContent = 'Módosítások mentése';
-        
         if(loadPreviousButton) {
             loadPreviousButton.style.display = 'none';
+        }
+
+        const isReadOnlyMode = sessionStorage.getItem('isReadOnlyMode') === 'true';
+
+        // UI elemek módosítása
+        if (isReadOnlyMode) {
+            document.querySelector('h2').textContent = 'Eszköz adatainak megtekintése';
+            saveButton.style.display = 'none';
+            
+            // Disable all inputs after a short delay to ensure dynamic fields are rendered
+            setTimeout(() => {
+                const formElements = form.querySelectorAll('input, select, textarea');
+                formElements.forEach(el => el.disabled = true);
+                
+                // Hide chip assignment button if exists
+                const chipBtn = document.getElementById('assignChipButton');
+                if (chipBtn) chipBtn.style.display = 'none';
+                
+                // Hide excel read button if exists
+                const excelBtn = document.getElementById('excelReadButton');
+                if (excelBtn) excelBtn.style.display = 'none';
+                
+                // Add a visual indicator
+                const warningBanner = document.createElement('div');
+                warningBanner.className = 'bg-yellow-900/50 border border-yellow-700 text-yellow-200 px-4 py-2 rounded-lg mb-4 text-sm';
+                warningBanner.innerHTML = '<i class="fas fa-info-circle mr-2"></i>Olvasási jogosultsággal tekinti meg az eszközt. Az adatok nem módosíthatók.';
+                form.insertBefore(warningBanner, form.firstChild);
+            }, 600);
+        } else {
+            document.querySelector('h2').textContent = 'Eszköz adatainak módosítása';
+            saveButton.textContent = 'Módosítások mentése';
+            saveButton.style.display = 'block';
         }
 
         // Adatok lekérése a Firestore-ból
@@ -95,6 +122,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     };
                     setTimeout(populateCustomIdsEdit, 500); // Wait for dynamic fields to render
+
+                    // --- ATTACHED DOCUMENTS ---
+                    if (typeof initAttachedDocuments === 'function') {
+                        initAttachedDocuments(partnerIdForEdit, editDeviceId, currentUserData);
+                    }
 
                 } else {
                     console.error("Hiba: A szerkesztendő eszköz nem található!");
@@ -621,4 +653,333 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 1500);
         };
     }
+
+    // --- ATTACHED DOCUMENTS LOGIC ---
+    function initAttachedDocuments(partnerId, deviceId, initialCurrentUser) {
+        const section = document.getElementById('attachedDocumentsSection');
+        const uploadArea = document.getElementById('documentUploadArea');
+        const fileInput = document.getElementById('documentFileInput');
+        const docList = document.getElementById('attachedDocumentsList');
+        const quotaWarning = document.getElementById('storage-quota-warning');
+        
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('uploadProgressBar');
+        const progressText = document.getElementById('uploadProgressText');
+
+        if (!section || !uploadArea || !fileInput || !docList) return;
+
+        section.classList.remove('hidden');
+        
+        const isReadOnlyMode = sessionStorage.getItem('isReadOnlyMode') === 'true';
+        if (isReadOnlyMode) {
+            uploadArea.style.display = 'none';
+        }
+
+        // --- RELIABLE USER NAME RESOLUTION ---
+        // Resolves a race condition where initialCurrentUser is sometimes passed as null
+        let cachedUserName = null;
+        async function getReliableUserName() {
+            if (cachedUserName) return cachedUserName;
+            
+            if (auth.currentUser) {
+                try {
+                    const userDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+                    if (userDoc.exists && userDoc.data().name) {
+                        cachedUserName = userDoc.data().name;
+                        return cachedUserName;
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch user profile for name:", e);
+                }
+                
+                cachedUserName = auth.currentUser.displayName || auth.currentUser.email || 'Ismeretlen';
+                return cachedUserName;
+            }
+            
+            // Fallback to the argument which might have been populated later if passed by reference (unlikely for null though)
+            if (initialCurrentUser && initialCurrentUser.name) return initialCurrentUser.name;
+            if (initialCurrentUser && initialCurrentUser.email) return initialCurrentUser.email;
+            
+            return 'Ismeretlen';
+        }
+
+        let isQuotaExceeded = false;
+        let partnerStorageRef = db.collection('partners').doc(partnerId);
+
+        // 1. Listen for Quota Changes
+        const quotaUnsubscribe = partnerStorageRef.onSnapshot((doc) => {
+            if (doc.exists) {
+                const partnerData = doc.data();
+                const usedBytes = partnerData.storageUsedBytes || 0;
+                let limitBytes = partnerData.storageLimitBytes || 52428800; // 50MB default
+                
+                // Enforce automatic fallback to Free tier (50MB) if subscription expired
+                if (partnerData.storageRenewalDate) {
+                    const renewalDate = new Date(partnerData.storageRenewalDate);
+                    if (new Date() > renewalDate) {
+                        limitBytes = 52428800; // Force 50MB limit
+                    }
+                }
+                
+                if (usedBytes >= limitBytes) {
+                    isQuotaExceeded = true;
+                    quotaWarning.classList.remove('hidden');
+                    uploadArea.classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    isQuotaExceeded = false;
+                    quotaWarning.classList.add('hidden');
+                    uploadArea.classList.remove('opacity-50', 'pointer-events-none');
+                }
+            }
+        });
+
+        // 2. Setup Drag and Drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                if (!isQuotaExceeded) uploadArea.classList.add('bg-gray-700', 'border-blue-500');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('bg-gray-700', 'border-blue-500');
+            }, false);
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            if (isQuotaExceeded) return;
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', function() {
+            if (isQuotaExceeded) return;
+            handleFiles(this.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            const file = files[0]; // Process only the first file
+            
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert('A fájl mérete túl nagy! Maximum 10 MB engedélyezett.');
+                return;
+            }
+
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Csak PDF, JPG és PNG fájlok engedélyezettek.');
+                return;
+            }
+
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            // Generate unique filename to prevent overwrites
+            const timestamp = new Date().getTime();
+            const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileName = `${timestamp}_${safeFileName}`;
+            
+            // Storage Path matching rules: partners/{partnerId}/devices/{deviceId}/attached_documents/{filename}
+            const storagePath = `partners/${partnerId}/devices/${deviceId}/attached_documents/${fileName}`;
+            const storageRef = storage.ref().child(storagePath);
+            
+            const uploadTask = storageRef.put(file);
+
+            // Show Progress UI
+            progressContainer.classList.remove('hidden');
+            fileInput.disabled = true;
+
+            uploadTask.on(firebase.storage.TaskEvent.STATE_CHANGED, 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = Math.round(progress) + '%';
+                }, 
+                (error) => {
+                    console.error('Upload failed:', error);
+                    alert('Hiba a fájl feltöltése során: ' + error.message);
+                    resetUploadUI();
+                }, 
+                async () => {
+                    try {
+                        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                        
+                        // Reliable Username Resolution
+                        const createdByName = await getReliableUserName();
+                        
+                        // Save Metadata to Firestore
+                        await partnerStorageRef.collection('devices').doc(deviceId).collection('attached_documents').add({
+                            fileName: file.name,
+                            storagePath: storagePath,
+                            downloadUrl: downloadURL,
+                            sizeBytes: file.size,
+                            contentType: file.type,
+                            uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            uploadedBy: createdByName
+                        });
+                        
+                        resetUploadUI();
+                        // alert('Fájl sikeresen feltöltve!'); // Silent success, list updates automatically
+                        
+                    } catch (error) {
+                         console.error('Error saving document metadata:', error);
+                         alert('Hiba történt a dokumentum mentésekor.');
+                         resetUploadUI();
+                    }
+                }
+            );
+        }
+
+        function resetUploadUI() {
+            progressContainer.classList.add('hidden');
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            fileInput.value = ''; // Clear input
+            fileInput.disabled = false;
+        }
+
+        // Helper function for formatting bytes
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // 3. Render List (Realtime)
+        const docsUnsubscribe = partnerStorageRef.collection('devices')
+            .doc(deviceId)
+            .collection('attached_documents')
+            .orderBy('uploadedAt', 'desc')
+            .onSnapshot(async (snapshot) => {
+                const filesDocs = snapshot.docs;
+                const fileListContainer = document.getElementById('attachedDocumentsList');
+
+                if (filesDocs.length === 0) {
+                    fileListContainer.innerHTML = '<p class="text-gray-400 text-sm italic py-4 text-center">Nincsenek csatolt dokumentumok.</p>';
+                    return;
+                }
+
+                let htmlContent = '';
+                
+                // Determine current user name using our reliable async function
+                let currentUserNameToFix = await getReliableUserName();
+
+                for (const docSnap of filesDocs) {
+                    const data = docSnap.data();
+                    const docId = docSnap.id;
+                    
+                    // Retroactive Fix: Update existing documents that have 'Ismeretlen' or email
+                    if (data.uploadedBy === 'Ismeretlen' || (data.uploadedBy && data.uploadedBy.includes('@'))) {
+                        // Only fix if we actually have a valid name to put in
+                        if (currentUserNameToFix !== 'Ismeretlen' && !currentUserNameToFix.includes('@')) {
+                            console.log(`Auto-fixing uploadedBy for document ${docId}`);
+                            // We do this asynchronously without waiting, to not block UI rendering
+                            docSnap.ref.update({ uploadedBy: currentUserNameToFix }).catch(e => console.error("Auto-fix failed:", e));
+                            data.uploadedBy = currentUserNameToFix; // Update local display immediately
+                        }
+                    }
+
+                    const fileName = data.fileName || 'Ismeretlen fájl';
+                    const fileSize = data.sizeBytes ? formatBytes(data.sizeBytes) : 'Ismeretlen méret';
+                    const uploadedDateRaw = data.uploadedAt ? data.uploadedAt.toDate() : new Date();
+                    
+                    // Format Date to DD/MM/YYYY
+                    const dd = String(uploadedDateRaw.getDate()).padStart(2, '0');
+                    const mm = String(uploadedDateRaw.getMonth() + 1).padStart(2, '0'); 
+                    const yyyy = uploadedDateRaw.getFullYear();
+                    const formattedDate = `${dd}/${mm}/${yyyy}`;
+
+                    // Safe reading 'uploadedBy'
+                    const uploadedBy = data.uploadedBy || 'Ismeretlen';
+
+                    const downloadUrl = data.downloadUrl || '#';
+                    const storagePath = data.storagePath;
+
+                    // Ikon választás (PDF = piros, Kép = zöld/kék, Egyéb = szürke)
+                    let iconHtml = '<i class="fas fa-file text-gray-400 text-xl"></i>';
+                    if (data.contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+                         iconHtml = '<i class="fas fa-file-pdf text-red-500 text-xl"></i>';
+                    } else if (data.contentType?.startsWith('image/') || fileName.toLowerCase().match(/\.(jpg|jpeg|png)$/)) {
+                         iconHtml = '<i class="fas fa-file-image text-blue-400 text-xl"></i>';
+                    }
+                    
+                    htmlContent += `
+                        <div class="flex items-center justify-between p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-750 transition-colors">
+                            <div class="flex items-center gap-3 overflow-hidden">
+                                ${iconHtml}
+                                <div class="overflow-hidden">
+                                    <p class="text-white font-medium truncate" title="${fileName}">${fileName}</p>
+                                    <p class="text-xs text-gray-400">${fileSize} • ${formattedDate} • Feltöltötte: ${uploadedBy}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 ml-2">
+                                <a href="${downloadUrl}" target="_blank" class="btn btn-sm btn-info px-2 py-1 flex items-center justify-center" aria-label="Letöltés" title="Letöltés">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                ${isReadOnlyMode ? '' : `
+                                <button type="button" class="btn btn-sm btn-danger px-2 py-1 flex items-center justify-center delete-doc-btn" data-doc-id="${docId}" data-storage-path="${data.storagePath}" aria-label="Törlés" title="Törlés">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                docList.innerHTML = htmlContent;
+
+                // Attach Delete Listeners
+                const deleteBtns = docList.querySelectorAll('.delete-doc-btn');
+                deleteBtns.forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const docId = e.currentTarget.dataset.docId;
+                        const storagePath = e.currentTarget.dataset.storagePath;
+                        
+                        if (confirm('Biztosan törölni szeretné ezt a dokumentumot? A törlés nem visszavonható.')) {
+                            try {
+                                // 1. Törlés a Storage-ból
+                                const fileRef = storage.ref().child(storagePath);
+                                await fileRef.delete();
+                                
+                                // 2. Törlés a Firestore-ból
+                                await partnerStorageRef.collection('devices').doc(deviceId).collection('attached_documents').doc(docId).delete();
+                                
+                                // alert('Dokumentum sikeresen törölve.'); // Cloud function decreases quota naturally
+                            } catch (error) {
+                                console.error("Hiba a dokumentum törlésekor:", error);
+                                alert("Hiba történt a törlés során: " + error.message);
+                                
+                                // Check if it's a storage object not found error, still delete firestore doc if so
+                                if (error.code === 'storage/object-not-found') {
+                                    console.log("File missing in storage, cleaning up Firestore document anyway.");
+                                    partnerStorageRef.collection('devices').doc(deviceId).collection('attached_documents').doc(docId).delete().catch(console.error);
+                                }
+                            }
+                        }
+                    });
+                });
+            }, error => {
+                console.error("Error listening to documents:", error);
+            });
+
+        // Cleanup listener on page unload if needed, though browser handles it.
+        // window.addEventListener('beforeunload', () => { docsUnsubscribe(); quotaUnsubscribe(); });
+    }
+
 });

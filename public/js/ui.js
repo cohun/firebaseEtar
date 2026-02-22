@@ -1245,13 +1245,53 @@ export function showPartnerSelectionScreen(partners, userData) {
                 // This case should not be visible to ENY users due to how partners are fetched, but as a fallback.
                 statusHtml = '<p class="text-gray-500 font-bold mt-2">Nincs hozzáférés</p>';
             }
-            
-            // For ENY users, usually they ARE the admin or they are pending.
-            // If they are admin, hasActiveAdmin is true.
-            // If they are pending, isPending handles it.
-            // But if they are a 'read' user and the admin left? 
-            // The request focused on "No admin at all" -> pending creation state.
         }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 MB';
+            const mb = bytes / (1024 * 1024);
+            return mb.toFixed(1) + ' MB';
+        }
+
+        // Always show storage info. If undefined, default to Free/50MB.
+        const currentTier = partner.storageTier || 'Free';
+        const currentUsed = partner.storageUsedBytes || 0;
+        const currentLimit = partner.storageLimitBytes || 52428800; // 50MB
+        const currentRenewalUrl = partner.storageRenewalDate ? new Date(partner.storageRenewalDate).toLocaleDateString() : 'N/A';
+        const partnerNameEscaped = partner.name.replace(/'/g, "\\'");
+
+        let warningClass = '';
+        if (currentUsed >= currentLimit) {
+            warningClass = 'text-red-400 font-bold';
+        }
+
+        let renewalColorClass = 'text-white';
+        if (partner.storageRenewalDate) {
+            const renewalDate = new Date(partner.storageRenewalDate);
+            const now = new Date();
+            const daysUntilRenewal = (renewalDate - now) / (1000 * 60 * 60 * 24);
+
+            if (daysUntilRenewal < 0) {
+                renewalColorClass = 'text-red-400 font-bold'; // Expired
+                
+                // If expired, maybe we should also enforce 'Free' tier here visually?
+                // For now just highlight in red as requested.
+            } else if (daysUntilRenewal <= 30) {
+                renewalColorClass = 'text-yellow-400 font-bold'; // Expires soon
+            }
+        }
+
+        const tierHtml = `
+            <div class="mt-4 pt-4 border-t border-gray-700/50 flex flex-col md:flex-row justify-between items-start md:items-center">
+                 <div class="text-sm">
+                     <p class="text-gray-400 mb-1"><i class="fas fa-server mr-2"></i>Tárhely: <span class="text-white font-medium">${currentTier}</span></p>
+                     <p class="text-gray-400"><i class="fas fa-hdd mr-2"></i>Felhasználva: <span class="${warningClass}">${formatBytes(currentUsed)} / ${formatBytes(currentLimit)}</span></p>
+                 </div>
+                 <div class="text-sm mt-2 md:mt-0 md:text-right">
+                     <p class="text-gray-400 mb-1"><i class="far fa-calendar-alt mr-2"></i>Érvényesség: <span class="${renewalColorClass}">${currentRenewalUrl}</span></p>
+                     ${isEjkUser ? `<button type="button" class="btn btn-sm bg-blue-600 hover:bg-blue-500 text-white mt-1 px-3 py-1 text-xs z-10 relative" onclick="openStorageLimitModal('${partner.id}', '${partnerNameEscaped}', '${currentTier}', ${currentLimit}, '${partner.storageRenewalDate || ''}')"><i class="fas fa-edit mr-1"></i> Kvóta szerkesztése</button>` : ''}
+                 </div>
+            </div>`;
 
         cardClasses = isClickable
             ? 'p-4 border border-blue-800 rounded-lg mb-4 cursor-pointer hover:bg-blue-900/50 transition-colors'
@@ -1259,10 +1299,15 @@ export function showPartnerSelectionScreen(partners, userData) {
 
         return `
         <div class="${cardClasses}" ${isClickable ? `data-partner-id="${partner.id}"` : ''}>
-            <h3 class="text-xl font-bold ${nameColorClass}">${partner.name}</h3>
-            <p class="text-gray-300">${partner.address}</p>
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-xl font-bold ${nameColorClass}">${partner.name}</h3>
+                    <p class="text-gray-300">${partner.address}</p>
+                </div>
+            </div>
             ${etarCodeHtml}
             ${statusHtml}
+            ${tierHtml}
         </div>
     `}).join('');
 
@@ -1392,6 +1437,92 @@ export function hideLoadingModal() {
     if (modal) {
         modal.remove();
     }
+}
+
+// --- Storage Quota Management (EJK Admin) ---
+window.openStorageLimitModal = function(partnerId, partnerName, currentTier, currentLimit, currentRenewal) {
+    let parsedDate = '';
+    if (currentRenewal && currentRenewal !== 'N/A') {
+        parsedDate = currentRenewal.split('T')[0];
+    }
+    
+    const tiers = [
+        { name: 'Free', limit: 52428800 },         // 50 MB
+        { name: 'Standard', limit: 1073741824 },   // 1 GB
+        { name: 'Enterprise', limit: 10737418240 } // 10 GB
+    ];
+
+    let modal = document.getElementById('storage-limit-modal');
+    if (!modal) {
+        const modalHtml = `
+            <div id="storage-limit-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                <div class="bg-gray-800 rounded-lg shadow-xl p-6 max-w-lg w-full">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-white">Kvóta Módosítása</h2>
+                        <button id="close-storage-modal" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <p class="text-gray-400 mb-4" id="storage-partner-name"></p>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Tárhely Csomag</label>
+                        <select id="storage-tier-select" class="input-field w-full bg-gray-700 border-gray-600">
+                            <!-- Options injected by JS -->
+                        </select>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Érvényesség (Megújítás ideje)</label>
+                        <input type="date" id="storage-renewal-date" class="input-field w-full bg-gray-700 border-gray-600">
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t border-gray-700">
+                         <button id="close-storage-modal-btn" class="btn btn-secondary">Mégse</button>
+                         <button id="save-storage-btn" class="btn btn-primary">Mentés</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('storage-limit-modal');
+    
+        document.getElementById('close-storage-modal').onclick = () => modal.style.display = 'none';
+        document.getElementById('close-storage-modal-btn').onclick = () => modal.style.display = 'none';
+    }
+
+    document.getElementById('storage-partner-name').textContent = partnerName;
+    const tierSelect = document.getElementById('storage-tier-select');
+    tierSelect.innerHTML = tiers.map(t => `<option value="${t.name}|${t.limit}" ${t.name === currentTier ? 'selected' : ''}>${t.name} (${t.limit / (1024*1024)} MB)</option>`).join('');
+    document.getElementById('storage-renewal-date').value = parsedDate;
+
+    modal.style.display = 'flex';
+
+    document.getElementById('save-storage-btn').onclick = async () => {
+        const selectedValue = tierSelect.value.split('|');
+        const newTier = selectedValue[0];
+        const newLimitBytes = parseInt(selectedValue[1], 10);
+        let newRenewal = document.getElementById('storage-renewal-date').value;
+        
+        if (newRenewal) {
+            newRenewal = new Date(newRenewal).toISOString();
+        }
+
+        showLoadingModal('Kvóta mentése...');
+        try {
+            await db.collection('partners').doc(partnerId).update({
+                storageTier: newTier,
+                storageLimitBytes: newLimitBytes,
+                storageRenewalDate: newRenewal
+            });
+            hideLoadingModal();
+            modal.style.display = 'none';
+            // Reload to reflect changes
+            window.location.reload(); 
+        } catch (error) {
+            hideLoadingModal();
+            console.error(error);
+            alert('Hiba történt a mentés során.');
+        }
+    };
 }
 
 import { saveInspectorPartners } from './admin.js';
