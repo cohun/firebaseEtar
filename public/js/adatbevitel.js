@@ -369,6 +369,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // UPDATE existing device
             deviceData.lastModifiedAt = firebase.firestore.FieldValue.serverTimestamp();
             deviceData.lastModifiedBy = createdByName;
+            
+            // PREVENT overwriting vital data during simple edits!
+            delete deviceData.status;
+            delete deviceData.comment;
 
             console.log("Updating device in Firestore:", JSON.stringify(deviceData, null, 2));
 

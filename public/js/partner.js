@@ -383,7 +383,9 @@ export function initPartnerWorkScreen(partner, userData) {
         sessionStorage.setItem('editDeviceId', deviceId);
         sessionStorage.setItem('partnerIdForEdit', partnerId);
         sessionStorage.setItem('currentOperatorCategory', currentOperatorCategory);
-        window.location.href = 'adatbevitel.html';
+        
+        // Anti-cache: we append a timestamp to the HTML file so the browser is forced to download the newest HTML and JS!
+        window.location.href = 'adatbevitel.html?cb=' + new Date().getTime();
     };
 
     // --- SCREEN MANAGEMENT ---
