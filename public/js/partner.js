@@ -2663,14 +2663,25 @@ export function initPartnerWorkScreen(partner, userData) {
         // Setup close button to stop scanner and hide modal
         modalCloseBtn.onclick = () => {
             if (window.html5QrCode) {
-                window.html5QrCode.stop().then(() => {
-                    window.html5QrCode.clear();
-                    delete window.html5QrCode;
+                // Check if scanning to avoid errors on stop
+                try {
+                    if (window.html5QrCode.getState && window.html5QrCode.getState() === 2 /* SCANNING */ || window.html5QrCode.isScanning) {
+                        window.html5QrCode.stop().then(() => {
+                            window.html5QrCode.clear();
+                            delete window.html5QrCode;
+                            modal.style.display = 'none';
+                        }).catch(err => {
+                            console.error("Failed to stop QR scanner", err);
+                            modal.style.display = 'none';
+                        });
+                    } else {
+                        window.html5QrCode.clear();
+                        delete window.html5QrCode;
+                        modal.style.display = 'none';
+                    }
+                } catch(e) {
                     modal.style.display = 'none';
-                }).catch(err => {
-                    console.error("Failed to stop QR scanner", err);
-                    modal.style.display = 'none';
-                });
+                }
             } else {
                 modal.style.display = 'none';
             }
@@ -2679,12 +2690,51 @@ export function initPartnerWorkScreen(partner, userData) {
         modalTitle.textContent = 'QR-kód beolvasás';
         modalBody.innerHTML = `
             <div id="qr-reader" style="width: 100%;"></div>
+            <div id="camera-controls" style="display: none; justify-content: center; margin-top: 15px;">
+                <button id="switch-camera-btn" type="button" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none flex items-center gap-2">
+                    <i class="fas fa-camera-rotate"></i> Kamera váltás, ha életlen
+                </button>
+            </div>
             <p class="text-sm text-gray-400 mt-2 text-center">Mutassa a QR-kódot a kamerának.</p>
         `;
 
         try {
+            let devices = [];
+            try {
+                devices = await Html5Qrcode.getCameras();
+            } catch (err) {
+                console.warn("Nem sikerült lekérdezni a kamerákat.", err);
+            }
+
+            let backCameras = [];
+            let currentCameraIndex = 0;
+
+            if (devices && devices.length > 0) {
+                // Filter for back cameras
+                backCameras = devices.filter(d => 
+                    d.label.toLowerCase().includes('back') || 
+                    d.label.toLowerCase().includes('environment') ||
+                    d.label.toLowerCase().includes('hát')
+                );
+
+                if (backCameras.length === 0) {
+                    backCameras = devices; 
+                } else if (backCameras.length > 1) {
+                    // Try to avoid "ultra wide" or "telephoto" initially
+                    const idealBackCameras = backCameras.filter(d => {
+                        const label = d.label.toLowerCase();
+                        return !label.includes('ultra') && !label.includes('tele');
+                    });
+
+                    if (idealBackCameras.length > 0) {
+                        const idealId = idealBackCameras[0].id;
+                        backCameras.sort((a, b) => a.id === idealId ? -1 : (b.id === idealId ? 1 : 0));
+                    }
+                }
+            }
+
             const html5QrCode = new Html5Qrcode("qr-reader");
-            window.html5QrCode = html5QrCode; // Store globally to stop it later
+            window.html5QrCode = html5QrCode;
 
             const config = { 
                 fps: 15, 
@@ -2694,27 +2744,68 @@ export function initPartnerWorkScreen(partner, userData) {
                 }
             };
             
-            await html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText, decodedResult) => {
-                    // Handle on success condition with the decoded message.
-                    console.log(`QR Code scanned: ${decodedText}`, decodedResult);
-                    
-                    // Stop scanning
-                    html5QrCode.stop().then(() => {
-                        window.html5QrCode.clear();
-                        delete window.html5QrCode;
-                        handleScanResult(decodedText, 'QR');
-                    }).catch(err => {
-                        console.error("Failed to stop QR scanner", err);
-                        handleScanResult(decodedText, 'QR');
-                    });
-                },
-                (errorMessage) => {
-                    // parse error, ignore it.
+            const startCamera = async (cameraIdOrOptions) => {
+                if (html5QrCode.isScanning || (html5QrCode.getState && html5QrCode.getState() === 2)) {
+                    await html5QrCode.stop();
                 }
-            );
+                
+                await html5QrCode.start(
+                    cameraIdOrOptions,
+                    config,
+                    (decodedText, decodedResult) => {
+                        console.log(`QR Code scanned: ${decodedText}`, decodedResult);
+                        try {
+                            html5QrCode.stop().then(() => {
+                                html5QrCode.clear();
+                                delete window.html5QrCode;
+                                handleScanResult(decodedText, 'QR');
+                            }).catch(err => {
+                                console.error("Failed to stop QR scanner", err);
+                                handleScanResult(decodedText, 'QR');
+                            });
+                        } catch(e) {
+                            handleScanResult(decodedText, 'QR');
+                        }
+                    },
+                    (errorMessage) => {
+                        // parse error, ignore it.
+                    }
+                );
+            };
+
+            // Setup camera switching if there are multiple back cameras
+            if (backCameras.length > 1) {
+                const switchBtnContainer = document.getElementById('camera-controls');
+                const switchBtn = document.getElementById('switch-camera-btn');
+                switchBtnContainer.style.display = 'flex';
+                
+                switchBtn.onclick = async () => {
+                    currentCameraIndex = (currentCameraIndex + 1) % backCameras.length;
+                    const nextCamera = backCameras[currentCameraIndex];
+                    
+                    const originalText = switchBtn.innerHTML;
+                    switchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Váltás...';
+                    switchBtn.disabled = true;
+                    
+                    try {
+                        await startCamera(nextCamera.id);
+                    } catch (e) {
+                        alert("Nem sikerült átváltani erre a kamerára.");
+                        console.error("Camera switch error", e);
+                    } finally {
+                        switchBtn.innerHTML = originalText;
+                        switchBtn.disabled = false;
+                    }
+                };
+            }
+
+            // Start QR Scanner
+            if (backCameras.length > 0) {
+                await startCamera(backCameras[0].id);
+            } else {
+                await startCamera({ facingMode: "environment" });
+            }
+
         } catch (err) {
             console.error("Error starting QR scanner", err);
             modalBody.innerHTML = `<p class="text-red-400">Nem sikerült elindítani a kamerát. ${err}</p>`;
