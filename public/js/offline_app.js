@@ -78,7 +78,8 @@ async function renderDeviceList(searchTerm = '') {
             (d.serialNumber && d.serialNumber.toLowerCase().includes(lowerTerm)) || 
             (d.id && d.id.toLowerCase().includes(lowerTerm)) ||
             (d.description && d.description.toLowerCase().includes(lowerTerm)) ||
-            (d.operatorId && String(d.operatorId).toLowerCase().includes(lowerTerm))
+            (d.operatorId && String(d.operatorId).toLowerCase().includes(lowerTerm)) ||
+            (d.chip && d.chip.toLowerCase().includes(lowerTerm))
         );
     }
 
