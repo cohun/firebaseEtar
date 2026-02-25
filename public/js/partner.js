@@ -4222,19 +4222,68 @@ export function initPartnerWorkScreen(partner, userData) {
                     logMessage('Helyi adatbázis előkészítve.');
                     updateProgress(20, 'Eszközök letöltése...');
 
-                    // 2. Fetch Devices
+                    // 2. Fetch Devices & Latest Inspections for Cache
                     const devicesSnapshot = await db.collection('partners').doc(partnerId).collection('devices')
                         .where('comment', '==', 'active')
                         .get();
                     
                     const devicesDbObj = [];
-                    devicesSnapshot.forEach(doc => {
-                        devicesDbObj.push({ id: doc.id, ...doc.data() });
-                    });
+                    const urlsToCache = [];
+                    let processedDevices = 0;
+                    const totalDevices = devicesSnapshot.size;
+
+                    for (const doc of devicesSnapshot.docs) {
+                        const deviceData = doc.data();
+                        
+                        // Let's fetch the latest finalized inspection for this device to get the docUrl
+                        try {
+                            const allInspSnapshot = await db.collection('partners').doc(partnerId).collection('devices').doc(doc.id).collection('inspections').get();
+                            
+                            const finalizedInsps = allInspSnapshot.docs
+                                .map(d => d.data())
+                                .filter(d => d.status && d.status !== 'draft')
+                                .sort((a, b) => {
+                                    const dateA = a.vizsgalatIdopontja ? new Date(a.vizsgalatIdopontja).getTime() : 0;
+                                    const dateB = b.vizsgalatIdopontja ? new Date(b.vizsgalatIdopontja).getTime() : 0;
+                                    return dateB - dateA;
+                                });
+
+                            if (finalizedInsps.length > 0) {
+                                const latestInsp = finalizedInsps[0];
+                                const validUrl = latestInsp.finalizedFileUrl || latestInsp.fileUrl || latestInsp.downloadUrl || latestInsp.docUrl || latestInsp.pdfUrl;
+                                
+                                if (validUrl) {
+                                    deviceData.docUrl = validUrl;
+                                    urlsToCache.push(validUrl);
+                                }
+                            }
+                        } catch (inspError) {
+                            console.warn(`Nem sikerült betölteni az ellenőrzéseket a(z) ${doc.id} eszközhöz`, inspError);
+                        }
+
+                        devicesDbObj.push({ id: doc.id, ...deviceData });
+                        
+                        processedDevices++;
+                        if (processedDevices % 10 === 0 || processedDevices === totalDevices) {
+                             updateProgress(20 + Math.floor((processedDevices/totalDevices)*30), `Eszközök letöltése... ${processedDevices}/${totalDevices}`);
+                        }
+                    }
                     
                     if(devicesDbObj.length > 0) {
                         await offlineDb.devices.bulkAdd(devicesDbObj);
                         logMessage(`${devicesDbObj.length} db aktív eszköz sikeresen elmentve.`);
+                        
+                        if (urlsToCache.length > 0) {
+                            logMessage(`${urlsToCache.length} db kapcsolódó dokumentum cache-elése megkezdődött...`);
+                            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                                navigator.serviceWorker.controller.postMessage({
+                                  type: 'CACHE_URLS',
+                                  urls: urlsToCache
+                                });
+                            } else {
+                                logMessage('Service Worker nem elérhető, a dokumentumok nem kerültek a gyorsítótárba.', true);
+                            }
+                        }
                     } else {
                         logMessage('Nem található aktív eszköz ehhez a partnerhez.');
                     }
@@ -6122,7 +6171,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 </div>
                  <!-- Desktop Menu -->
                 <nav class="hidden xl:flex items-center gap-2 flex-nowrap">
-                    <button id="prepare-offline-btn" class="hidden menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2 bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
+                    <button id="prepare-offline-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2 bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
                     <button id="download-db-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2"><i class="fas fa-download fa-fw"></i>Adatbázis</button>
                     ${uploadButtonHtml.replace('w-full text-left', '').replace('Új eszköz feltöltés', 'Feltöltés').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
                     ${newInspectionButtonHtml.replace('Új vizsgálat', 'Új vizsgálat').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
@@ -6133,7 +6182,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             </div>
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
-                <button id="prepare-offline-btn-mobile" class="hidden menu-btn menu-btn-primary w-full text-left bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
+                <button id="prepare-offline-btn-mobile" class="menu-btn menu-btn-primary w-full text-left bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
                 <button id="download-db-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
                 ${uploadButtonHtml.replace('id="uploadDeviceBtn"', 'id="uploadDeviceBtnMobile"')}
                 ${newInspectionButtonHtmlMobile}

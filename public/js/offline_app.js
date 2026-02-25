@@ -40,9 +40,16 @@ async function loadInitialData() {
         document.getElementById('partnerNameDisplay').textContent = meta.partnerName || "Ismeretlen Partner";
         
         // Szerepkör alapú UI módosítás
-        if (currentUserRole === 'ejk_admin' || currentUserRole === 'admin' || currentUserRole === 'writer') {
+        const isEjk = currentUserRole === 'ejk_admin' || currentUserRole === 'admin' || currentUserRole === 'writer';
+        if (isEjk) {
             document.getElementById('ejkTabs').classList.remove('hidden');
             updateDraftCounter();
+        } else {
+            // Új eszköz gomb elrejtése ENY számára
+            const btnAddNewDevice = document.getElementById('btnAddNewDevice');
+            if (btnAddNewDevice) {
+                btnAddNewDevice.classList.add('hidden');
+            }
         }
 
         // Eszközök betöltése
@@ -141,7 +148,7 @@ async function renderDeviceList(searchTerm = '') {
                         `<button class="btn-inspect text-green-400 hover:text-green-300 text-sm font-medium px-2 py-1"><i class="fa-solid fa-check-circle mr-1"></i> Vizsgálat kész</button>`
                         : `<button class="btn-inspect text-blue-400 hover:text-blue-300 text-sm font-medium px-2 py-1"><i class="fa-solid fa-clipboard-check mr-1"></i> Vizsgálat</button>`
                     ) : ''}
-                ${isEjk ? `<button class="btn-edit-device text-yellow-400 hover:text-yellow-300 text-sm font-medium px-2 py-1 ml-auto"><i class="fa-solid fa-pen mr-1"></i> Szerkesztés</button>` : `<button class="text-slate-300 hover:text-white text-sm px-2 py-1 ml-auto"><i class="fa-solid fa-circle-info mr-1"></i> Részletek</button>`}
+                ${isEjk ? `<button class="btn-edit-device text-yellow-400 hover:text-yellow-300 text-sm font-medium px-2 py-1 ml-auto"><i class="fa-solid fa-pen mr-1"></i> Szerkesztés</button>` : `<button class="btn-details text-slate-300 hover:text-white text-sm px-2 py-1 ml-auto"><i class="fa-solid fa-circle-info mr-1"></i> Részletek</button>`}
             </div>
         `;
 
@@ -161,9 +168,17 @@ async function renderDeviceList(searchTerm = '') {
             });
         }
 
+        const detailsBtn = card.querySelector('.btn-details');
+        if (detailsBtn) {
+            detailsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openDeviceDetailsModal(device);
+            });
+        }
+
         // Kártya kattintás
         card.addEventListener('click', () => {
-            if(!isEjk) alert("Eszköz részletek fejlesztés alatt: " + device.description);
+            if(!isEjk) openDeviceDetailsModal(device);
         });
 
         container.appendChild(card);
@@ -294,6 +309,7 @@ function closeAllModals() {
     document.getElementById('offlineHeaderModal').classList.add('hidden');
     document.getElementById('offlineInspectionModal').classList.add('hidden');
     document.getElementById('offlineDeviceModal').classList.add('hidden');
+    document.getElementById('offlineDeviceDetailsModal').classList.add('hidden');
 }
 
 function openDeviceModal(device = null) {
@@ -324,6 +340,41 @@ function openDeviceModal(device = null) {
     document.getElementById('offlineDeviceModal').classList.remove('hidden');
 }
 
+function openDeviceDetailsModal(device) {
+    if (!device) return;
+
+    document.getElementById('detailDeviceName').textContent = device.description || 'N/A';
+    document.getElementById('detailDeviceSerial').textContent = device.serialNumber || 'N/A';
+    document.getElementById('detailDeviceType').textContent = device.type || 'N/A';
+    document.getElementById('detailDeviceManufacturer').textContent = device.manufacturer || 'N/A';
+    document.getElementById('detailDeviceLength').textContent = device.effectiveLength || 'N/A';
+    document.getElementById('detailDeviceYear').textContent = device.yearOfManufacture || 'N/A';
+    document.getElementById('detailDeviceWLL').textContent = device.loadCapacity || 'N/A';
+    document.getElementById('detailDeviceOperatorId').textContent = device.operatorId || 'N/A';
+
+    const docsContainer = document.getElementById('detailDocumentsContainer');
+    docsContainer.innerHTML = ''; // Alaphelyzet
+
+    // Gomb létrehozása, ami megnyitja a letöltött jegyzőkönyvet
+    // Most már a ServiceWorker elmentette a docUrl-t vagy pdfUrl-t
+    if (device.docUrl || device.pdfUrl) {
+        const btn = document.createElement('a');
+        btn.href = device.pdfUrl || device.docUrl;
+        btn.target = "_blank";
+        btn.className = "px-4 py-2 bg-blue-600/20 text-blue-400 border border-blue-500/50 hover:bg-blue-600/40 rounded-lg text-sm transition-colors flex items-center";
+        btn.innerHTML = `<i class="fa-solid fa-file-pdf mr-2"></i> Jegyzőkönyv megnyitása`;
+        
+        docsContainer.appendChild(btn);
+    } else {
+        const noDocMsg = document.createElement('span');
+        noDocMsg.className = "text-sm text-slate-500 italic flex items-center h-full";
+        noDocMsg.innerHTML = "Nincs lementett vizsgálati jegyzőkönyv az eszközhöz.";
+        docsContainer.appendChild(noDocMsg);
+    }
+
+    document.getElementById('offlineDeviceDetailsModal').classList.remove('hidden');
+}
+
 function setupEventListeners() {
     // Header Modal events
     document.getElementById('closeHeaderModalBtn').addEventListener('click', closeAllModals);
@@ -352,6 +403,12 @@ function setupEventListeners() {
     // Device Modal events
     document.getElementById('closeDeviceModalBtn').addEventListener('click', closeAllModals);
     document.getElementById('cancelDeviceBtn').addEventListener('click', closeAllModals);
+    
+    // Details Modal events
+    const closeDetailsBtn1 = document.getElementById('closeDeviceDetailsModalBtn');
+    if (closeDetailsBtn1) closeDetailsBtn1.addEventListener('click', closeAllModals);
+    const closeDetailsBtn2 = document.getElementById('closeDetailsBtn');
+    if (closeDetailsBtn2) closeDetailsBtn2.addEventListener('click', closeAllModals);
     
     const btnAddNewDevice = document.getElementById('btnAddNewDevice');
     if(btnAddNewDevice) btnAddNewDevice.addEventListener('click', () => openDeviceModal(null));
@@ -549,4 +606,257 @@ function setupEventListeners() {
             }
         });
     });
+
+    // --- QR és NFC Keresés Gombok ---
+    const btnScanQr = document.getElementById('btnScanQr');
+    const btnScanNfc = document.getElementById('btnScanNfc');
+    
+    if (btnScanQr) btnScanQr.addEventListener('click', startQRScanner);
+    if (btnScanNfc) btnScanNfc.addEventListener('click', startNFCReader);
+} // Close setupEventListeners
+
+// === Kereső és Beolvasó Logika ===
+
+async function handleScanResult(searchValue, source = 'Kereső') {
+    const modal = document.getElementById('nfc-modal');
+    modal.classList.add('hidden');
+    
+    if (!searchValue) return;
+    
+    console.log(`[Offline ${source}] Read value: ${searchValue}`);
+    
+    // Auto put into search input and trigger search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = searchValue;
+        // Trigger the input event to perform search filter on list
+        searchInput.dispatchEvent(new Event('input'));
+    }
+}
+
+async function startQRScanner() {
+    const modal = document.getElementById('nfc-modal');
+    const modalBody = document.getElementById('nfc-modal-body');
+    const modalTitle = document.getElementById('nfc-modal-title');
+    const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+    
+    modal.classList.remove('hidden');
+    
+    modalCloseBtn.onclick = () => {
+        if (window.html5QrCode) {
+            try {
+                if ((window.html5QrCode.getState && window.html5QrCode.getState() === 2) || window.html5QrCode.isScanning) {
+                    window.html5QrCode.stop().then(() => {
+                        window.html5QrCode.clear();
+                        delete window.html5QrCode;
+                        modal.classList.add('hidden');
+                    }).catch(err => {
+                        modal.classList.add('hidden');
+                    });
+                } else {
+                    window.html5QrCode.clear();
+                    delete window.html5QrCode;
+                    modal.classList.add('hidden');
+                }
+            } catch(e) {
+                modal.classList.add('hidden');
+            }
+        } else {
+            modal.classList.add('hidden');
+        }
+    };
+
+    modalTitle.textContent = 'QR-kód beolvasás';
+    modalBody.innerHTML = `
+        <div id="qr-reader" style="width: 100%;"></div>
+        <div id="camera-controls" style="display: none; justify-content: center; margin-top: 15px;">
+            <button id="switch-camera-btn" type="button" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none flex items-center gap-2">
+                <i class="fa-solid fa-camera-rotate"></i> Kamera váltás, ha életlen
+            </button>
+        </div>
+        <p class="text-sm text-slate-400 mt-4 text-center">Mutassa a QR-kódot a kamerának.</p>
+    `;
+
+    try {
+        let devices = [];
+        if(typeof Html5Qrcode === 'undefined') {
+            modalBody.innerHTML = `<div class="text-red-400 p-4 text-center">Az offline vonalkód olvasó könyvtár nem töltődött be.<br/>Kérjük ellenőrizze az internetkapcsolatot az első letöltés során.</div>`;
+            return;
+        }
+
+        try {
+            devices = await Html5Qrcode.getCameras();
+        } catch (err) {
+            console.warn("Nem sikerült lekérdezni a kamerákat.", err);
+        }
+
+        let backCameras = [];
+        let currentCameraIndex = 0;
+        
+        if (devices && devices.length > 0) {
+            backCameras = devices.filter(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('hát') || c.label.toLowerCase().includes('működő'));
+            if (backCameras.length === 0) backCameras = devices; 
+        }
+
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        window.html5QrCode = html5QrCode;
+
+        const startCamera = async (cameraId) => {
+            if (html5QrCode.isScanning || (html5QrCode.getState && html5QrCode.getState() === 2)) {
+                await html5QrCode.stop();
+            }
+            try {
+                await html5QrCode.start(
+                    cameraId,
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText, decodedResult) => {
+                        console.log(`Olvasható QR-kód: ${decodedText}`);
+                        
+                        if (html5QrCode.isScanning || (html5QrCode.getState && html5QrCode.getState() === 2)) {
+                            html5QrCode.stop().then(() => {
+                                html5QrCode.clear();
+                                delete window.html5QrCode;
+                                handleScanResult(decodedText, 'QR-Kamera');
+                            }).catch(err => {
+                                console.error("Megállítási hiba:", err);
+                                handleScanResult(decodedText, 'QR-Kamera');
+                            });
+                        }
+                    },
+                    (errorMessage) => { } 
+                );
+            } catch (err) {
+                console.warn(`Nem sikerült elindítani a kamerát (${cameraId}):`, err);
+            }
+        };
+
+        if (devices && devices.length > 0) {
+            startCamera(backCameras[currentCameraIndex].id);
+            
+            if (backCameras.length > 1) {
+                const controls = document.getElementById('camera-controls');
+                if (controls) controls.style.display = 'flex';
+                document.getElementById('switch-camera-btn').onclick = () => {
+                    currentCameraIndex = (currentCameraIndex + 1) % backCameras.length;
+                    startCamera(backCameras[currentCameraIndex].id);
+                };
+            }
+        } else {
+            console.warn("Nincs elérhető kamera, az 'environment' móddal próbálkozom.");
+            await html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText) => {
+                    if (html5QrCode.isScanning || (html5QrCode.getState && html5QrCode.getState() === 2)) {
+                        html5QrCode.stop().then(() => {
+                            html5QrCode.clear();
+                            delete window.html5QrCode;
+                            handleScanResult(decodedText, 'QR-Kamera');
+                        });
+                    }
+                },
+                (errorMessage) => { }
+            );
+        }
+    } catch (err) {
+        console.error("Hiba a QR olvasó inicializálásakor:", err);
+        modalBody.innerHTML = `<div class="p-4 bg-red-900/50 border border-red-500 rounded text-red-200">
+            <p class="font-bold">Hiba történt a kamera indításakor.</p>
+            <p class="text-sm mt-2">${err}</p>
+        </div>`;
+    }
+}
+
+async function startNFCReader() {
+    const modal = document.getElementById('nfc-modal');
+    const modalTitle = document.getElementById('nfc-modal-title');
+    const modalBody = document.getElementById('nfc-modal-body');
+    const modalCloseBtn = document.getElementById('nfc-modal-close-btn');
+
+    modalTitle.textContent = 'NFC Chip Olvasása';
+    modal.classList.remove('hidden');
+    
+    let isWebNfcSupported = 'NDEFReader' in window;
+    
+    modalBody.innerHTML = `
+        <div class="text-center w-full">
+            <div class="mb-6 relative flex justify-center">
+                <div class="absolute w-24 h-24 bg-blue-500 rounded-full opacity-20 animate-ping"></div>
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center relative z-10 shadow-lg shadow-blue-500/50">
+                    <i class="fa-solid fa-wifi text-white text-2xl transform rotate-45"></i>
+                </div>
+            </div>
+            <p class="text-base text-slate-300 font-medium mb-2">Tartsa az NFC eszközt vagy chipet a telefon hátlapjához...</p>
+            ${!isWebNfcSupported ? '<p class="text-xs text-slate-500 mt-4">(Vagy használja a csatlakoztatott USB/Bluetooth olvasót)</p>' : ''}
+            
+            <!-- USB Reader Emulátor Input Hidden -->
+            <input type="text" id="nfc-usb-input" style="opacity: 0; position: absolute; pointer-events: none;" autocomplete="off">
+        </div>
+    `;
+
+    // 1. Setup Keyboard / USB reader emulation input
+    const usbInput = document.getElementById('nfc-usb-input');
+    
+    // Focus loop
+    let focusInterval = setInterval(() => {
+        if(document.activeElement !== usbInput && modal.classList.contains('hidden') === false) {
+             usbInput.focus({preventScroll: true});
+        }
+    }, 500);
+
+    usbInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = this.value.trim();
+            if (val) {
+                console.log("[Offline] NFC USB Input detected:", val);
+                clearInterval(focusInterval);
+                cleanup();
+                handleScanResult(val, 'NFC-Olvasó');
+            }
+            this.value = '';
+        }
+    });
+
+    let ndefReader = null;
+    let nfcController = null;
+
+    const cleanup = () => {
+        clearInterval(focusInterval);
+        if (nfcController) {
+             nfcController.abort();
+             console.log("[Offline] Web NFC Scan aborted.");
+        }
+        modal.classList.add('hidden');
+    };
+
+    modalCloseBtn.onclick = cleanup;
+
+    // 2. Setup Web NFC for Android
+    if (isWebNfcSupported) {
+        try {
+             ndefReader = new NDEFReader();
+             nfcController = new AbortController();
+             const signal = nfcController.signal;
+
+             await ndefReader.scan({ signal });
+             console.log("[Offline] Web NFC scan started.");
+
+             ndefReader.onreadingerror = () => {
+                 console.log("[Offline] Cannot read NFC Tag.");
+             };
+
+             ndefReader.onreading = event => {
+                 const serialNumber = event.serialNumber;
+                 console.log(`[Offline] Web NFC Tag read: ${serialNumber}`);
+                 cleanup();
+                 handleScanResult(serialNumber, 'NFC-Készülék');
+             };
+
+        } catch (error) {
+             console.warn(`[Offline] Web NFC init failed: ${error.name} - ${error.message}`);
+        }
+    } else {
+         console.log("[Offline] Web NFC not supported. Waiting for USB input...");
+    }
 }
