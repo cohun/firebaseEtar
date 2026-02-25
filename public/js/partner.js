@@ -2268,6 +2268,200 @@ export function initPartnerWorkScreen(partner, userData) {
         }
     }
 
+    window.showQrMenu = function(event, deviceId, serialNumber, finalizedFileUrl) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        let menu = document.getElementById('qr-context-menu');
+        if (!menu) {
+            menu = document.createElement('div');
+            menu.id = 'qr-context-menu';
+            menu.className = 'absolute bg-gray-800 border border-gray-600 rounded shadow-lg z-50 py-1 flex flex-col min-w-[170px]';
+            document.body.appendChild(menu);
+            
+            document.addEventListener('click', (e) => {
+                const qrMenu = document.getElementById('qr-context-menu');
+                if (qrMenu && !qrMenu.contains(e.target)) {
+                    qrMenu.style.display = 'none';
+                }
+            });
+        }
+
+        const safeUrl = finalizedFileUrl ? `'${finalizedFileUrl}'` : 'null';
+        
+        menu.innerHTML = `
+            <button onclick="window.closeQrMenu(); if(${safeUrl}) { window.open(${safeUrl}, '_blank', 'noopener,noreferrer'); } else { window.openSingleReport(event, '${deviceId}', '${serialNumber}'); }" class="text-left px-4 py-3 text-sm text-blue-300 hover:bg-gray-700 w-full transition-colors font-semibold flex items-center">
+                <i class="fas fa-eye w-5 text-center mr-2"></i> Megtekintés
+            </button>
+            <button onclick="window.closeQrMenu(); window.openPdfUploadModal('${deviceId}', '${serialNumber}')" class="text-left px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 hover:text-white w-full transition-colors border-t border-gray-700 flex items-center">
+                <i class="fas fa-file-upload w-5 text-center mr-2"></i> Új PDF feltöltés
+            </button>
+        `;
+
+        menu.style.display = 'block';
+        
+        // Calculate menu position
+        let x = event.pageX;
+        let y = event.pageY;
+        
+        const rect = menu.getBoundingClientRect();
+        if (x + rect.width > window.innerWidth) {
+            x -= rect.width;
+        }
+        if (y + rect.height > document.documentElement.scrollHeight) {
+            y -= rect.height;
+        }
+        
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+    };
+
+    window.closeQrMenu = function() {
+        const menu = document.getElementById('qr-context-menu');
+        if (menu) menu.style.display = 'none';
+    };
+
+    window.openPdfUploadModal = function(deviceId, serialNumber) {
+        if (document.getElementById('pdf-upload-quick-modal')) {
+            document.getElementById('pdf-upload-quick-modal').remove();
+        }
+        
+        const modal = document.createElement('div');
+        modal.id = 'pdf-upload-quick-modal';
+        modal.className = 'fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700 shadow-2xl relative mx-4">
+                <h2 class="text-xl font-bold text-white mb-4">PDF Jegyzőkönyv Feltöltés</h2>
+                <p class="text-sm text-gray-400 mb-4">Eszköz: <strong>${serialNumber || 'N/A'}</strong></p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Vizsgálat időpontja</label>
+                        <input type="date" id="pdfQuickVizsgDatum" class="input-field w-full text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Vizsgálat eredménye</label>
+                        <select id="pdfQuickEredmeny" class="input-field w-full text-sm">
+                            <option value="Megfelelt">Megfelelt</option>
+                            <option value="Nem felelt meg">Nem felelt meg</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Következő vizsgálat</label>
+                        <input type="date" id="pdfQuickKovVizsg" class="input-field w-full text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">PDF Fájl kiválasztása</label>
+                        <input type="file" id="pdfQuickFileInput" accept="application/pdf" class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600 border border-gray-600 rounded p-1 cursor-pointer">
+                    </div>
+                    
+                    <div id="pdfQuickUploadProgress" class="hidden mt-2">
+                        <div class="flex items-center gap-2 mb-1 justify-center">
+                            <div class="loader-small"></div>
+                            <span class="text-sm text-blue-300 font-medium" id="pdfQuickProgressText">Feltöltés folyamatban...</span>
+                        </div>
+                    </div>
+                    
+                    <div id="pdfQuickError" class="hidden text-red-500 text-sm font-semibold mt-2 text-center bg-red-900/40 p-2 rounded">Hiba történt.</div>
+                </div>
+                
+                <div class="mt-6 flex gap-3 justify-end border-t border-gray-700 pt-4">
+                    <button onclick="document.getElementById('pdf-upload-quick-modal').remove()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors text-sm border border-gray-600 font-medium whitespace-nowrap">Mégse</button>
+                    <button onclick="window.submitQuickPdfUpload('${deviceId}')" id="pdfQuickSubmitBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors text-sm font-medium shadow-md flex items-center whitespace-nowrap">
+                        <i class="fas fa-upload mr-2"></i> Feltöltés és Mentés
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const today = new Date();
+        document.getElementById('pdfQuickVizsgDatum').value = today.toISOString().split('T')[0];
+        const nextYear = new Date(today);
+        nextYear.setFullYear(today.getFullYear() + 1);
+        document.getElementById('pdfQuickKovVizsg').value = nextYear.toISOString().split('T')[0];
+    };
+
+    window.submitQuickPdfUpload = async function(deviceId) {
+        const fileInput = document.getElementById('pdfQuickFileInput');
+        const vizsgDatumInput = document.getElementById('pdfQuickVizsgDatum').value;
+        const eredmenySelect = document.getElementById('pdfQuickEredmeny').value;
+        const kovVizsgInput = document.getElementById('pdfQuickKovVizsg').value;
+        
+        const progressDiv = document.getElementById('pdfQuickUploadProgress');
+        const progressText = document.getElementById('pdfQuickProgressText');
+        const errorDiv = document.getElementById('pdfQuickError');
+        const submitBtn = document.getElementById('pdfQuickSubmitBtn');
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
+            errorDiv.textContent = 'Kérjük, válasszon ki egy PDF fájlt!';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+        
+        const file = fileInput.files[0];
+        if (file.type !== 'application/pdf') {
+            errorDiv.textContent = 'Csak PDF fájl tölthető fel!';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+        
+        try {
+            errorDiv.classList.add('hidden');
+            progressDiv.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            progressText.textContent = 'PDF feltöltése a szerverre...';
+            
+            const dateStr = vizsgDatumInput.replace(/-/g, '');
+            const randomString = Math.random().toString(36).substring(2, 8);
+            const fileName = `jegyzokonyv_${dateStr}_${randomString}.pdf`;
+            const storagePath = `jegyzokonyvek/${partnerId}/${deviceId}/${fileName}`;
+            
+            const storageRef = storage.ref(storagePath);
+            await storageRef.put(file);
+            const downloadUrl = await storageRef.getDownloadURL();
+            
+            progressText.textContent = 'Adatbázis frissítése...';
+            
+            const formatForDb = (dateString) => {
+                if (!dateString) return '';
+                const parts = dateString.split('-');
+                return `${parts[0]}.${parts[1]}.${parts[2]}`;
+            };
+            
+            const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc(deviceId);
+            
+            const updateData = {
+                vizsg_idopont: formatForDb(vizsgDatumInput),
+                status: eredmenySelect,
+                kov_vizsg: formatForDb(kovVizsgInput),
+                finalizedFileUrl: downloadUrl
+            };
+            
+            await deviceRef.update(updateData);
+            
+            const modal = document.getElementById('pdf-upload-quick-modal');
+            if(modal) modal.remove();
+            
+            if (typeof resetAndFetch === 'function') {
+                resetAndFetch();
+            } else {
+                window.location.reload();
+            }
+            
+        } catch (error) {
+            console.error("PDF upload error:", error);
+            errorDiv.textContent = `Hiba: ${error.message}`;
+            errorDiv.classList.remove('hidden');
+            progressDiv.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    };
+
     function renderTable(devices) {
         currentDevices = devices; // Store the currently rendered devices
         if (!devices || devices.length === 0) {
@@ -2284,10 +2478,14 @@ export function initPartnerWorkScreen(partner, userData) {
             
             // Highlight row if 'Ajánlat menjen' was requested
             const rowClass = dev.ajanlatKeres ? 'bg-yellow-900/40' : 'hover:bg-gray-700/50';
-            // The 'qr-link-active' class is removed from here
-            const qrCodeHtml = dev.finalizedFileUrl
-                ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése" onclick="event.stopPropagation();">${qrCanvas}</a>`
-                : `<div class="cursor-pointer" onclick="window.openSingleReport(event, '${dev.id}', '${dev.serialNumber || ''}')" title="Jegyzőkönyv keresése és megnyitása">${qrCanvas}</div>`;
+            // 'qr-link-active' class holds no special meaning here outside CSS
+            const safeFinalizedFileUrl = dev.finalizedFileUrl ? dev.finalizedFileUrl.replace(/'/g, "\\'") : '';
+            const safeSerialNumber = dev.serialNumber ? dev.serialNumber.replace(/'/g, "\\'") : '';
+            const qrCodeHtml = isEjkUser
+                ? `<div class="cursor-pointer" onclick="window.showQrMenu(event, '${dev.id}', '${safeSerialNumber}', '${safeFinalizedFileUrl}')" title="Jegyzőkönyv opciók">${qrCanvas}</div>`
+                : (dev.finalizedFileUrl
+                    ? `<a href="${dev.finalizedFileUrl}" target="_blank" rel="noopener noreferrer" title="Véglegesített jegyzőkönyv megtekintése" onclick="event.stopPropagation();">${qrCanvas}</a>`
+                    : `<div class="cursor-pointer" onclick="window.openSingleReport(event, '${dev.id}', '${safeSerialNumber}')" title="Jegyzőkönyv keresése és megnyitása">${qrCanvas}</div>`);
             
             let chipClass = '';
             let confirmMessage = '';
