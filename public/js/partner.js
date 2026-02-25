@@ -2480,7 +2480,7 @@ export function initPartnerWorkScreen(partner, userData) {
             const rowClass = dev.ajanlatKeres ? 'bg-yellow-900/40' : 'hover:bg-gray-700/50';
             // 'qr-link-active' class holds no special meaning here outside CSS
             const safeFinalizedFileUrl = dev.finalizedFileUrl ? dev.finalizedFileUrl.replace(/'/g, "\\'") : '';
-            const safeSerialNumber = dev.serialNumber ? dev.serialNumber.replace(/'/g, "\\'") : '';
+            const safeSerialNumber = dev.serialNumber ? String(dev.serialNumber).replace(/'/g, "\\'") : '';
             const qrCodeHtml = isEjkUser
                 ? `<div class="cursor-pointer" onclick="window.showQrMenu(event, '${dev.id}', '${safeSerialNumber}', '${safeFinalizedFileUrl}')" title="Jegyzőkönyv opciók">${qrCanvas}</div>`
                 : (dev.finalizedFileUrl
@@ -4068,6 +4068,256 @@ export function initPartnerWorkScreen(partner, userData) {
 
     downloadDbBtn.addEventListener('click', generateExcel);
     downloadDbBtnMobile.addEventListener('click', generateExcel);
+
+    // --- PWA OFFLINE PREPARATION LOGIC ---
+    const prepareOfflineBtn = document.getElementById('prepare-offline-btn');
+    const prepareOfflineBtnMobile = document.getElementById('prepare-offline-btn-mobile');
+
+    const openOfflinePreparationModal = async () => {
+        // Ellenőrizzük, hogy létezik-e már a modal, ha igen, töröljük
+        let existingModal = document.getElementById('offline-prep-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Tájékoztató szöveg a felhasználó típusától függően
+        let infoText = '';
+        if (userData.isEjkUser) {
+            infoText = `
+                <p class="mb-4 text-sm text-gray-300">
+                    Készüljön fel az internetkapcsolat nélküli munkavégzésre. Ez a folyamat letölti a kiválasztott partner (<span class="font-bold text-white">${partner.name}</span>) eszközeit és a legutóbbi vizsgálatok adatait a böngésző helyi tárhelyére.
+                </p>
+                <div class="bg-blue-900/50 border border-blue-500 rounded p-3 mb-4">
+                    <p class="text-xs text-blue-200">
+                        <i class="fas fa-info-circle mr-1"></i> A letöltés befejezése után az alkalmazás átirányítja Önt az offline felületre, amit internet nélkül is használhat.
+                    </p>
+                </div>
+            `;
+        } else {
+            infoText = `
+                <p class="mb-4 text-sm text-gray-300">
+                    Mely adatokat szeretné letölteni az offline munkavégzéshez?
+                </p>
+                <div class="space-y-3 mb-4">
+                    <label class="flex items-start cursor-pointer group">
+                        <div class="flex items-center h-5">
+                            <input id="offline-download-light" name="offline-download-mode" type="radio" value="light" class="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 outline-none" checked>
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <span class="font-medium text-white group-hover:text-indigo-300 transition-colors">Csak az alapvető adatok és jegyzőkönyvek (Gyors)</span>
+                            <p class="text-gray-400">Eszközlista, azonosítók és állapotok letöltése. Internet nélkül megtekinthető.</p>
+                        </div>
+                    </label>
+                    <label class="flex items-start cursor-pointer group">
+                        <div class="flex items-center h-5">
+                            <input id="offline-download-full" name="offline-download-mode" type="radio" value="full" class="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 outline-none">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <span class="font-medium text-gray-500">Minden kapcsolódó dokumentum</span>
+                            <p class="text-gray-500 italic">Funkció fejlesztés alatt...</p>
+                        </div>
+                    </label>
+                </div>
+            `;
+        }
+
+        const modalHtml = `
+            <div id="offline-prep-modal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[100] backdrop-blur-sm">
+                <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg overflow-hidden border border-gray-700 m-4">
+                    <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fas fa-wifi text-indigo-400 mr-2"></i> Offline Előkészülés
+                        </h3>
+                        <button id="close-offline-modal-btn" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        ${infoText}
+                        
+                        <div id="offline-progress-container" class="hidden mt-6">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium text-indigo-300" id="offline-status-text">Incializálás...</span>
+                                <span class="text-sm font-medium text-indigo-300" id="offline-progress-percent">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                <div id="offline-progress-bar" class="bg-indigo-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-4 text-xs text-gray-400 space-y-1 h-24 overflow-y-auto font-mono bg-gray-900 p-2 rounded border border-gray-700" id="offline-log-container">
+                                <div>[Rendszer] Előkészülés indítása...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-900/80 px-6 py-4 border-t border-gray-700 flex justify-end gap-3">
+                        <button id="cancel-offline-modal-btn" class="btn btn-secondary px-4 py-2 text-sm">Mégse</button>
+                        <button id="start-offline-download-btn" class="btn btn-primary px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-download mr-1"></i> Letöltés Indítása</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Inject HTML
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = document.getElementById('offline-prep-modal');
+        const closeBtn = document.getElementById('close-offline-modal-btn');
+        const cancelBtn = document.getElementById('cancel-offline-modal-btn');
+        const startBtn = document.getElementById('start-offline-download-btn');
+
+        const closeModal = () => {
+            modal.remove();
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+
+        if (startBtn) {
+            startBtn.addEventListener('click', async () => {
+                // Prevent duplicate clicks
+                startBtn.disabled = true;
+                closeBtn.classList.add('hidden');
+                cancelBtn.classList.add('hidden');
+                
+                const progressContainer = document.getElementById('offline-progress-container');
+                progressContainer.classList.remove('hidden');
+                
+                const statusText = document.getElementById('offline-status-text');
+                const progressBar = document.getElementById('offline-progress-bar');
+                const progressPercent = document.getElementById('offline-progress-percent');
+                const logContainer = document.getElementById('offline-log-container');
+
+                const logMessage = (msg) => {
+                    const line = document.createElement('div');
+                    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                    logContainer.appendChild(line);
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                };
+
+                const updateProgress = (percent, status) => {
+                    progressBar.style.width = `${percent}%`;
+                    progressPercent.textContent = `${Math.round(percent)}%`;
+                    if (status) statusText.textContent = status;
+                };
+
+                try {
+                    logMessage('Adatok letöltésének megkezdése...');
+                    updateProgress(10, 'Helyi adatbázis előkészítése...');
+                    
+                    // 1. Initialize Dexie DB
+                    const offlineDb = new Dexie("ETAROfflineDB");
+                    offlineDb.version(2).stores({
+                        meta: 'id',
+                        devices: 'id, serialNumber, operatorId',
+                        drafts: 'id, gép_id',
+                        logs: '++id, type'
+                    });
+
+                    // Clear previous data
+                    await offlineDb.devices.clear();
+                    await offlineDb.drafts.clear();
+                    await offlineDb.logs.clear();
+                    await offlineDb.meta.clear();
+
+                    logMessage('Helyi adatbázis előkészítve.');
+                    updateProgress(20, 'Eszközök letöltése...');
+
+                    // 2. Fetch Devices
+                    const devicesSnapshot = await db.collection('partners').doc(partnerId).collection('devices')
+                        .where('comment', '==', 'active')
+                        .get();
+                    
+                    const devicesDbObj = [];
+                    devicesSnapshot.forEach(doc => {
+                        devicesDbObj.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    if(devicesDbObj.length > 0) {
+                        await offlineDb.devices.bulkAdd(devicesDbObj);
+                        logMessage(`${devicesDbObj.length} db aktív eszköz sikeresen elmentve.`);
+                    } else {
+                        logMessage('Nem található aktív eszköz ehhez a partnerhez.');
+                    }
+                    
+                    if (userData.isEjkUser) {
+                        updateProgress(60, 'Piszkozatok letöltése...');
+
+                        // 3. Fetch Drafts
+                        const draftsSnapshot = await db.collectionGroup('inspections').where('status', '==', 'draft').get();
+                        const draftsDbObj = [];
+                        draftsSnapshot.forEach(doc => {
+                            const data = doc.data();
+                            // Only save drafts for this partner to avoid leaking other partners' drafts into this offline session
+                            if (data.partnerId === partnerId) {
+                                draftsDbObj.push({ id: doc.id, ...data });
+                            }
+                        });
+
+                        if(draftsDbObj.length > 0) {
+                            await offlineDb.drafts.bulkAdd(draftsDbObj);
+                            logMessage(`${draftsDbObj.length} db meglévő piszkozat elmentve.`);
+                        } else {
+                            logMessage('Nincs függőben lévő piszkozat.');
+                        }
+                    } else {
+                        updateProgress(60, 'Szükséges adatok ellenőrzése...');
+                        logMessage('Piszkozatok letöltése kihagyva (csak EJK jogosultsággal).');
+                        
+                        // Check toggle if ENY user
+                        const fullRadio = document.getElementById('offline-download-full');
+                        if (fullRadio && fullRadio.checked) {
+                            logMessage('A "Minden kapcsolódó dokumentum" letöltése még egy fejlesztés alatt álló funkció. Végrehajtás csak metaadatokkal (Gyors).');
+                        }
+                    }
+
+                    updateProgress(90, 'Munkamenet mentése...');
+
+                    // 4. Save Meta config
+                    await offlineDb.meta.put({
+                        id: 'current_session',
+                        userRole: userData.isEjkUser ? 'ejk_admin' : (userData.isEkvUser ? 'ekv_user' : 'eny_admin'),
+                        partnerId: partnerId,
+                        partnerName: partner.name || 'Kiválasztott Partner',
+                        downloadDate: new Date().toISOString()
+                    });
+
+                    updateProgress(100, 'Kész!');
+                    logMessage('Minden adat sikeresen letöltve az offline munkához.');
+                    statusText.classList.remove('text-indigo-300');
+                    statusText.classList.add('text-green-400');
+                    progressBar.classList.remove('bg-indigo-500');
+                    progressBar.classList.add('bg-green-500');
+                    
+                    setTimeout(() => {
+                        // Átirányítás az offline felületre
+                        window.location.href = 'offline.html';
+                    }, 1500);
+
+                } catch (error) {
+                    console.error('Offline download error:', error);
+                    updateProgress(0, 'Hiba történt a letöltés során');
+                    statusText.classList.remove('text-indigo-300');
+                    statusText.classList.add('text-red-400');
+                    progressBar.classList.remove('bg-indigo-500');
+                    progressBar.classList.add('bg-red-500');
+                    logMessage(`Hiba: ${error.message}`);
+                    
+                    // Re-enable close buttons on error
+                    closeBtn.classList.remove('hidden');
+                    cancelBtn.classList.remove('hidden');
+                    startBtn.textContent = 'Újrapróbálkozás';
+                    startBtn.disabled = false;
+                }
+            });
+        }
+    };
+
+    if (prepareOfflineBtn) {
+        prepareOfflineBtn.addEventListener('click', openOfflinePreparationModal);
+    }
+    if (prepareOfflineBtnMobile) {
+        prepareOfflineBtnMobile.addEventListener('click', openOfflinePreparationModal);
+    }
 
 
     // --- SINGLE REPORT OPEN LOGIC (QR CODE CLICK) ---
@@ -5872,6 +6122,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 </div>
                  <!-- Desktop Menu -->
                 <nav class="hidden xl:flex items-center gap-2 flex-nowrap">
+                    <button id="prepare-offline-btn" class="hidden menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2 bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
                     <button id="download-db-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2"><i class="fas fa-download fa-fw"></i>Adatbázis</button>
                     ${uploadButtonHtml.replace('w-full text-left', '').replace('Új eszköz feltöltés', 'Feltöltés').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
                     ${newInspectionButtonHtml.replace('Új vizsgálat', 'Új vizsgálat').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
@@ -5882,6 +6133,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             </div>
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
+                <button id="prepare-offline-btn-mobile" class="hidden menu-btn menu-btn-primary w-full text-left bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
                 <button id="download-db-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
                 ${uploadButtonHtml.replace('id="uploadDeviceBtn"', 'id="uploadDeviceBtnMobile"')}
                 ${newInspectionButtonHtmlMobile}

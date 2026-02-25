@@ -1,0 +1,21 @@
+{
+  "name": "ETAR Offline Vizsgáló",
+  "short_name": "ETAR Offline",
+  "description": "ETAR offline munkavégzést támogató alkalmazás vizsgálók számára",
+  "start_url": "/offline.html",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/images/ETAR_H.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/ETAR_H.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

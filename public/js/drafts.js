@@ -9,7 +9,7 @@ let currentSortDirection = 'desc';
 // Filter state
 let showK = true;
 let showB = true;
-let showEKV = false;
+let showEKV = true; // Changed to true so we see all drafts initially
 let selectedPartnerFilter = null; // null means "Összes"
 
 function isK(expertName) {
