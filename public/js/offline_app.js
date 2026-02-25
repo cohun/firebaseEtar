@@ -13,6 +13,8 @@ let currentUserRole = null;
 let currentPartnerId = null;
 let currentInspectionDevice = null;
 let currentEditDevice = null; // null means adding a new device, otherwise holds the device object being edited
+let currentDetailsDevice = null; // keeps track of the currently opened device in details modal
+let pendingOfflineChip = null; // stores scanned chip ID before a new device is saved
 let offlineHeaderData = null; // Session-level cache for inspection header
 let lastSavedDraftData = null; // Session-level cache for the copy previous data button
 let activeTab = 'devices'; // 'devices' or 'drafts'
@@ -306,6 +308,7 @@ function openInspectionResultModal() {
 function closeAllModals() {
     currentInspectionDevice = null;
     currentEditDevice = null;
+    pendingOfflineChip = null;
     document.getElementById('offlineHeaderModal').classList.add('hidden');
     document.getElementById('offlineInspectionModal').classList.add('hidden');
     document.getElementById('offlineDeviceModal').classList.add('hidden');
@@ -314,6 +317,7 @@ function closeAllModals() {
 
 function openDeviceModal(device = null) {
     currentEditDevice = device;
+    pendingOfflineChip = null;
     
     if (device) {
         document.getElementById('modalDeviceTitle').textContent = 'Eszköz Szerkesztése (Offline)';
@@ -342,6 +346,7 @@ function openDeviceModal(device = null) {
 
 function openDeviceDetailsModal(device) {
     if (!device) return;
+    currentDetailsDevice = device;
 
     document.getElementById('detailDeviceName').textContent = device.description || 'N/A';
     document.getElementById('detailDeviceSerial').textContent = device.serialNumber || 'N/A';
@@ -412,6 +417,225 @@ function setupEventListeners() {
     
     const btnAddNewDevice = document.getElementById('btnAddNewDevice');
     if(btnAddNewDevice) btnAddNewDevice.addEventListener('click', () => openDeviceModal(null));
+    
+    // Részletek Modal: NFC betanítás offline
+    const btnNfcProgramOffline = document.getElementById('btnNfcProgramOffline');
+    if (btnNfcProgramOffline) {
+        btnNfcProgramOffline.addEventListener('click', async () => {
+            if (!currentDetailsDevice) return;
+            
+            const nfcModal = document.getElementById('nfc-modal');
+            const modalBody = document.getElementById('nfc-modal-body');
+            const modalTitle = document.getElementById('nfc-modal-title');
+            
+            if (nfcModal) {
+                modalTitle.innerHTML = 'Chip Betanítás (Offline)';
+                modalBody.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-6 text-center">
+                        <i class="fa-solid fa-wifi text-6xl text-indigo-500 mb-6 animate-pulse"></i>
+                        <p class="text-lg text-slate-300 mb-4 font-medium">Kérem, érintse új chipjét a készülékhez...</p>
+                        <p class="text-sm text-slate-500">Android: Hátlap felső középső része.</p>
+                        <p class="text-sm text-slate-500 mt-2">(vagy csatlakoztasson USB olvasót a folytatáshoz)</p>
+                    </div>
+                `;
+                nfcModal.classList.remove('hidden');
+            }
+
+            let isWebNfcSupported = 'NDEFReader' in window;
+            
+            if (isWebNfcSupported) {
+                try {
+                    const ndef = new NDEFReader();
+                    let readingHandled = false;
+
+                    const onReading = async ({ serialNumber }) => {
+                        if (readingHandled) return;
+                        readingHandled = true;
+                        
+                        console.log(`> Web NFC Tag read for programming: ${serialNumber}`);
+                        
+                        if (nfcModal) nfcModal.classList.add('hidden');
+                        
+                        try {
+                            // Offline mentés a készülék rekordba
+                            await db.devices.update(currentDetailsDevice.id, {
+                                chip: serialNumber,
+                                isEditedOffline: true
+                            });
+                            
+                            // Log mentése a szinkronizációhoz: hozzárendelés esemény
+                            await db.logs.add({
+                                type: 'chip_assignment',
+                                deviceId: currentDetailsDevice.id,
+                                serialNumber: serialNumber,
+                                partnerId: currentPartnerId,
+                                timestamp: Date.now()
+                            });
+
+                            alert(`Chip (${serialNumber}) sikeresen offline hozzárendelve! A módosítás a szinkronizáció után válik élessé.`);
+                        } catch (err) {
+                            console.error("Hiba a chip mentésekor offline:", err);
+                            alert("Hiba történt a chip mentésekor: " + err.message);
+                        }
+                    };
+
+                    const onReadingError = (event) => {
+                        if (readingHandled) return;
+                        console.error("Hiba az NFC tag olvasása közben:", event);
+                    };
+
+                    ndef.addEventListener("reading", onReading);
+                    ndef.addEventListener("readingerror", onReadingError);
+
+                    await ndef.scan();
+                } catch (error) {
+                    console.warn(`Web NFC init failed: ${error.name}`, error);
+                    // alert("A Web NFC nem támogatott ezen az eszközön/böngészőben."); // Nem adunk alertet, USB fallback miatt
+                }
+            } else {
+                console.log("Web NFC nem támogatott. USB olvasó bemenetre vár...");
+            }
+            
+            // Készíthetnénk egy külön input field-et a modalba az USB-s chipolvasóknak (emulált billentyűzet)
+            // Itt most egy egyszerű prompt fallback a teszteléshez, ha nincs Web NFC (pl asztali gep)
+            setTimeout(() => {
+                if(!isWebNfcSupported) {
+                   const simChip = prompt("[Kizárólag asztali teszt] Szimulált chip kód:");
+                   if(simChip) {
+                        (async () => {
+                             if (nfcModal) nfcModal.classList.add('hidden');
+                             try {
+                                await db.devices.update(currentDetailsDevice.id, {
+                                    chip: simChip,
+                                    isEditedOffline: true
+                                });
+                                await db.logs.add({
+                                    type: 'chip_assignment',
+                                    deviceId: currentDetailsDevice.id,
+                                    serialNumber: simChip,
+                                    partnerId: currentPartnerId,
+                                    timestamp: Date.now()
+                                });
+                                alert(`Simulált chip (${simChip}) hozzárendelve!`);
+                             } catch(e) {}
+                        })();
+                   }
+                }
+            }, 3000);
+            
+            
+        });
+    }
+
+    // Szerkesztés Modal: NFC betanítás offline
+    const btnNfcProgramOfflineEdit = document.getElementById('btnNfcProgramOfflineEdit');
+    if (btnNfcProgramOfflineEdit) {
+        btnNfcProgramOfflineEdit.addEventListener('click', async () => {
+            const nfcModal = document.getElementById('nfc-modal');
+            const modalBody = document.getElementById('nfc-modal-body');
+            const modalTitle = document.getElementById('nfc-modal-title');
+            
+            if (nfcModal) {
+                modalTitle.innerHTML = 'Chip Betanítás (Offline Szerkesztés)';
+                modalBody.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-6 text-center">
+                        <i class="fa-solid fa-wifi text-6xl text-indigo-500 mb-6 animate-pulse"></i>
+                        <p class="text-lg text-slate-300 mb-4 font-medium">Kérem, érintse új chipjét a készülékhez...</p>
+                        <p class="text-sm text-slate-500">Android: Hátlap felső középső része.</p>
+                    </div>
+                `;
+                nfcModal.classList.remove('hidden');
+            }
+
+            let isWebNfcSupported = 'NDEFReader' in window;
+            
+            if (isWebNfcSupported) {
+                try {
+                    const ndef = new NDEFReader();
+                    let readingHandled = false;
+
+                    const onReading = async ({ serialNumber }) => {
+                        if (readingHandled) return;
+                        readingHandled = true;
+                        
+                        console.log(`> Web NFC Tag read for programming (EDIT): ${serialNumber}`);
+                        
+                        if (nfcModal) nfcModal.classList.add('hidden');
+                        
+                        if (currentEditDevice) {
+                            try {
+                                await db.devices.update(currentEditDevice.id, {
+                                    chip: serialNumber,
+                                    isEditedOffline: true
+                                });
+                                await db.logs.add({
+                                    type: 'chip_assignment',
+                                    deviceId: currentEditDevice.id,
+                                    serialNumber: serialNumber,
+                                    partnerId: currentPartnerId,
+                                    timestamp: Date.now()
+                                });
+                                alert(`Chip (${serialNumber}) sikeresen offline hozzárendelve az eszközhöz!`);
+                            } catch (err) {
+                                console.error("Hiba a chip mentésekor:", err);
+                                alert("Hiba történt a chip mentésekor: " + err.message);
+                            }
+                        } else {
+                            // Új eszköz hozzáadása folyamatban
+                            pendingOfflineChip = serialNumber;
+                            alert(`Chip (${serialNumber}) beolvasva! A mentés gomb megnyomásakor kerül véglegesítésre.`);
+                        }
+                    };
+
+                    const onReadingError = (event) => {
+                        if (readingHandled) return;
+                        console.error("Hiba az NFC tag olvasása közben:", event);
+                    };
+
+                    ndef.addEventListener("reading", onReading);
+                    ndef.addEventListener("readingerror", onReadingError);
+
+                    await ndef.scan();
+                } catch (error) {
+                    console.warn(`Web NFC init failed: ${error.name}`, error);
+                }
+            } else {
+                console.log("Web NFC nem támogatott.");
+            }
+            
+            // Asztali szimulátor
+            setTimeout(() => {
+                if(!isWebNfcSupported) {
+                   const simChip = prompt("[Kizárólag asztali teszt] Szimulált chip kód:");
+                   if(simChip) {
+                        (async () => {
+                             if (nfcModal) nfcModal.classList.add('hidden');
+                             if (currentEditDevice) {
+                                try {
+                                    await db.devices.update(currentEditDevice.id, {
+                                        chip: simChip,
+                                        isEditedOffline: true
+                                    });
+                                    await db.logs.add({
+                                        type: 'chip_assignment',
+                                        deviceId: currentEditDevice.id,
+                                        serialNumber: simChip,
+                                        partnerId: currentPartnerId,
+                                        timestamp: Date.now()
+                                    });
+                                    alert(`Simulált chip (${simChip}) hozzárendelve!`);
+                                } catch(e) {}
+                             } else {
+                                pendingOfflineChip = simChip;
+                                alert(`Simulált chip (${simChip}) beolvasva! Vár a mentésre.`);
+                             }
+                        })();
+                   }
+                }
+            }, 3000);
+            
+        });
+    }
 
     document.getElementById('saveDeviceBtn').addEventListener('click', async () => {
         const name = document.getElementById('offDeviceName').value;
@@ -431,7 +655,7 @@ function setupEventListeners() {
         try {
             if (currentEditDevice) {
                 // Editing existing
-                await db.devices.update(currentEditDevice.id, {
+                let updates = {
                     description: name,
                     serialNumber: serial,
                     operatorId: opId,
@@ -441,7 +665,21 @@ function setupEventListeners() {
                     yearOfManufacture: year ? parseInt(year) : null,
                     loadCapacity: wll,
                     isEditedOffline: true
-                });
+                };
+                if (pendingOfflineChip) {
+                    updates.chip = pendingOfflineChip;
+                }
+                await db.devices.update(currentEditDevice.id, updates);
+                
+                if (pendingOfflineChip) {
+                    await db.logs.add({
+                        type: 'chip_assignment',
+                        deviceId: currentEditDevice.id,
+                        serialNumber: pendingOfflineChip,
+                        partnerId: currentPartnerId,
+                        timestamp: Date.now()
+                    });
+                }
             } else {
                 // Adding new
                 const pseudoId = 'offline_new_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
@@ -458,10 +696,22 @@ function setupEventListeners() {
                     loadCapacity: wll,
                     status: 'Szerelés alatt', // Default status for new devices
                     isNewOffline: true,
-                    createdAt: new Date().getTime()
+                    createdAt: new Date().getTime(),
+                    chip: pendingOfflineChip || null
                 });
+                
+                if (pendingOfflineChip) {
+                    await db.logs.add({
+                         type: 'chip_assignment',
+                         deviceId: pseudoId,
+                         serialNumber: pendingOfflineChip,
+                         partnerId: currentPartnerId,
+                         timestamp: Date.now()
+                     });
+                }
             }
             
+            pendingOfflineChip = null;
             closeAllModals();
             renderDeviceList(document.getElementById('searchInput') ? document.getElementById('searchInput').value : '');
         } catch (err) {
