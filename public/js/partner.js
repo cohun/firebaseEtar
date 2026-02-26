@@ -6151,7 +6151,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
 
     let prepareOfflineBtnHtml = '';
     let prepareOfflineBtnHtmlMobile = '';
-    if (userData.isEjkUser && userRoles.includes('EJK_admin')) {
+    if ((userData.isEjkUser && (userRoles.includes('EJK_admin') || userRoles.includes('EJK_write'))) || (!userData.isEjkUser && !userData.isEkvUser)) {
         prepareOfflineBtnHtml = `<button id="prepare-offline-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2 bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>`;
         prepareOfflineBtnHtmlMobile = `<button id="prepare-offline-btn-mobile" class="menu-btn menu-btn-primary w-full text-left bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>`;
     }

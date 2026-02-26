@@ -117,14 +117,14 @@ async function renderDeviceList(searchTerm = '') {
         if (device.status === 'Megfelelt') {
             if (isExpired) {
                 // Enyhe piros háttér, ha Megfelelt de lejárt
-                statusBadge = '<span class="px-2 py-0.5 border rounded text-xs border-green-500 text-green-500 bg-red-900/40">Megfelelt</span>';
+                statusBadge = '<span class="px-2 py-0.5 border rounded text-xs border-green-500 text-green-500 bg-red-900/40">Lejárt Megfelelt</span>';
             } else {
                 statusBadge = '<span class="px-2 py-0.5 border rounded text-xs border-green-500 text-green-500 bg-green-900/20">Megfelelt</span>';
             }
         } else if (device.status === 'Nem megfelelt') {
             statusBadge = '<span class="px-2 py-0.5 border rounded text-xs border-red-500 text-red-500 bg-red-900/20">Nem megfelelt</span>';
         } else {
-            statusBadge = '<span class="px-2 py-0.5 border rounded text-xs border-gray-500 text-gray-500 bg-gray-900/20">Szerelés alatt</span>';
+            statusBadge = '<span class="px-2 py-0.5 border rounded text-xs border-gray-500 text-gray-500 bg-gray-900/20">Nincs elérhető jegyzőkönyv</span>';
         }
 
         const dateTextColor = isExpired ? 'text-red-400 font-bold' : 'text-white';
@@ -320,6 +320,24 @@ function openDeviceModal(device = null) {
     currentEditDevice = device;
     pendingOfflineChip = null;
     
+    // Beállítjuk az NFC gomb állapotát
+    const btnNfcProgramOfflineEdit = document.getElementById('btnNfcProgramOfflineEdit');
+    const nfcStatusIcon = document.getElementById('nfcStatusIcon');
+    const nfcStatusText = document.getElementById('nfcStatusText');
+    if (btnNfcProgramOfflineEdit) {
+        if (device && device.chip) {
+            btnNfcProgramOfflineEdit.classList.remove('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+            btnNfcProgramOfflineEdit.classList.add('bg-green-600', 'text-white', 'border-green-500');
+            if (nfcStatusIcon) nfcStatusIcon.className = "fa-solid fa-check mr-2";
+            if (nfcStatusText) nfcStatusText.textContent = "Betanítva";
+        } else {
+            btnNfcProgramOfflineEdit.classList.remove('bg-green-600', 'text-white', 'border-green-500');
+            btnNfcProgramOfflineEdit.classList.add('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+            if (nfcStatusIcon) nfcStatusIcon.className = "fa-solid fa-wifi mr-2";
+            if (nfcStatusText) nfcStatusText.textContent = "NFC betanítás";
+        }
+    }
+    
     if (device) {
         document.getElementById('modalDeviceTitle').textContent = 'Eszköz Szerkesztése (Offline)';
         document.getElementById('offDeviceName').value = device.description || '';
@@ -357,6 +375,19 @@ function openDeviceDetailsModal(device) {
     document.getElementById('detailDeviceYear').textContent = device.yearOfManufacture || 'N/A';
     document.getElementById('detailDeviceWLL').textContent = device.loadCapacity || 'N/A';
     document.getElementById('detailDeviceOperatorId').textContent = device.operatorId || 'N/A';
+
+    const btnNfcProgramOffline = document.getElementById('btnNfcProgramOffline');
+    if (btnNfcProgramOffline) {
+        if (device.chip) {
+            btnNfcProgramOffline.classList.remove('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+            btnNfcProgramOffline.classList.add('bg-green-600', 'text-white', 'border-green-500');
+            btnNfcProgramOffline.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Betanítva';
+        } else {
+            btnNfcProgramOffline.classList.remove('bg-green-600', 'text-white', 'border-green-500');
+            btnNfcProgramOffline.classList.add('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+            btnNfcProgramOffline.innerHTML = '<i class="fa-solid fa-wifi mr-2"></i> NFC betanítás';
+        }
+    }
 
     const docsContainer = document.getElementById('detailDocumentsContainer');
     docsContainer.innerHTML = ''; // Alaphelyzet
@@ -409,6 +440,29 @@ function setupEventListeners() {
     // Device Modal events
     document.getElementById('closeDeviceModalBtn').addEventListener('click', closeAllModals);
     document.getElementById('cancelDeviceBtn').addEventListener('click', closeAllModals);
+
+    // Sync & Return Events
+    const btnReturnNoSave = document.getElementById('btnReturnNoSave');
+    if (btnReturnNoSave) {
+        btnReturnNoSave.addEventListener('click', async () => {
+            if (confirm("Biztosan visszatér az élő rendszerbe mentés nélkül? Minden offline felvitt eszköz és jegyzőkönyv törlődik!")) {
+                await clearOfflineDataAndReturn();
+            }
+        });
+    }
+
+    const btnSyncAndReturn = document.getElementById('btnSyncAndReturn');
+    if (btnSyncAndReturn) {
+        btnSyncAndReturn.addEventListener('click', () => {
+             if (!navigator.onLine) {
+                 alert("Nincs internetkapcsolat! A szinkronizációhoz csatlakozzon a hálózathoz.");
+                 return;
+             }
+             if (confirm("Biztosan elindítja a szinkronizációt? A feltöltés után visszatérünk az alkalmazásba a mentett adatokkal.")) {
+                 startSyncProcess();
+             }
+        });
+    }
     
     // Details Modal events
     const closeDetailsBtn1 = document.getElementById('closeDeviceDetailsModalBtn');
@@ -425,6 +479,13 @@ function setupEventListeners() {
         btnNfcProgramOffline.addEventListener('click', async () => {
             if (!currentDetailsDevice) return;
             
+            // Ha már be lett tanítva
+            if (btnNfcProgramOffline.classList.contains('bg-green-600')) {
+                if (!confirm("Ennek az eszköznek (ebben a munkamenetben) már betanított egy chipet. Valóban újat szeretne hozzárendelni?")) {
+                    return;
+                }
+            }
+
             const nfcModal = document.getElementById('nfc-modal');
             const modalBody = document.getElementById('nfc-modal-body');
             const modalTitle = document.getElementById('nfc-modal-title');
@@ -473,6 +534,10 @@ function setupEventListeners() {
                                 timestamp: Date.now()
                             });
 
+                            btnNfcProgramOffline.classList.remove('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+                            btnNfcProgramOffline.classList.add('bg-green-600', 'text-white', 'border-green-500');
+                            btnNfcProgramOffline.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Betanítva';
+
                             alert(`Chip (${serialNumber}) sikeresen offline hozzárendelve! A módosítás a szinkronizáció után válik élessé.`);
                         } catch (err) {
                             console.error("Hiba a chip mentésekor offline:", err);
@@ -517,6 +582,9 @@ function setupEventListeners() {
                                     partnerId: currentPartnerId,
                                     timestamp: Date.now()
                                 });
+                                btnNfcProgramOffline.classList.remove('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+                                btnNfcProgramOffline.classList.add('bg-green-600', 'text-white', 'border-green-500');
+                                btnNfcProgramOffline.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Betanítva';
                                 alert(`Simulált chip (${simChip}) hozzárendelve!`);
                              } catch(e) {}
                         })();
@@ -532,6 +600,13 @@ function setupEventListeners() {
     const btnNfcProgramOfflineEdit = document.getElementById('btnNfcProgramOfflineEdit');
     if (btnNfcProgramOfflineEdit) {
         btnNfcProgramOfflineEdit.addEventListener('click', async () => {
+            // Ha már be lett tanítva
+            if (btnNfcProgramOfflineEdit.classList.contains('bg-green-600')) {
+                if (!confirm("Ennek az eszköznek (ebben a munkamenetben) már betanított egy chipet. Valóban újat szeretne hozzárendelni?")) {
+                    return;
+                }
+            }
+
             const nfcModal = document.getElementById('nfc-modal');
             const modalBody = document.getElementById('nfc-modal-body');
             const modalTitle = document.getElementById('nfc-modal-title');
@@ -547,6 +622,15 @@ function setupEventListeners() {
                 `;
                 nfcModal.classList.remove('hidden');
             }
+
+            const setNfcButtonSuccess = () => {
+                btnNfcProgramOfflineEdit.classList.remove('text-indigo-400', 'bg-indigo-900/30', 'border-indigo-500/50', 'hover:bg-indigo-600', 'hover:text-white');
+                btnNfcProgramOfflineEdit.classList.add('bg-green-600', 'text-white', 'border-green-500');
+                const nfcStatusIcon = document.getElementById('nfcStatusIcon');
+                const nfcStatusText = document.getElementById('nfcStatusText');
+                if (nfcStatusIcon) nfcStatusIcon.className = "fa-solid fa-check mr-2";
+                if (nfcStatusText) nfcStatusText.textContent = "Betanítva";
+            };
 
             let isWebNfcSupported = 'NDEFReader' in window;
             
@@ -577,6 +661,7 @@ function setupEventListeners() {
                                     timestamp: Date.now()
                                 });
                                 alert(`Chip (${serialNumber}) sikeresen offline hozzárendelve az eszközhöz!`);
+                                setNfcButtonSuccess();
                             } catch (err) {
                                 console.error("Hiba a chip mentésekor:", err);
                                 alert("Hiba történt a chip mentésekor: " + err.message);
@@ -585,6 +670,7 @@ function setupEventListeners() {
                             // Új eszköz hozzáadása folyamatban
                             pendingOfflineChip = serialNumber;
                             alert(`Chip (${serialNumber}) beolvasva! A mentés gomb megnyomásakor kerül véglegesítésre.`);
+                            setNfcButtonSuccess();
                         }
                     };
 
@@ -625,10 +711,12 @@ function setupEventListeners() {
                                         timestamp: Date.now()
                                     });
                                     alert(`Simulált chip (${simChip}) hozzárendelve!`);
+                                    setNfcButtonSuccess();
                                 } catch(e) {}
                              } else {
                                 pendingOfflineChip = simChip;
                                 alert(`Simulált chip (${simChip}) beolvasva! Vár a mentésre.`);
+                                setNfcButtonSuccess();
                              }
                         })();
                    }
@@ -648,8 +736,8 @@ function setupEventListeners() {
         const year = document.getElementById('offDeviceYear').value;
         const wll = document.getElementById('offDeviceWLL').value;
 
-        if (!name) {
-            alert("Eszköz megnevezése kötelező!");
+        if (!name || !serial || !wll) {
+            alert("A Megnevezés, Gyári szám és Teherbírás (WLL) mezők kitöltése kötelező!");
             return;
         }
 
@@ -835,27 +923,6 @@ function setupEventListeners() {
         document.getElementById('tabDevices').classList.add('border-transparent', 'text-slate-400');
         
         renderDraftList();
-    });
-
-    // Visszatérés online módba
-    document.getElementById('btnReturnOnline').addEventListener('click', () => {
-        if (!navigator.onLine) {
-            alert("Visszatéréshez hálózati kapcsolat szükséges! Ellenőrizze a Wifit vagy Mobilnetet.");
-            return;
-        }
-        
-        // Ellenőrizzük van-e szinkronizálatlan adat
-        db.drafts.count().then(count => {
-            if (count > 0) {
-                if(confirm(`Figyelem! Ön ${count} db új vizsgálatot rögzített offline.\n\nSzeretné ezeket felszinkronizálni a szerverre és visszatérni az online felületre?`)) {
-                    alert("A szinkronizálás folyamata itt fog lefutni a 4. fázisban...");
-                    // Később: syncDataThenRedirect()
-                    window.location.href = 'app.html';
-                }
-            } else {
-                window.location.href = 'app.html';
-            }
-        });
     });
 
     // --- QR és NFC Keresés Gombok ---
@@ -1109,5 +1176,213 @@ async function startNFCReader() {
         }
     } else {
          console.log("[Offline] Web NFC not supported. Waiting for USB input...");
+    }
+}
+
+// -------------------------------------------------------------
+// SYNC LOGIC
+// -------------------------------------------------------------
+async function clearOfflineDataAndReturn() {
+    try {
+        await db.drafts.clear();
+        await db.devices.clear();
+        await db.meta.clear();
+        await db.logs.clear();
+        window.location.href = '/app.html';
+    } catch (err) {
+        console.error("Hiba az adatok törlésekor:", err);
+        alert("Sikertelen adattörlés. Kérem, próbálja újra.");
+    }
+}
+
+async function startSyncProcess() {
+    const modal = document.getElementById('syncProgressModal');
+    const bar = document.getElementById('syncProgressBar');
+    const pct = document.getElementById('syncProgressPercentText');
+    const statusText = document.getElementById('syncStatusText');
+    const errContainer = document.getElementById('syncErrorContainer');
+    const errList = document.getElementById('syncErrorList');
+    const retryBtn = document.getElementById('btnRetrySync');
+
+    modal.classList.remove('hidden');
+    errContainer.classList.add('hidden');
+    errList.innerHTML = '';
+    bar.style.width = '10%';
+    pct.textContent = '10%';
+    statusText.textContent = "Adatok összegyűjtése...";
+
+    retryBtn.onclick = () => {
+        errContainer.classList.add('hidden');
+        startSyncProcess();
+    };
+
+    try {
+        const firestore = window.firebaseDb;
+        if (!firestore) throw new Error("Firebase adatbázis nem található!");
+
+        const meta = await db.meta.get('current_session');
+        if (!meta) throw new Error("Érvénytelen offline munkamenet.");
+        const partnerId = meta.partnerId;
+
+        const drafts = await db.drafts.toArray();
+        const devices = await db.devices.toArray();
+        const logs = await db.logs.toArray();
+
+        let errors = [];
+        let completedOps = 0;
+        const totalOps = devices.length + drafts.length;
+
+        // Progress calc
+        const updateProgress = (text) => {
+            completedOps++;
+            const p = Math.floor((completedOps / totalOps) * 90) + 10;
+            bar.style.width = `${p}%`;
+            pct.textContent = `${p}%`;
+            statusText.textContent = text;
+        };
+
+        statusText.textContent = "Eszközök szinkronizálása...";
+        
+        // 1. Eszközök feldolgozása (új és módosított)
+        // Megkeressük azokat az eszközöket, amelyek ID-ja 'offline_new_' előtagú (Újak)
+        const newDevicesMap = {}; // oldId -> newId mapping
+
+        for (const device of devices) {
+            try {
+                if (device.id.startsWith('offline_new_')) {
+                    // Új eszköz: Hozzáadás a Firestore-hoz
+                    console.log(`[Sync] Új eszköz feltöltése: ${device.id}`);
+                    const newDocRef = await firestore.collection('partners').doc(partnerId).collection('devices').add({
+                        description: device.description || '',
+                        serialNumber: device.serialNumber || '',
+                        operatorId: device.operatorId || '',
+                        type: device.type || '',
+                        manufacturer: device.manufacturer || '',
+                        effectiveLength: device.effectiveLength || '',
+                        yearOfManufacture: device.yearOfManufacture || '',
+                        loadCapacity: device.loadCapacity || '',
+                        chip: device.chip || null,
+                        kov_vizsg: 'N/A', // Mivel még csak draft vizsgálat készül, az időpont nem frissül!
+                        createdOffline: true,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        comment: 'active',
+                        status: ''
+                    });
+                    newDevicesMap[device.id] = newDocRef.id;
+                    updateProgress(`Új eszköz mentve: ${device.description}`);
+                } else {
+                    // Meglévő eszköz: Ellenőrizzük, módosult-e (has offline modifications log)
+                    const isModified = device.isEditedOffline === true;
+                    if (isModified) {
+                        console.log(`[Sync] Meglévő eszköz frissítse: ${device.id}`);
+                        await firestore.collection('partners').doc(partnerId).collection('devices').doc(device.id).update({
+                            description: device.description || '',
+                            serialNumber: device.serialNumber || '',
+                            operatorId: device.operatorId || '',
+                            type: device.type || '',
+                            manufacturer: device.manufacturer || '',
+                            effectiveLength: device.effectiveLength || '',
+                            yearOfManufacture: device.yearOfManufacture || '',
+                            loadCapacity: device.loadCapacity || '',
+                            chip: device.chip || null,
+                            updatedOffline: true,
+                            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        updateProgress(`Eszköz frissítve: ${device.description}`);
+                    } else {
+                        updateProgress(`Eszköz ellenőrizve: ${device.description}`);
+                    }
+                }
+            } catch (deviceError) {
+                console.error(`Error saving device ${device.id}:`, deviceError);
+                errors.push(`Eszköz mentési hiba (${device.description}): ${deviceError.message}`);
+            }
+        }
+
+        // 2. Drafts (Vizsgálatok) feltöltése
+        statusText.textContent = "Vizsgálatok (draft) szinkronizálása...";
+        for (const draft of drafts) {
+            try {
+                // Ha a draft egy frissen létrehozott (offline_new_) eszközhöz tartozik, kicseréljük az ID-t az új Firestore ID-ra
+                let actualDeviceId = draft.deviceId;
+                if (actualDeviceId.startsWith('offline_new_')) {
+                    if (newDevicesMap[actualDeviceId]) {
+                        actualDeviceId = newDevicesMap[actualDeviceId];
+                    } else {
+                        throw new Error("Az eszköz feltöltése nem sikerült, a jegyzőkönyv nem menthető.");
+                    }
+                }
+
+                console.log(`[Sync] Jegyzőkönyv mentése eszközhöz: ${actualDeviceId}`);
+                const currentUserUid = window.firebase ? window.firebase.auth().currentUser?.uid : null;
+                const finalUserId = meta.userId || currentUserUid || 'unknown_user';
+                // Generate hash for PDF 'Sorszám'
+                const encoder = new TextEncoder();
+                const dataBuffer = encoder.encode(`${actualDeviceId}${draft.szakerto}${draft.vizsgalatIdopontja}`);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                const dataToSave = {
+                    vizsgalatJellege: draft.vizsgalatJellege || null,
+                    szakerto: draft.szakerto || null,
+                    vizsgalatHelye: draft.vizsgalatHelye || null,
+                    vizsgalatIdopontja: draft.vizsgalatIdopontja || null,
+                    vizsgalatEredmenye: draft.vizsgalatEredmenye || null,
+                    kovetkezoIdoszakosVizsgalat: draft.kovetkezoIdoszakosVizsgalat || null,
+                    kovetkezoTerhelesiProba: draft.kovetkezoTerhelesiProba || null,
+                    feltartHiba: draft.feltartHiba || null,
+                    felhasznaltAnyagok: draft.felhasznaltAnyagok || null,
+                    hash: hash,
+                    status: 'draft', // Végleges döntés alapján ONLINE PISZKOZAT lesz
+                    createdByUid: finalUserId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    offlineCreated: true,
+                    partnerId: partnerId,
+                    deviceId: actualDeviceId
+                };
+
+                await firestore.collection('partners').doc(partnerId).collection('devices').doc(actualDeviceId)
+                    .collection('inspections').add(dataToSave);
+
+                updateProgress(`Jegyzőkönyv feltöltve.`);
+            } catch (draftErr) {
+                console.error(`Error saving draft ${draft.id}:`, draftErr);
+                errors.push(`Vizsgálat mentési hiba: ${draftErr.message}`);
+            }
+        }
+
+        // Befejezés és összegzés
+        if (errors.length > 0) {
+            errContainer.classList.remove('hidden');
+            errors.forEach(e => {
+                const li = document.createElement('li');
+                li.textContent = e;
+                errList.appendChild(li);
+            });
+            bar.classList.add('bg-red-500');
+            statusText.textContent = "Szinkronizáció befejeződött hibákkal.";
+        } else {
+            bar.style.width = '100%';
+            pct.textContent = '100%';
+            statusText.textContent = "Szinkronizáció kész! Adatbázis takarítása...";
+            
+            // Clean up DB
+            await db.drafts.clear();
+            await db.devices.clear();
+            await db.meta.clear();
+            await db.logs.clear();
+            
+            setTimeout(() => {
+                window.location.href = '/app.html';
+            }, 1500);
+        }
+
+    } catch (e) {
+        console.error("Critical Sync Error:", e);
+        errContainer.classList.remove('hidden');
+        errList.innerHTML = `<li>Végzetes hiba: ${e.message}</li>`;
+        bar.classList.add('bg-red-500');
+        statusText.textContent = "A szinkronizáció megszakadt.";
     }
 }
