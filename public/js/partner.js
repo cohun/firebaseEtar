@@ -6149,6 +6149,13 @@ export function getPartnerWorkScreenHtml(partner, userData) {
         `;
     }
 
+    let prepareOfflineBtnHtml = '';
+    let prepareOfflineBtnHtmlMobile = '';
+    if (userData.isEjkUser && userRoles.includes('EJK_admin')) {
+        prepareOfflineBtnHtml = `<button id="prepare-offline-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2 bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>`;
+        prepareOfflineBtnHtmlMobile = `<button id="prepare-offline-btn-mobile" class="menu-btn menu-btn-primary w-full text-left bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>`;
+    }
+
     return `
         <header id="partner-work-screen-header" class="bg-gray-800 text-white shadow-lg relative">
             <div class="p-4 flex items-center justify-between">
@@ -6171,7 +6178,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
                 </div>
                  <!-- Desktop Menu -->
                 <nav class="hidden xl:flex items-center gap-2 flex-nowrap">
-                    <button id="prepare-offline-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2 bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
+                    ${prepareOfflineBtnHtml}
                     <button id="download-db-btn" class="menu-btn menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2"><i class="fas fa-download fa-fw"></i>Adatbázis</button>
                     ${uploadButtonHtml.replace('w-full text-left', '').replace('Új eszköz feltöltés', 'Feltöltés').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
                     ${newInspectionButtonHtml.replace('Új vizsgálat', 'Új vizsgálat').replace('menu-btn-primary', 'menu-btn-primary whitespace-nowrap text-xs xl:text-xs 2xl:text-sm px-2')}
@@ -6182,7 +6189,7 @@ export function getPartnerWorkScreenHtml(partner, userData) {
             </div>
             <!-- Mobile Menu -->
             <nav id="mobile-menu" class="hidden xl:hidden bg-gray-700 p-4 space-y-2">
-                <button id="prepare-offline-btn-mobile" class="menu-btn menu-btn-primary w-full text-left bg-indigo-600 hover:bg-indigo-700 border-indigo-500"><i class="fas fa-wifi fa-fw"></i>Offline Előkészülés</button>
+                ${prepareOfflineBtnHtmlMobile}
                 <button id="download-db-btn-mobile" class="menu-btn menu-btn-primary w-full text-left"><i class="fas fa-download fa-fw"></i>Adatbázis letöltés</button>
                 ${uploadButtonHtml.replace('id="uploadDeviceBtn"', 'id="uploadDeviceBtnMobile"')}
                 ${newInspectionButtonHtmlMobile}

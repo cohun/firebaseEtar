@@ -1,4 +1,4 @@
-const CACHE_NAME = 'etar-offline-v10';
+const CACHE_NAME = 'etar-offline-v11';
 const ASSETS_TO_CACHE = [
   '/offline.html',
   '/js/offline_app.js',
