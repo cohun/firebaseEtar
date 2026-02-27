@@ -5490,7 +5490,10 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                         // Reset UI
                         deviceSearchResult.innerHTML = '<p class="text-green-400">Vizsgálat sikeresen rögzítve. Keressen új eszközt a folytatáshoz.</p>';
                         serialNumberInput.value = ''; 
-                        serialNumberInput.focus(); 
+                        // Only auto-focus on non-touch devices to prevent virtual keyboard popups on tablets
+                        if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) {
+                            serialNumberInput.focus(); 
+                        }
 
                     } catch (error) {
                         console.error("Hiba a vizsgálati piszkozat mentésekor: ", error);
@@ -5689,7 +5692,10 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
             newOkBtn.addEventListener('click', () => {
                  modal.classList.add('hidden');
                  if (document.getElementById('serialNumberInput')) {
-                     document.getElementById('serialNumberInput').focus();
+                     // Only auto-focus on non-touch devices to prevent virtual keyboard popups on tablets
+                     if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) {
+                         document.getElementById('serialNumberInput').focus();
+                     }
                  }
             });
         }
