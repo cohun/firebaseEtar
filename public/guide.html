@@ -306,7 +306,48 @@
             </section>
 
              <section>
-                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">7. Hibaelhárítás</h2>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">7. ETAR Offline Mód (Térerő Nélküli Használat) - <span class="text-yellow-400 text-sm bg-yellow-900/50 px-2 py-1 rounded inline-block ml-2">ÚJ FUNKCIÓ</span></h2>
+                <p class="mb-4">Az ETAR mostantól képes internetkapcsolat nélkül is teljes értékűen működni. Ez különösen hasznos mélygarázsokban, leárnyékolt csarnokokban végzett ellenőrzéseknél, ahol nincs megfelelő mobilnet-lefedettség.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-white mb-2"><i class="fas fa-wifi text-indigo-400 mr-2"></i>1. Offline Előkészülés (Online fázis)</h4>
+                        <p class="text-sm text-gray-400 mb-2">Mielőtt térerőmentes helyre menne, még aktív internetkapcsolattal nyomja meg a főoldalon (Partner nézet) található <strong>Offline Előkészülés</strong> gombot.</p>
+                        <ul class="list-disc list-inside text-sm text-gray-400 space-y-1">
+                            <li>A rendszer letölti eszközeit és a legutóbbi vizsgajegyzőkönyveket a készüléke (telefon/tablet) memóriájába.</li>
+                            <li>Várja meg a "Sikeres Letöltés" üzenetet.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-white mb-2"><i class="fas fa-search text-indigo-400 mr-2"></i>2. Terepi Használat (Offline fázis)</h4>
+                        <p class="text-sm text-gray-400 mb-2">Lent a csarnokban az alkalmazás jelezni fogja, hogy Offline módban van. <strong>Internet nélkül is:</strong></p>
+                        <ul class="list-disc list-inside text-sm text-gray-400 space-y-1">
+                            <li>Kereshet a gépek között a megszokott módon (Gyári szám, Op. ID).</li>
+                            <li>Láthatja, ha egy gép <strong>LEJÁRT</strong>.</li>
+                            <li>A gép <strong>Részleteit</strong> megnyitva ellenőrizheti az adatait és a letöltött jegyzőkönyvet is.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg md:col-span-2 border border-indigo-500/30">
+                        <h4 class="font-bold text-indigo-300 mb-2"><i class="fa-solid fa-nfc-symbol mr-2"></i>3. NFC Chip Betanítás Leltározáshoz</h4>
+                        <p class="text-sm text-gray-400 mb-2">Ha csipet cserél egy eszközön offline állapotban:</p>
+                        <ol class="list-decimal list-inside text-sm text-gray-400 space-y-1">
+                            <li>Nyissa meg a gép <strong>Részleteit</strong>.</li>
+                            <li>Kattintson az <strong class="text-white">NFC betanítás</strong> gombra.</li>
+                            <li>Érintse az új NFC tokot a mobilja hátuljához. A gomb <strong class="text-green-400">zöldre (Betanítva)</strong> vált.</li>
+                        </ol>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg md:col-span-2 border border-green-500/30">
+                        <h4 class="font-bold text-green-300 mb-2"><i class="fas fa-cloud-upload-alt mr-2"></i>4. Szinkronizáció és Vissza (Újra Online térben)</h4>
+                        <p class="text-sm text-gray-400">Amikor ismét feljut a "felszínre" és van internetkapcsolata, használja az alkalmazás alján található <strong>Szinkronizáció és Vissza</strong> gombot. Ez visszatölti a központba az offline betanított csipeket, majd visszairányítja Önt a megszokott online felületre.</p>
+                    </div>
+                </div>
+            </section>
+
+             <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">8. Hibaelhárítás</h2>
                  <ul class="list-disc list-inside ml-4 space-y-1 text-gray-400">
                     <li><strong>Nem látom az eszközt:</strong> Ellenőrizze a szűrőket (állítsa "Összes"-re).</li>
                     <li><strong>Nem tudok szerkeszteni:</strong> Ellenőrizze a jogosultságát (Read joggal nem lehet).</li>
