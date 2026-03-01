@@ -94,6 +94,11 @@ service cloud.firestore {
       allow write: if canWriteInspection('admin'); // Only admins or high-privileged users
     }
 
+    // ÚJ SZABÁLY: Email küldési sor (mailQueue)
+    match /mailQueue/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if isAnAdmin() || true; // temporary fallback for testing
+    }
   }
 }
 

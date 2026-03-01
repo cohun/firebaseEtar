@@ -1,4 +1,4 @@
-import { db } from './firebase.js';
+import { db, auth } from './firebase.js';
 import { showScreen, screens, showPartnerWorkScreen } from './ui.js';
 import { getPartnersForSelection } from './admin.js';
 import { showScheduler } from './scheduler.js';
@@ -28,7 +28,7 @@ export async function showStatisticsScreen(user, userData) {
         const partners = await getPartnersForSelection(userData);
         
         // 4. Render the Initial UI (Dropdown frame)
-        renderInitialStatisticsUI(partners, userData);
+        renderInitialStatisticsUI(partners, userData, user);
 
     } catch (error) {
         console.error("Hiba a partnerek betöltésekor:", error);
@@ -181,7 +181,7 @@ async function loadStatsForPartners(partnerIdsToLoad, allPartners, userData) {
     }
 }
 
-function renderInitialStatisticsUI(partners, userData) {
+function renderInitialStatisticsUI(partners, userData, user) {
     // Determine Global Access
     const isEkv = userData.isEkvUser === true;
     const globalRoles = ['EJK_admin', 'EJK_write', 'EJK_read', 'sysadmin'];
@@ -244,12 +244,34 @@ function renderInitialStatisticsUI(partners, userData) {
         </div>
     `;
 
+    const autoMonitorModalHtml = `
+        <div id="autoMonitorModal" class="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center hidden z-50">
+            <div class="bg-gray-800 border border-blue-500 rounded-lg p-6 max-w-md w-full mx-4 shadow-lg shadow-blue-500/20">
+                <h3 class="text-xl font-bold text-white mb-4 text-center">Vizsgálati időpont emlékeztetők</h3>
+                <p class="text-gray-300 mb-2 text-center">Bejelentkezett felhasználó: <br><span id="autoMonitorUserName" class="text-blue-300 font-semibold text-lg"></span></p>
+                <p class="text-gray-300 mb-4 text-center text-sm">Erre az email címre kívánja beállítani a vizsgálati időpont emlékeztetőket?</p>
+                <div class="mb-6">
+                    <input type="text" id="autoMonitorEmailInput" class="w-full bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="email@pelda.hu">
+                    <p class="text-xs text-gray-400 mt-2 text-center leading-tight">Több email cím is megadható vesszővel elválasztva.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row justify-center gap-3">
+                    <button id="closeAutoMonitorModal" class="btn btn-secondary w-full sm:w-auto px-6">Mégse</button>
+                    <button id="saveAutoMonitorEmails" class="btn btn-primary w-full sm:w-auto px-6">Mentés</button>
+                </div>
+            </div>
+        </div>
+    `;
+
     const html = `
         <div class="card max-w-5xl mx-auto relative">
-             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+             <div class="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">Statisztikák</h1>
-                <div class="flex gap-2 w-full md:w-auto justify-end">
-                    <button id="openSchedulerBtn" class="btn btn-primary hidden">Vizsgálati időpont egyeztetés</button>
+                <div class="flex flex-wrap gap-2 w-full lg:w-auto justify-end items-center">
+                    <button id="autoMonitorBtn" class="btn btn-secondary hidden flex-row items-center gap-2" title="Automatikus figyelmeztetések beállítása">
+                        <i class="far fa-square" id="autoMonitorCheckbox"></i>
+                        <span>Automatikus figyelés</span>
+                    </button>
+                    <button id="openSchedulerBtn" class="btn btn-primary hidden">Vizsgálati naptár</button>
                     <button id="backToMainFromStats" class="btn btn-secondary">Vissza</button>
                 </div>
             </div>
@@ -257,6 +279,7 @@ function renderInitialStatisticsUI(partners, userData) {
             ${contentHtml}
         </div>
         ${modalHtml}
+        ${autoMonitorModalHtml}
     `;
 
     screens.statistics.innerHTML = html;
@@ -280,6 +303,79 @@ function renderInitialStatisticsUI(partners, userData) {
         list.innerHTML = items.map(item => `<li class="border-b border-gray-700 pb-1 last:border-0">${item}</li>`).join('');
         modal.classList.remove('hidden');
     };
+
+    // --- Logic for Auto Monitor Button & Modal ---
+    const isEnyAdminOrWrite = !userData.isEjkUser && userData.partnerRoles && Object.values(userData.partnerRoles).some(role => role === 'admin' || role === 'write');
+    const isGlobalEnyAdmin = !userData.isEjkUser && userData.roles && (userData.roles.includes('ENY_admin') || userData.roles.includes('ENY_write') || userData.roles.includes('admin') || userData.roles.includes('write'));
+
+    if (isEnyAdminOrWrite || isGlobalEnyAdmin) {
+        const autoMonitorBtn = document.getElementById('autoMonitorBtn');
+        const autoMonitorCheckbox = document.getElementById('autoMonitorCheckbox');
+        const autoMonitorModal = document.getElementById('autoMonitorModal');
+        const autoMonitorEmailInput = document.getElementById('autoMonitorEmailInput');
+        
+        autoMonitorBtn.classList.remove('hidden');
+
+        // Initial setup from user data
+        if (user) {
+            db.collection('users').doc(user.uid).get().then(doc => {
+                if (doc.exists) {
+                    const freshData = doc.data();
+                    if (freshData.automaticMonitoringEmails) {
+                        autoMonitorBtn.classList.remove('btn-secondary');
+                        autoMonitorBtn.classList.add('bg-green-900', 'text-green-400', 'border', 'border-green-500', 'hover:bg-green-800'); // Egyedi zöld stílus aktív állapotra
+                        autoMonitorCheckbox.className = 'far fa-check-square text-green-400';
+                        autoMonitorEmailInput.value = freshData.automaticMonitoringEmails;
+                    } else {
+                        autoMonitorEmailInput.value = user.email || '';
+                    }
+                }
+            }).catch(console.error);
+        }
+
+        autoMonitorBtn.addEventListener('click', () => {
+            const userNameDisplay = document.getElementById('autoMonitorUserName');
+            userNameDisplay.textContent = (user ? user.displayName : '') || userData.name || 'Felhasználó';
+            autoMonitorModal.classList.remove('hidden');
+        });
+
+        document.getElementById('closeAutoMonitorModal').addEventListener('click', () => {
+            autoMonitorModal.classList.add('hidden');
+        });
+
+        document.getElementById('saveAutoMonitorEmails').addEventListener('click', async () => {
+             if (!user) return;
+             const emails = autoMonitorEmailInput.value.trim();
+             const saveBtn = document.getElementById('saveAutoMonitorEmails');
+             saveBtn.disabled = true;
+             saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mentés...';
+
+             try {
+                  await db.collection('users').doc(user.uid).update({
+                       automaticMonitoringEmails: emails
+                  });
+                  
+                  // Update UI
+                  if (emails) {
+                      autoMonitorBtn.classList.remove('btn-secondary');
+                      autoMonitorBtn.classList.add('bg-green-900', 'text-green-400', 'border', 'border-green-500', 'hover:bg-green-800');
+                      autoMonitorCheckbox.className = 'far fa-check-square text-green-400';
+                  } else {
+                      autoMonitorBtn.classList.remove('bg-green-900', 'text-green-400', 'border', 'border-green-500', 'hover:bg-green-800');
+                      autoMonitorBtn.classList.add('btn-secondary');
+                      autoMonitorCheckbox.className = 'far fa-square';
+                  }
+
+                  autoMonitorModal.classList.add('hidden');
+             } catch (error) {
+                  console.error('Hiba az automatikus figyelés mentésekor:', error);
+                  alert('Hiba történt a mentés során.');
+             } finally {
+                  saveBtn.disabled = false;
+                  saveBtn.innerHTML = 'Mentés';
+             }
+        });
+    }
 
     // --- Logic for EJK Dropdown & Actions ---
     // Variables already declared at top of function
@@ -386,6 +482,29 @@ function renderStatsContent(partnerStats, userData) {
     }
 
     contentArea.innerHTML = statsToRender.map(stats => generateStatsCardHtml(stats, isAggregateMode, userData)).join('');
+
+    // Setup message buttons
+    if (!isAggregateMode) {
+        document.querySelectorAll('.send-msg-partner-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const pId = e.currentTarget.dataset.partnerId;
+                const pStats = statsToRender.find(s => s.partnerId === pId);
+                if (pStats && pStats.partnerObj) {
+                    initPartnerMsgModal(pStats.partnerObj, userData);
+                }
+            });
+        });
+
+        document.querySelectorAll('.send-msg-hitb-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const pId = e.currentTarget.dataset.partnerId;
+                const pStats = statsToRender.find(s => s.partnerId === pId);
+                if (pStats && pStats.partnerObj) {
+                    initHitbMsgModal(pStats.partnerObj, userData, pStats);
+                }
+            });
+        });
+    }
 
     // Add click listeners for aggregate view rows
     if (isAggregateMode) {
@@ -610,12 +729,35 @@ function generateStatsCardHtml(stats, isAggregate, userData = null) {
     // Visual opacity for disabled state (optional, improving UX)
     const cardOpacity = hasAccess ? '' : 'opacity-75';
 
+    let actionButtonsHtml = '';
+    if (!isAggregate && stats.partnerObj) {
+        if (userData.isEjkUser) {
+            actionButtonsHtml = `
+                <button class="send-msg-partner-btn btn text-white text-sm whitespace-nowrap px-3 py-1 rounded shadow" style="background-color: #3b82f6; border: 1px solid #2563eb; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'" data-partner-id="${stats.partnerId}">
+                    <i class="fas fa-envelope fa-fw"></i> Üzenet a partnernek
+                </button>
+            `;
+        } else {
+            const hasWriteOrAdmin = checkPartnerAccess(userData, stats.partnerId);
+            if (hasWriteOrAdmin) {
+                actionButtonsHtml = `
+                    <button class="send-msg-hitb-btn btn text-white text-sm whitespace-nowrap px-3 py-1 rounded shadow" style="background-color: #f59e0b; border: 1px solid #d97706; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#d97706'" onmouseout="this.style.backgroundColor='#f59e0b'" data-partner-id="${stats.partnerId}">
+                        <i class="fas fa-headset fa-fw"></i> Vizsgálati időpont kérés
+                    </button>
+                `;
+            }
+        }
+    }
+
     return `
         <div class="bg-gray-800/50 rounded-lg border border-blue-800 p-6 mb-8 ${cardOpacity}">
-            <div class="mb-6 border-b border-gray-700 pb-4">
-                <h2 class="text-2xl font-bold text-blue-300">${stats.partnerName}</h2>
-                <p class="text-gray-400 text-sm">${stats.partnerAddress}</p>
-                <p class="text-gray-400 text-sm mt-1">Összes eszköz: <span class="text-white font-semibold">${stats.totalDevices}</span></p>
+            <div class="mb-6 border-b border-gray-700 pb-4 flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-blue-300">${stats.partnerName}</h2>
+                    <p class="text-gray-400 text-sm">${stats.partnerAddress}</p>
+                    <p class="text-gray-400 text-sm mt-1">Összes eszköz: <span class="text-white font-semibold">${stats.totalDevices}</span></p>
+                </div>
+                ${actionButtonsHtml ? `<div class="flex-shrink-0">${actionButtonsHtml}</div>` : ''}
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -651,3 +793,275 @@ function generateStatsCardHtml(stats, isAggregate, userData = null) {
     `;
 }
 
+
+// --- PARTNER EMAIL MODAL LOGIC (EJK -> ENY) ---
+async function initPartnerMsgModal(partner, userData) {
+    let modal = document.getElementById('partnerMsgModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'partnerMsgModal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center hidden z-50';
+        modal.innerHTML = `
+            <div class="bg-gray-800 border border-blue-500 rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg shadow-blue-500/20 max-h-screen overflow-y-auto">
+                <h3 class="text-xl font-bold text-white mb-2 text-center">Üzenet küldése a partnernek</h3>
+                <p class="text-sm border-b border-gray-600 pb-2 mb-4 text-center text-gray-300">
+                  Partner: <span class="text-blue-400 font-semibold">${partner.name}</span>
+                </p>
+                
+                <div id="partnerMsgToWrapper" class="mb-4">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">Címzettek (ENY userek / Automatikus figyelők)</label>
+                    <ul id="partnerMsgToList" class="text-sm text-gray-400 bg-gray-900 p-2 rounded max-h-24 overflow-y-auto">
+                        <li class="italic"><i class="fas fa-spinner fa-spin"></i> Betöltés...</li>
+                    </ul>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">Tárgy</label>
+                    <input type="text" id="partnerMsgSubject" class="w-full bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded focus:border-blue-500 focus:outline-none" placeholder="Üzenet tárgya...">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">Üzenet szövege</label>
+                    <textarea id="partnerMsgBody" rows="6" class="w-full bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded focus:border-blue-500 focus:outline-none" placeholder="Ide írja az üzenetet... Kérjük, vegye figyelembe, hogy a válaszcím (Reply-To) az Ön email címe lesz, így a partner egyenesen Önnek tud válaszolni."></textarea>
+                </div>
+                <div class="flex justify-between w-full">
+                    <button id="cancelPartnerMsgBtn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded focus:outline-none transition-colors duration-200">Mégse</button>
+                    <button id="sendPartnerMsgBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none transition-colors duration-200 shadow-md">Küldés folyamatban...</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('cancelPartnerMsgBtn').addEventListener('click', () => {
+            document.getElementById('partnerMsgModal').classList.add('hidden');
+        });
+
+        document.getElementById('sendPartnerMsgBtn').addEventListener('click', async () => {
+            const subject = document.getElementById('partnerMsgSubject').value.trim();
+            const body = document.getElementById('partnerMsgBody').value.trim();
+            
+            if (!subject || !body) {
+                alert('Kérjük, töltse ki a tárgyat és az üzenet szövegét!');
+                return;
+            }
+            
+            let currentEmails = modal.dataset.emailsToSend ? JSON.parse(modal.dataset.emailsToSend) : [];
+            
+            if (currentEmails.length === 0) {
+                alert('Nincs elérhető címzett ehhez a partnerhez! (Nincsenek regisztrált email címek automatikus értesítésre vagy ENY adminokhoz).');
+                return;
+            }
+
+            if (!confirm('Biztosan elküldi az üzenetet a partnernek? Tényleges emailek fognak kimenni.')) {
+                return;
+            }
+
+            const sendBtn = document.getElementById('sendPartnerMsgBtn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Küldés...';
+
+            try {
+                const htmlBody = body.replace(/\n/g, '<br>');
+                const senderEmail = userData.email || auth.currentUser.email || 'info@h-itb.hu';
+                const currentPartnerName = modal.dataset.partnerName || 'tisztelt Partner';
+                
+                await db.collection('mailQueue').add({
+                    to: currentEmails,
+                    replyTo: senderEmail,
+                    subject: subject,
+                    html: `<p>Tisztelt <b>${currentPartnerName}</b>!</p>${htmlBody}<br><br><hr><small>Ezt az üzenetet az ETAR rendszeren keresztül küldték. A Válaszgombra (Reply) kattintva az üzenet feladójának (${senderEmail}) válaszol.</small>`,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert('Az üzenet sikeresen elküldve!');
+                document.getElementById('partnerMsgModal').classList.add('hidden');
+                document.getElementById('partnerMsgSubject').value = '';
+                document.getElementById('partnerMsgBody').value = '';
+
+            } catch (error) {
+                console.error("Hiba az email küldésekor: ", error);
+                alert("Hiba történt a küldés során: " + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Küldés';
+            }
+        });
+    }
+
+    modal.dataset.emailsToSend = JSON.stringify([]);
+    modal.dataset.partnerName = partner.name || '';
+    
+    const partnerNameSpan = modal.querySelector('span.text-blue-400');
+    if (partnerNameSpan) partnerNameSpan.innerText = partner.name;
+
+    modal.classList.remove('hidden');
+
+    const toList = document.getElementById('partnerMsgToList');
+    const sendBtn = document.getElementById('sendPartnerMsgBtn');
+    sendBtn.disabled = true;
+    toList.innerHTML = '<li class="italic"><i class="fas fa-spinner fa-spin"></i> Betöltés...</li>';
+
+    try {
+        const usersSnap = await db.collection('users').get(); // Fetch all users, filter client-side to catch undefined isEjkUser
+        let foundEmails = new Set();
+        
+        usersSnap.docs.forEach(doc => {
+            const u = doc.data();
+            // Only consider users who are not EJK/EKV and belong to this partner
+            if (!u.isEjkUser && !u.isEkvUser && u.partnerRoles && u.partnerRoles[partner.id]) {
+                if (u.automaticMonitoringEmails && u.automaticMonitoringEmails.length > 0) {
+                    let emails = typeof u.automaticMonitoringEmails === 'string'
+                        ? u.automaticMonitoringEmails.split(',').map(e => e.trim()).filter(e => e)
+                        : u.automaticMonitoringEmails;
+                    
+                    if (emails.length > 0) {
+                        emails.forEach(email => foundEmails.add(email));
+                    } else if (u.partnerRoles[partner.id] === 'admin' && u.email) {
+                        foundEmails.add(u.email);
+                    }
+                } else if (u.partnerRoles[partner.id] === 'admin' && u.email) {
+                    foundEmails.add(u.email);
+                }
+            }
+        });
+
+        const emailsToSend = Array.from(foundEmails);
+        modal.dataset.emailsToSend = JSON.stringify(emailsToSend);
+
+        if (emailsToSend.length === 0) {
+            toList.innerHTML = '<li class="text-red-400">Nem található értesíthető email cím (Nincs automatikus figyelő / ENY admin).</li>';
+        } else {
+            toList.innerHTML = emailsToSend.map(e => `<li><i class="fas fa-check text-green-500 mr-2"></i>${e}</li>`).join('');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = 'Küldés';
+        }
+
+    } catch (error) {
+        console.error("Error fetching recipients: ", error);
+        toList.innerHTML = '<li class="text-red-400">Hiba a címzettek betöltésekor.</li>';
+    }
+}
+
+// --- ENY EMAIL MODAL LOGIC (ENY -> H-ITB) ---
+async function initHitbMsgModal(partner, userData, pStats) {
+    let modal = document.getElementById('hitbMsgModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'hitbMsgModal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center hidden z-50';
+        modal.innerHTML = `
+            <div class="bg-gray-800 border border-yellow-500 rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg shadow-yellow-500/20 max-h-screen overflow-y-auto">
+                <h3 class="text-xl font-bold text-white mb-2 text-center">Vizsgálati időpont kérés</h3>
+                <p class="text-sm border-b border-gray-600 pb-2 mb-4 text-center text-gray-300">
+                  Partner: <span class="text-yellow-400 font-semibold">${partner.name}</span>
+                </p>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">Címzett</label>
+                    <div class="text-sm text-gray-400 bg-gray-900 p-2 rounded">
+                        <i class="fas fa-envelope text-yellow-500 mr-2"></i> hitbvizsgalat@gmail.com
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">Tárgy</label>
+                    <input type="text" id="hitbMsgSubject" class="w-full bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded focus:border-yellow-500 focus:outline-none" value="Érdeklődés / Időpont kérés - ${partner.name}">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-300 text-sm font-bold mb-2">Üzenet szövege</label>
+                    <textarea id="hitbMsgBody" rows="6" class="w-full bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded focus:border-yellow-500 focus:outline-none" placeholder="Ide írja az üzenetet... Kérjük, vegye figyelembe, hogy a válaszcím (Reply-To) az Ön email címe lesz, így a H-ITB munkatársai egyenesen Önnek tudnak válaszolni."></textarea>
+                </div>
+                <div class="flex justify-between w-full">
+                    <button id="cancelHitbMsgBtn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded focus:outline-none transition-colors duration-200">Mégse</button>
+                    <button id="sendHitbMsgBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded focus:outline-none transition-colors duration-200 shadow-md">Küldés</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('cancelHitbMsgBtn').addEventListener('click', () => {
+            document.getElementById('hitbMsgModal').classList.add('hidden');
+        });
+
+        document.getElementById('sendHitbMsgBtn').addEventListener('click', async () => {
+            const subject = document.getElementById('hitbMsgSubject').value.trim();
+            const body = document.getElementById('hitbMsgBody').value.trim();
+            
+            if (!subject || !body) {
+                alert('Kérjük, töltse ki a tárgyat és az üzenet szövegét!');
+                return;
+            }
+            
+            if (!confirm('Biztosan elküldi az üzenetet a H-ITB központnak?')) {
+                return;
+            }
+
+            const sendBtn = document.getElementById('sendHitbMsgBtn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Küldés...';
+
+            try {
+                const htmlBody = body.replace(/\n/g, '<br>');
+                const senderEmail = userData.email || auth.currentUser.email || 'Ismeretlen feladó';
+                const currentPartnerName = modal.dataset.partnerName || 'Unknown Partner';
+                
+                let statsTableHtml = '';
+                if (pStats && pStats.monthlyExpirations) {
+                    const sortedMonths = Object.keys(pStats.monthlyExpirations).sort();
+                    if (sortedMonths.length > 0) {
+                        const tableRowsHtml = sortedMonths.map(month => {
+                            const [year, m] = month.split('-');
+                            const monthName = new Date(year, m - 1).toLocaleString('hu-HU', { month: 'long' });
+                            return '<tr>' +
+                                '<td style="padding: 10px; border: 1px solid #ddd;">' + year + '. ' + monthName + '</td>' +
+                                '<td style="text-align: right; font-weight: bold; padding: 10px; border: 1px solid #ddd;">' + pStats.monthlyExpirations[month].count + ' db</td>' +
+                            '</tr>';
+                        }).join('');
+
+                        statsTableHtml = `
+                            <br><h3 style="margin-bottom: 10px; font-size: 16px; color: #333;">Következő vizsgálatok esedékessége:</h3>
+                            <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; text-align: left; margin-bottom: 20px; font-family: sans-serif; font-size: 14px; min-width: 300px;">
+                                <thead>
+                                    <tr style="background-color: #f2f2f2; border-bottom: 2px solid #ccc;">
+                                        <th style="padding: 10px; border: 1px solid #ddd;">Hónap</th>
+                                        <th style="text-align: right; padding: 10px; border: 1px solid #ddd;">Darabszám</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRowsHtml}
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                }
+
+                await db.collection('mailQueue').add({
+                    to: ['hitbvizsgalat@gmail.com'],
+                    replyTo: senderEmail,
+                    subject: subject,
+                    html: `<p>Tisztelt <b>H-ITB Központ</b>!</p><p>Az alábbi üzenet a(z) <b>${currentPartnerName}</b> partner képviseletében érkezett:</p><div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0;">${htmlBody}</div>${statsTableHtml}<br><hr><small>Feladó email címe: ${senderEmail}</small>`,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert('Az üzenet sikeresen elküldve!');
+                document.getElementById('hitbMsgModal').classList.add('hidden');
+                document.getElementById('hitbMsgBody').value = '';
+
+            } catch (error) {
+                console.error("Hiba az email küldésekor: ", error);
+                alert("Hiba történt a küldés során: " + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Küldés';
+            }
+        });
+    } else {
+        document.getElementById('hitbMsgSubject').value = `Érdeklődés / Időpont kérés - ${partner.name}`;
+        const pNameSpan = modal.querySelector('span.text-yellow-400');
+        if (pNameSpan) pNameSpan.innerText = partner.name;
+    }
+
+    modal.dataset.partnerName = partner.name || '';
+    modal.classList.remove('hidden');
+}

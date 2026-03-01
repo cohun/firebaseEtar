@@ -7,12 +7,13 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onObjectFinalized, onObjectDeleted } from "firebase-functions/v2/storage";
 import * as admin from "firebase-admin";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import pdf from "pdf-parse";
 import axios from "axios";
+import * as nodemailer from "nodemailer";
 
 // -----------------------------------------------------------------------------------------
 // Storage Quota Functions
@@ -235,3 +236,57 @@ export const indexExpertKnowledge = onDocumentWritten({
 });
 
 export * from "./chat";
+
+// -----------------------------------------------------------------------------------------
+// Email Handling Functions
+// -----------------------------------------------------------------------------------------
+
+const mailTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_EMAIL,
+    pass: process.env.GMAIL_PASSWORD,
+  },
+});
+
+export const sendEmailFromQueue = onDocumentCreated("mailQueue/{docId}", async (event) => {
+  const data = event.data?.data();
+  if (!data) return;
+
+  const { to, replyTo, subject, html } = data;
+
+  if (!to || !subject || !html) {
+    console.error(`[MailQueue] Missing required fields for document ${event.params.docId}`);
+    return event.data?.ref.update({ status: "error", error: "Missing required fields" });
+  }
+
+  try {
+    const mailOptions = {
+      from: `"ETAR Rendszer" <${process.env.GMAIL_EMAIL}>`,
+      to: Array.isArray(to) ? to.join(",") : to,
+      replyTo: replyTo,
+      subject: subject,
+      html: html,
+    };
+
+    console.log(`[MailQueue] Sending email to ${mailOptions.to} with subject "${subject}"`);
+    const info = await mailTransporter.sendMail(mailOptions);
+    console.log(`[MailQueue] Email sent successfully: ${info.messageId}`);
+
+    await event.data?.ref.update({ 
+        status: "sent", 
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        messageId: info.messageId
+    });
+    return;
+  } catch (error: any) {
+    console.error(`[MailQueue] Error sending email for document ${event.params.docId}:`, error);
+    await event.data?.ref.update({ 
+        status: "error", 
+        error: error.message || "Unknown error" 
+    });
+    return;
+  }
+});
+
+export * from "./cron";

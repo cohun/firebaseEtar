@@ -285,6 +285,7 @@ export function initPartnerWorkScreen(partner, userData) {
     const role = partnerRoles[partnerId] || null;
     const isEjkUser = (userData && userData.isEjkUser) || false;
     const isEkvUser = (userData && userData.isEkvUser) || false; // Define here for wider scope
+    const isEnyUser = !isEjkUser && !isEkvUser;
 
     
     // Only restrict if explicitly read-only. Default to allowing edit to prevent locking out admins.
@@ -706,7 +707,6 @@ export function initPartnerWorkScreen(partner, userData) {
             createUsageDocsBtn.innerHTML = 'Dokumentumok létrehozása';
         }
     }
-
 
     // --- EXPERT LOADING LOGIC ---
     async function loadExperts() {
