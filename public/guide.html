@@ -347,7 +347,45 @@
             </section>
 
              <section>
-                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">8. Hibaelhárítás</h2>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">8. Kommunikáció és Üzenetküldés - <span class="text-yellow-400 text-sm bg-yellow-900/50 px-2 py-1 rounded inline-block ml-2">ÚJ FUNKCIÓ</span></h2>
+                <p class="mb-4">Az ETAR rendszerbe beépített biztonságos üzenetküldő modul lehetővé teszi a közvetlen kommunikációt a vizsgálatot végzők és az üzemeltetők között a <strong>Statisztikák</strong> felületről.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-white mb-2"><i class="fas fa-envelope text-blue-400 mr-2"></i>Üzenetek Fogadása és Automatikus Figyelés</h4>
+                        <p class="text-sm text-gray-400 mb-2">Az üzemeltető cégek adminisztrátorai vagy kijelölt kapcsolattartói beállíthatnak automatikus figyelmeztető email címeket.</p>
+                        <ul class="list-disc list-inside text-sm text-gray-400 space-y-1">
+                            <li>Nyissa meg a <strong>Statisztikák</strong> oldalt.</li>
+                            <li>Kattintson az <strong class="text-white">Automatikus figyelés</strong> gombra (jobb felül).</li>
+                            <li>Adja meg e-mail címét. Több címe is megadható vesszővel elválasztva.</li>
+                            <li>A rendszer ide küldi majd a közelgő vizsgálatok havi összesítő emlékeztetőit, valamint a vizsgáló partnerektől érkező egyedi üzeneteket is!</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg">
+                        <h4 class="font-bold text-white mb-2"><i class="fas fa-calendar-check text-yellow-500 mr-2"></i>Vizsgálati Időpont Kérés (Cégeknek)</h4>
+                        <p class="text-sm text-gray-400 mb-2">Ha szeretne szakértőt hívni az esedékes gépekhez:</p>
+                        <ol class="list-decimal list-inside text-sm text-gray-400 space-y-1">
+                            <li>Nyissa meg a <strong>Statisztikák</strong> oldalt a kiválasztott cégnél.</li>
+                            <li>Kattintson az <strong class="text-yellow-400">Üzenet a vizsgáló partnernek</strong> jellegű (pl. "Üzenet a H-ITB-nek") gombra.</li>
+                            <li>Írja be, milyen típusú vizsgálatot kér.</li>
+                            <li>A rendszer <strong>automatikusan is hozzácsatolja</strong> az adott hónapban lejáró eszközök darabszámait, így a vizsgáló rögtön látni fogja a feladat nagyságát!</li>
+                        </ol>
+                    </div>
+
+                    <div class="bg-gray-700/30 p-4 rounded-lg md:col-span-2 border border-blue-500/30">
+                        <h4 class="font-bold text-blue-300 mb-2"><i class="fas fa-paper-plane text-blue-400 mr-2"></i>Közvetlen Üzenet a Partnereknek (Vizsgálóknak)</h4>
+                        <p class="text-sm text-gray-400 mb-2">A szakértők (EJK felhasználók) a Statisztikák oldalon az <strong class="text-blue-400">"Üzenet a partnernek"</strong> gombra kattintva azonnal e-mailt küldhetnek a jogosult kapcsolattartóknak.</p>
+                        <ul class="list-disc list-inside text-sm text-gray-400 mt-2 ml-2">
+                            <li>Az e-mail az ETAR rendszerből érkezik, de a feladó (Válasz Címzettje) a küldő szakértő lesz.</li>
+                            <li>Így a partner közvetlenül a vizsgálóval tudja folytatni az egyeztetést!</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+             <section>
+                <h2 class="text-xl font-semibold text-blue-400 mb-3 border-b border-gray-700 pb-2">9. Hibaelhárítás</h2>
                  <ul class="list-disc list-inside ml-4 space-y-1 text-gray-400">
                     <li><strong>Nem látom az eszközt:</strong> Ellenőrizze a szűrőket (állítsa "Összes"-re).</li>
                     <li><strong>Nem tudok szerkeszteni:</strong> Ellenőrizze a jogosultságát (Read joggal nem lehet).</li>
