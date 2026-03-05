@@ -42,8 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     isEkvUser = userData.isEkvUser === true; // Assign value
 
                     if (isEkvUser) {
+                        window.isEkvUserGlobal = true;
                         document.body.classList.add('ekv-mode');
                     } else {
+                        window.isEkvUserGlobal = false;
                         // Show filter container for EJK users
                         const filterContainer = document.getElementById('expert-filter-container');
                         if (filterContainer) filterContainer.classList.remove('hidden');
@@ -118,28 +120,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Filter drafts based on user type
                 if (userData && userData.isEkvUser) {
-                    // EKV users only see isI: true drafts AND only if they have inspector/subcontractor role for that partner
-                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => {
-                        const role = userData.partnerRoles && draft.partnerId ? userData.partnerRoles[draft.partnerId] : null;
-                        
-                        // Internal inspectors see all their drafts (query already filters by createdByUid)
-                        if (role === 'internal_inspector' || role === 'external_inspector' || role === 'subscriber_inspector') return true;
-
-                        // Other EKV roles (subcontractor/subscriber) only see isI: true devices
-                        if (draft.isI !== true) {
-                            console.log(`Filtering out draft ${draft.id} because isI is ${draft.isI} and user is EKV`);
-                            return false;
-                        }
-                        
-                        return role === 'inspector' || role === 'subcontractor' || role === 'subscriber';
-                    });
+                    // EKV users only see their own drafts. This is ALREADY enforced by the Firestore query: 
+                    // dGroup.where('createdByUid', '==', user.uid).
+                    // We remove the extra client-side restriction so that even if the device fetch throws a 
+                    // transient permission error on soft-navigation, the user can still see and manage their drafts.
                 } else {
-                    // EJK users only see isI: false (or undefined) drafts
-                    allEnrichedDrafts = allEnrichedDrafts.filter(draft => {
-                        const keep = draft.isI !== true;
-                        if (!keep) console.log(`Filtering out draft ${draft.id} because isI is true and user is EJK`);
-                        return keep;
-                    });
+                    // Helyreállítás: Az EJK felhasználók számára ne szűrjük ki a hardkódolt isI === true piszkozatokat,
+                    // különben a felületi 'EKV' szűrő bepipálása ellenére sem látnák őket.
+                    // Az UI szűrők (showK, showB, showEKV) majd elvégzik a megfelelő szűrést a sortAndRender-ben.
 
                     // EJK_inspector restriction: only see assigned partners
                     if (userRoles.includes('EJK_inspector') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
@@ -257,21 +245,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function sortAndRender() {
+    console.log("sortAndRender - STARTED. isEkvUserGlobal:", window.isEkvUserGlobal, "allEnrichedDrafts:", allEnrichedDrafts?.length);
     let filteredDrafts = [];
     
     // Apply filters first
     filteredDrafts = allEnrichedDrafts.filter(draft => {
-        // If we want to restrict this logic to ONLY EJK users, we can check a global flag or passed arg.
-        // Assuming this is fine for everyone who sees the controls (but we only show controls to EJK).
-        // For EKV users, controls are hidden, defaults are TRUE, so no impact.
+        // Use the global variable instead of DOM class, since DOM classes might be reset or not applied yet on fast soft-reloads
+        const isEkvUser = window.isEkvUserGlobal === true;
         
-        const isExpertK = isK(draft.szakerto);
-        const isExpertB = isB(draft.szakerto);
-        const isExpertEKV = !isExpertK && !isExpertB;
-        
-        if (isExpertK && !showK) return false;
-        if (isExpertB && !showB) return false;
-        if (isExpertEKV && !showEKV) return false;
+        // Only apply expert filters for EJK users (non-EKV)
+        if (!isEkvUser) {
+            const isExpertK = isK(draft.szakerto);
+            const isExpertB = isB(draft.szakerto);
+            const isExpertEKV = !isExpertK && !isExpertB;
+            
+            if (isExpertK && !showK) return false;
+            if (isExpertB && !showB) return false;
+            if (isExpertEKV && !showEKV) return false;
+        }
         
         // Partner Filter
         if (selectedPartnerFilter && draft.partnerName !== selectedPartnerFilter) {
@@ -280,6 +271,8 @@ function sortAndRender() {
 
         return true;
     });
+
+    console.log("sortAndRender - isEkvUserGlobal:", window.isEkvUserGlobal, "allEnriched:", allEnrichedDrafts.length, "filtered:", filteredDrafts.length);
 
     const sortedDrafts = [...filteredDrafts].sort((a, b) => {
         const fieldA = a[currentSortField];
