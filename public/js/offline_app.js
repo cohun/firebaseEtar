@@ -813,6 +813,23 @@ function setupEventListeners() {
     document.getElementById('closeInspectionModalBtn').addEventListener('click', closeAllModals);
     document.getElementById('cancelInspectionBtn').addEventListener('click', closeAllModals);
 
+    // --- AUTO-DATE LOGIC FOR 'NEM FELELT MEG' IN OFFLINE MODE ---
+    const vizsgalatEredmenyeSelectOffline = document.getElementById('offInspResult');
+    if (vizsgalatEredmenyeSelectOffline) {
+        vizsgalatEredmenyeSelectOffline.addEventListener('change', (e) => {
+            const failedOptions = ['Nem felelt meg', 'Nicht zugelassen', 'Nem felelt meg / Not suitable'];
+            if (failedOptions.includes(e.target.value)) {
+                const baseDateStr = offlineHeaderData ? offlineHeaderData.vizsgalatIdopontja : new Date().toISOString().split('T')[0];
+                
+                const idoszakosDateInput = document.getElementById('offInspNextDate');
+                const terhelesiDateInput = document.getElementById('offInspNextTerhelesDate');
+                
+                if (idoszakosDateInput) idoszakosDateInput.value = baseDateStr;
+                if (terhelesiDateInput) terhelesiDateInput.value = baseDateStr;
+            }
+        });
+    }
+
     // Copy Previous Session Data (from lastSavedDraftData)
     document.getElementById('copyPreviousSessionDataBtn').addEventListener('click', () => {
         if (!lastSavedDraftData) {

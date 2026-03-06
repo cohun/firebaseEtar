@@ -34,6 +34,12 @@ export const ChatBox: React.FC = () => {
       setUser(currentUser);
       if (currentUser) {
         setShowAuthAlert(false);
+        sessionStorage.removeItem('authRetryDone');
+      } else {
+        if (!sessionStorage.getItem('authRetryDone')) {
+           sessionStorage.setItem('authRetryDone', 'true');
+           window.location.reload();
+        }
       }
     });
     return () => unsubscribe();

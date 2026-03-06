@@ -6,6 +6,7 @@ let currentUser = null;
 // Auth check
 auth.onAuthStateChanged(async (user) => {
     if (user) {
+        sessionStorage.removeItem('authRetryDone');
         currentUser = user;
         document.getElementById('userEmail').textContent = user.email;
         
@@ -27,6 +28,12 @@ auth.onAuthStateChanged(async (user) => {
 
         loadKnowledge();
     } else {
+        if (!sessionStorage.getItem('authRetryDone')) {
+            // Auto retry on first null state to workaround Firebase Auth IndexedDB lock
+            sessionStorage.setItem('authRetryDone', 'true');
+            window.location.reload();
+            return;
+        }
         window.location.href = '/'; // Redirect to home/login if not logged in
     }
 });

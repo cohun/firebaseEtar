@@ -5109,13 +5109,16 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                 const vizsgalatEredmenyeSelect = document.querySelector('[name="vizsgalat_eredmenye"]');
                 if (vizsgalatEredmenyeSelect) {
                     vizsgalatEredmenyeSelect.addEventListener('change', (e) => {
-                        if (e.target.value === 'Nem felelt meg' || e.target.value === 'Nicht zugelassen' || e.target.value === 'Nicht zugelassen/Nem felelt meg') {
-                            const today = new Date().toISOString().slice(0, 10);
+                        const failedOptions = ['Nem felelt meg', 'Nicht zugelassen', 'Nicht zugelassen/Nem felelt meg', 'Nem felelt meg / Not suitable'];
+                        if (failedOptions.includes(e.target.value)) {
+                            const inspectionDateInput = document.getElementById('inspectionDateInput');
+                            const targetDate = (inspectionDateInput && inspectionDateInput.value) ? inspectionDateInput.value : new Date().toISOString().slice(0, 10);
+                            
                             const idoszakosDateInput = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
                             const terhelesiDateInput = document.querySelector('[name="kov_terhelesi_proba"]');
                             
-                            if (idoszakosDateInput) idoszakosDateInput.value = today;
-                            if (terhelesiDateInput) terhelesiDateInput.value = today;
+                            if (idoszakosDateInput) idoszakosDateInput.value = targetDate;
+                            if (terhelesiDateInput) terhelesiDateInput.value = targetDate;
                         }
                     });
                 }

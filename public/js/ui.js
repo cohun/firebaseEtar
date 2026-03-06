@@ -559,8 +559,6 @@ export async function showMainScreen(user, userData) {
     document.getElementById('virtualExpertBtnMain').addEventListener('click', (e) => {
         e.preventDefault();
         window.open('/szakerto/', '_blank');
-        // Refresh the page to ensure the correct logged-in state is displayed
-        window.location.reload();
     });
 
     document.getElementById('signOutButton').addEventListener('click', () => {
