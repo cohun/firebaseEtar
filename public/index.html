@@ -247,44 +247,41 @@
             </div>
         </section>
 
-        <!-- Superiority Section -->
-        <section id="superiority" class="py-20 bg-primary text-white relative">
-            <svg class="absolute top-0 left-0 -mt-1 w-full text-white" viewBox="0 0 1440 100" fill="currentColor" preserveAspectRatio="none">
-                <path d="M0,0 C240,100 480,100 720,50 C960,0 1200,0 1440,50 L1440,100 L0,100 Z" fill="#1e3a8a"></path>
-                <path d="M0,0 L1440,0 L1440,20 L0,20 Z" fill="#ffffff"></path>
-            </svg>
+        <!-- Superiority Section Extended with Full User Guide Infographic -->
+        <section id="superiority" class="py-20 text-white relative overflow-hidden bg-cover bg-center bg-fixed" style="background-image: linear-gradient(rgba(10, 10, 20, 0.8), rgba(10, 10, 20, 0.8)), url('images/ETAR_Background.png');">
 
             <div class="container mx-auto px-4 mt-24 relative z-10">
-                <div class="flex flex-col lg:flex-row items-center gap-16">
+                <!-- 1. Rész: Főcím és Technológiai Alapok -->
+                <div class="flex flex-col lg:flex-row items-center gap-16 mb-24">
                     <div class="lg:w-1/2">
-                        <h2 class="text-3xl md:text-4xl font-bold mb-6">Technológiai Fölény</h2>
-                        <p class="text-blue-200 text-lg mb-8 leading-relaxed">
+                        <h2 class="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Technológiai Fölény</h2>
+                        <p class="text-blue-200 text-lg mb-8 leading-relaxed max-w-xl">
                             Az ETAR nem egy egyszerű táblázatkezelő. Ez a szoftver a modern mérnöki informatika legjavát nyújtja az ipari biztonság szolgálatában.
                         </p>
                         
                         <div class="space-y-6">
                             <div class="flex items-start">
-                                <div class="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-700 flex items-center justify-center mt-1">
+                                <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-700/50 flex items-center justify-center mt-1 border border-blue-500/30">
                                     <i class="fab fa-google text-white text-2xl"></i>
                                 </div>
                                 <div class="ml-4">
                                     <h4 class="text-xl font-bold text-secondary">Google Firebase Security</h4>
-                                    <p class="text-blue-200 text-sm mt-1">Banki szintű biztonság. Az adatokat a Google infrastruktúrája védi, garantálva a rendelkezésre állást.</p>
+                                    <p class="text-blue-200 text-sm mt-1">Banki szintű adatbiztonság és folyamatos rendelkezésre állás. Az adatokat a Google infrastruktúrája védi.</p>
                                 </div>
                             </div>
                             
                             <div class="flex items-start">
-                                <div class="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-700 flex items-center justify-center mt-1">
+                                <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-700/50 flex items-center justify-center mt-1 border border-blue-500/30">
                                     <i class="fas fa-cloud text-white text-2xl"></i>
                                 </div>
                                 <div class="ml-4">
                                     <h4 class="text-xl font-bold text-secondary">Native Cloud WebApp</h4>
-                                    <p class="text-blue-200 text-sm mt-1">Nincs telepítés, nincs verziókövetési gond. Bármilyen eszközön (PC, Mobil, Tablet) azonnal fut a böngészőből.</p>
+                                    <p class="text-blue-200 text-sm mt-1">Telepítés nélkül, bármilyen eszközről (PC, Mobil, Tablet) azonnal elérhető felület.</p>
                                 </div>
                             </div>
 
                             <div class="flex items-start">
-                                <div class="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-700 flex items-center justify-center mt-1">
+                                <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-700/50 flex items-center justify-center mt-1 border border-blue-500/30">
                                     <i class="fas fa-lock text-white text-2xl"></i>
                                 </div>
                                 <div class="ml-4">
@@ -296,7 +293,7 @@
                     </div>
                     
                     <div class="lg:w-1/2 relative">
-                        <div class="absolute inset-0 bg-blue-500 rounded-2xl transform rotate-3 scale-95 opacity-30 blur-lg"></div>
+                        <div class="absolute inset-0 bg-blue-500 rounded-3xl opacity-20 blur-3xl"></div>
                         <div class="bg-gray-900 rounded-2xl shadow-2xl p-2 border border-gray-700 relative overflow-hidden">
                             <!-- Code snippet visual for aesthetics -->
                             <div class="flex items-center space-x-2 px-4 py-2 bg-gray-800 border-b border-gray-700 rounded-t-lg">
@@ -327,7 +324,132 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 2. Rész: Részletes Infografika (Útmutató pontjai) -->
+                <div class="pt-16 border-t border-white/10">
+                    <div class="text-center mb-16">
+                        <h3 class="text-2xl md:text-3xl font-bold mb-4">A Rendszer Teljes Funkcionalitása</h3>
+                        <p class="text-blue-200 text-sm italic">Minden, ami az emelőgép-nyilvántartáshoz szükséges</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        
+                        <!-- 1. Indulás & Onboarding -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                </div>
+                                <h5 class="font-bold">1. Gyors Onboarding</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Partnerportál regisztráció, új cég létrehozása (ETAR kód generálás) vagy csatlakozás meglévőhöz kód alapján.</p>
+                        </div>
+
+                        <!-- 2. Jogosultságok -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-user-shield"></i>
+                                </div>
+                                <h5 class="font-bold">2. Jogkörkezelés</h5>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <span class="text-[10px] bg-blue-900/40 px-2 py-0.5 rounded border border-blue-500/30">ADMIN</span>
+                                <span class="text-[10px] bg-blue-900/40 px-2 py-0.5 rounded border border-blue-500/30">WRITE</span>
+                                <span class="text-[10px] bg-blue-900/40 px-2 py-0.5 rounded border border-blue-500/30">READ</span>
+                            </div>
+                        </div>
+
+                        <!-- 3. Funkciók & Keresés -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <h5 class="font-bold">3. Kezelőfelület</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Keresés gyári számra, Excel export, tömeges jegyzőkönyv letöltés és digitális beolvasás (QR/NFC).</p>
+                        </div>
+
+                        <!-- 4. Statisztikák -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-chart-pie"></i>
+                                </div>
+                                <h5 class="font-bold">4. Statisztikák</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Dashboard kártyák (Lejárt, Nincs vizsga) és havi bontású vizsgálati előrejelzés a hatékony tervezéshez.</p>
+                        </div>
+
+                        <!-- 5. Határidő Figyelés -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl border-l-4 border-l-secondary">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-traffic-light"></i>
+                                </div>
+                                <h5 class="font-bold text-secondary">5. Színkódos Kontroll</h5>
+                            </div>
+                            <div class="grid grid-cols-2 gap-y-2 text-[10px]">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full inline-block bg-red-600 mr-2"></span> Lejárt</span>
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full inline-block bg-orange-500 mr-2"></span> 45 nap</span>
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full inline-block bg-green-500 mr-2"></span> Érvényes</span>
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full inline-block bg-blue-400 mr-2"></span> Új gép</span>
+                            </div>
+                        </div>
+
+                        <!-- 6. IGAR (Docs) -->
+                        <div class="bg-blue-800/20 border border-blue-500/30 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center text-secondary">
+                                    <i class="fas fa-folder-open"></i>
+                                </div>
+                                <h5 class="font-bold">6. IGAR - Archívum</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Digitális gépkönyvek, CE nyilatkozatok és számlák tárolása. 10MB/fájl kvóta alapú tárhellyel.</p>
+                        </div>
+
+                        <!-- 7. Offline Mód -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-wifi-slash"></i>
+                                </div>
+                                <h5 class="font-bold">7. Offline Működés</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Térerő nélküli munkavégzés: adatletöltés után terepi keresés, NFC betanítás, majd online szinkronizáció.</p>
+                        </div>
+
+                        <!-- 8. Kommunikáció -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-envelope-open-text"></i>
+                                </div>
+                                <h5 class="font-bold">8. Üzenetközpont</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Automatikus e-mail figyelés, vizsgálati időpont kérés és közvetlen üzenetküldés a partnereknek.</p>
+                        </div>
+
+                        <!-- 9. Hibaelhárítás -->
+                        <div class="bg-white/5 border border-white/10 transition-all duration-300 hover:bg-white/10 hover:border-blue-500/40 hover:-translate-y-1 p-6 rounded-2xl">
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <i class="fas fa-tools"></i>
+                                </div>
+                                <h5 class="font-bold">9. Support & Segítség</h5>
+                            </div>
+                            <p class="text-xs text-blue-100 leading-relaxed">Gyors hibaelhárítási tippek a szűrők, jogosultságok és adatfrissítések kezeléséhez.</p>
+                        </div>
+
+                    </div>
+
+                    <!-- Alsó brand jelzés (Kérésre eltávolítva) -->
+                </div>
             </div>
+
+            <!-- Dekoratív háttér elem -->
+            <div class="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
         </section>
 
         <!-- Knowledge Center Section -->
