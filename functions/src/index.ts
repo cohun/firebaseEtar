@@ -290,3 +290,4 @@ export const sendEmailFromQueue = onDocumentCreated("mailQueue/{docId}", async (
 });
 
 export * from "./cron";
+export * from "./mcp/server";

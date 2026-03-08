@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "etar-demo": {
+      "command": "https",
+      "args": ["europe-west4-etarrendszer.cloudfunctions.net/mcpServerApp/sse"]
+    }
+  }
+}
+
