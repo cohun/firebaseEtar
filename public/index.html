@@ -3,16 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ETAR Rendszer - Professzionális Emelőgép Törzskönyv és Adatnyilvántartó szoftver. Digitális biztonság, automatikus határidő-figyelés és hiteles jegyzőkönyvek a Google Firebase felhőjében.">
-    <meta name="keywords" content="emelőgép törzskönyv, emelőgép biztonsági szabályzat, EBSZ, emeléstechnika, munkavédelem, daru vizsgálat, targonca vizsga">
+    <meta name="description" content="Az ETAR egy intelligens, felhőalapú platform, amely a káosz helyébe hiteles, nyomon követhető és papírmentes emeléstechnikai adminisztrációt tesz, mindezt automatikus határidő-figyeléssel.">
+    <meta name="keywords" content="emelőgép törzskönyv, emelőgép nyilvántartó program, emelőgép biztonsági szabályzat, EBSZ szoftver, emeléstechnika, munkavédelem, daru vizsgálat, papírmentes vizsgálat">
     <meta name="author" content="H-ITB Kft.">
+    
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://etarrendszer.web.app/">
+    <meta property="og:title" content="ETAR Rendszer | Az Emeléstechnika Digitális Biztonsága">
+    <meta property="og:description" content="Az ETAR egy intelligens, felhőalapú platform, amely a káosz helyébe hiteles, nyomon követhető és papírmentes emeléstechnikai adminisztrációt tesz, mindezt automatikus határidő-figyeléssel.">
+    <meta property="og:image" content="https://etarrendszer.web.app/images/ETAR_H.png">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://etarrendszer.web.app/">
+
     <title>ETAR Rendszer | Az Emeléstechnika Digitális Biztonsága</title>
     <link rel="icon" type="image/png" href="images/ETAR_H.png">
 
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Styles -->
@@ -26,6 +37,7 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
+                        logo: ['Montserrat', 'sans-serif'],
                     },
                     colors: {
                         primary: '#1e3a8a', // Ipari kék
@@ -55,7 +67,7 @@
         "price": "0",
         "priceCurrency": "HUF"
       },
-      "description": "Emelőgép Törzskönyv és Adatnyilvántartó Rendszer a jogszabályi megfelelésért és az adminisztrációs terhek csökkentéséért.",
+      "description": "Az ETAR egy intelligens, felhőalapú platform, amely a káosz helyébe hiteles, nyomon követhető és papírmentes emeléstechnikai adminisztrációt tesz, mindezt automatikus határidő-figyeléssel.",
       "author": {
           "@type": "Organization",
           "name": "H-ITB Kft."
@@ -66,21 +78,40 @@
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      "mainEntity": [{
-        "@type": "Question",
-        "name": "Milyen vizsgálati ciklusok vonatkoznak az emelőgépekre az EBSZ szerint?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Az emelőgépeket az Emelőgép Biztonsági Szabályzat (47/1999. GM rendelet) alapján szerkezeti és fővizsgálatoknak kell alávetni, melyek ciklusidejét a gép üzemi csoportszáma határozza meg."
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Mi az az ETAR rendszer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Az ETAR (Emelőgép Törzskönyv és Adatnyilvántartó Rendszer) egy modern, felhőalapú (Google Firebase) szoftver, amely a jogszabályi elvárásoknak megfelelően, digitalizálva tartja nyilván az emelőgépeket és a hozzájuk tartozó vizsgálati jegyzőkönyveket."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Milyen problémákat old meg az ETAR?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Megszünteti az elvesző papíralapú jegyzőkönyveket, és automatikusan figyeli a kötelező időszakos vizsgálatok határidejét. A rendszer előre értesíti az üzemeltetőt (és a szakértőt), így elkerülhető a lejárt vizsgálatok okozta balesetveszély és a munkavédelmi bírság. Okostelefonos NFC chip olvasással azonnal összeköti a fizikai gépet a felhőben tárolt adataival."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Mennyire biztonságosak az ETAR rendszer adatai?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A rendszer olyan technológiát használ, mint a megváltoztathatatlan (Immutable) adattárolás. A kiállított jegyzőkönyvek utólagosan nem módosíthatók vagy hamisíthatók anélkül, hogy a rendszer ne jelezné azonnal az adatsérülést. Ezt digitális aláírásokkal (SHA-256 hash) védjük."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Szükséges telepíteni a szoftvert?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Nem, az ETAR egy webes és hibrid app, ami azonnal megnyitható böngészőből is. Emellett PWA technológiával telepíthető a telefon főképernyőjére is, lehetőséget adva offline környezetben (NFC azonosítással) történő használatra."
+          }
         }
-      }, {
-        "@type": "Question",
-        "name": "Mikor kell selejtezni egy drótkötelet?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "A drótkötelet le kell selejtezni, ha az átmérője 10%-kal csökken, szálszakadások, kikosarasodás vagy hurokképződés tapasztalható."
-        }
-      }]
+      ]
     }
     </script>
 </head>
@@ -91,9 +122,9 @@
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <a href="#" class="flex items-center space-x-3 group">
                 <img src="images/ETAR_H.png" alt="ETAR Logo" class="h-10 w-auto transition-transform group-hover:scale-105 filter drop-shadow-md bg-white rounded-full p-0.5">
-                <div class="flex flex-col">
-                    <span class="text-xl font-bold tracking-tight leading-none text-red-700">ETAR</span>
-                    <span class="text-xs text-secondary font-medium tracking-wider uppercase">Rendszer</span>
+                <div class="flex flex-col items-center justify-center mt-1">
+                    <span class="font-logo text-lg font-black tracking-normal leading-none text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-700 drop-shadow-[0_0_5px_rgba(239,68,68,0.3)] ml-1">ETAR</span>
+                    <span class="text-[0.55rem] text-secondary font-extrabold tracking-[0.25em] uppercase mt-1 pl-1 drop-shadow-sm">Rendszer</span>
                 </div>
             </a>
             
@@ -574,14 +605,17 @@
                     <h2 class="text-3xl md:text-4xl font-bold mt-2 mb-6">Emeléstechnikai kérdés-válasz alapú tudásbázis</h2>
                 </header>
 
-                <div class="max-w-4xl mx-auto space-y-12">
+                <div class="max-w-4xl mx-auto space-y-6">
                     
                     <!-- Article: Üzemeltető kötelezettségei -->
-                    <article class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
-                        <header class="mb-6 border-b border-gray-300 pb-4">
-                            <h3 class="text-2xl font-bold text-dark">Mik az emelőgépet üzemeltető munkáltató legfontosabb kötelezettségei?</h3>
-                        </header>
-                        <div class="prose max-w-none text-gray-700">
+                    <details class="bg-gray-50 rounded-2xl border border-gray-200 group [&_summary::-webkit-details-marker]:hidden overflow-hidden transition-all duration-300">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-2xl font-bold text-dark hover:bg-gray-100 transition-colors">
+                            <span>Mik az emelőgépet üzemeltető munkáltató legfontosabb kötelezettségei?</span>
+                            <span class="transition group-open:rotate-180">
+                                <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                            </span>
+                        </summary>
+                        <div class="p-6 pt-0 border-t border-gray-100 mt-4 text-gray-700 animate-fadeIn">
                             <p>Az emelőgép üzemeltetőjének számos törvényi kötelezettsége van a biztonságos munkavégzés garantálása érdekében. Ezek a következők:</p>
                             
                             <ul class="list-disc pl-5 space-y-2 mt-4">
@@ -594,21 +628,24 @@
                                 <li>Gondoskodni a kezelők, kötözők és irányítók jogszabály szerinti képesítéséről és vizsgáztatásáról.</li>
                                 <li>Vezetni az emelőgép naplót.</li>
                             </ul>
+                            <footer class="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
+                                <div>
+                                    <i class="fas fa-industry text-primary mr-2"></i><strong>Témakör:</strong> Üzemeltetői Kötelezettségek
+                                </div>
+                                <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Mvt. / EBSZ</span>
+                            </footer>
                         </div>
-                        <footer class="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
-                            <div>
-                                <i class="fas fa-industry text-primary mr-2"></i><strong>Témakör:</strong> Üzemeltetői Kötelezettségek
-                            </div>
-                            <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Mvt. / EBSZ</span>
-                        </footer>
-                    </article>
+                    </details>
 
                     <!-- Article: Emelőgép Vizsgálatok -->
-                    <article class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
-                        <header class="mb-6 border-b border-gray-300 pb-4">
-                            <h3 class="text-2xl font-bold text-dark">Milyen típusú időszakos vizsgálatok vonatkoznak az emelőgépekre és ki végezheti azokat?</h3>
-                        </header>
-                        <div class="prose max-w-none text-gray-700">
+                    <details class="bg-gray-50 rounded-2xl border border-gray-200 group [&_summary::-webkit-details-marker]:hidden overflow-hidden transition-all duration-300">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-2xl font-bold text-dark hover:bg-gray-100 transition-colors">
+                            <span>Milyen típusú időszakos vizsgálatok vonatkoznak az emelőgépekre és ki végezheti azokat?</span>
+                            <span class="transition group-open:rotate-180">
+                                <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                            </span>
+                        </summary>
+                        <div class="p-6 pt-0 border-t border-gray-100 mt-4 text-gray-700 animate-fadeIn">
                             <p>Az emelőgépek biztonságos állapotának fenntartásához szigorú vizsgálati rendszert kell betartani. Az <strong>üzembe helyezés előtti vizsgálat</strong> (munkavédelmi üzembe helyezés) minden esetben kötelező.</p>
                             
                             <h4 class="text-lg font-semibold mt-6 mb-3">Időszakos vizsgálatok típusai és kivitelezői:</h4>
@@ -632,21 +669,24 @@
                                 <li><strong>Acélsodronykötél teherfelvevőknél:</strong> ha tartósan névleges terhelést kapnak, negyedévente; egyébként félévente kell ellenőrizni.</li>
                                 <li>Minden 3. vizsgálatnál statikai teherpróbát kell tartani a névleges terhelés 1,25-szörösével.</li>
                             </ul>
+                            <footer class="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
+                                <div>
+                                    <i class="fas fa-clipboard-check text-green-600 mr-2"></i><strong>Témakör:</strong> Időszakos Vizsgálatok
+                                </div>
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">EBSZ Szabályozás</span>
+                            </footer>
                         </div>
-                        <footer class="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
-                            <div>
-                                <i class="fas fa-clipboard-check text-green-600 mr-2"></i><strong>Témakör:</strong> Időszakos Vizsgálatok
-                            </div>
-                            <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">EBSZ Szabályozás</span>
-                        </footer>
-                    </article>
+                    </details>
 
                     <!-- Article: Machinery Directive -->
-                    <article class="bg-gray-50 rounded-2xl p-8 border border-gray-200">
-                        <header class="mb-6 border-b border-gray-300 pb-4">
-                            <h3 class="text-2xl font-bold text-dark">Melyik uniós irányelv szabályozza a gépek biztonságát a tervezés és gyártás során?</h3>
-                        </header>
-                        <div class="prose max-w-none text-gray-700">
+                    <details class="bg-gray-50 rounded-2xl border border-gray-200 group [&_summary::-webkit-details-marker]:hidden overflow-hidden transition-all duration-300">
+                        <summary class="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-2xl font-bold text-dark hover:bg-gray-100 transition-colors">
+                            <span>Melyik uniós irányelv szabályozza a gépek biztonságát a tervezés és gyártás során?</span>
+                            <span class="transition group-open:rotate-180">
+                                <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                            </span>
+                        </summary>
+                        <div class="p-6 pt-0 border-t border-gray-100 mt-4 text-gray-700 animate-fadeIn">
                             <p>A gépek, köztük az emelőgépek alapvető egészségvédelmi és biztonsági követelményeit a <strong>Gépdirektíva (2006/42/EK)</strong> határozza meg az Európai Unióban. Ez a direktíva írja elő a CE-jelölés feltételeit és a megfelelőségi nyilatkozat kiállításának kötelezettségét a gyártók (vagy importőrök) számára az üzembe helyezés előtt.</p>
                             
                             <h4 class="text-lg font-semibold mt-6 mb-3">Milyen dokumentumok szükségesek a Gépdirektíva (2006/42/EK) alapján egy új emelőgéphez?</h4>
@@ -660,49 +700,125 @@
                                     <dd class="pl-4 mt-1 border-l-2 border-primary text-sm">A felhasználó (üzemeltető) nyelvén íródott részletes dokumentáció, mely tartalmazza a biztonságos üzemeltetés, karbantartás és beállítás feltételeit.</dd>
                                 </div>
                             </dl>
+                            <footer class="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
+                                <div>
+                                    <i class="fas fa-book text-gray-500 mr-2"></i><strong>Forrás:</strong> 2006/42/EK (Gépdirektíva) NEW.pdf
+                                </div>
+                                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">EU Irányelv</span>
+                            </footer>
                         </div>
-                        <footer class="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-500">
-                            <div>
-                                <i class="fas fa-book text-gray-500 mr-2"></i><strong>Forrás:</strong> 2006/42/EK (Gépdirektíva) NEW.pdf
-                            </div>
-                            <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">EU Irányelv</span>
-                        </footer>
-                    </article>
+                    </details>
 
                 </div>
             </div>
         </section>
 
-        <!-- CTA Section -->
-        <section class="py-20 bg-dark relative overflow-hidden">
-            <!-- Background Image Overlay -->
-            <div class="absolute inset-0 z-0 opacity-10" style="background-image: url('images/hero_bg_pattern.svg'); background-size: cover;"></div>
+        <!-- FAQ Section for SEO and Users -->
+        <section id="faq" class="py-20 bg-white">
+            <div class="container mx-auto px-4 max-w-4xl">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-5xl font-bold text-primary mb-4 tracking-tight">Gyakran Ismételt Kérdések</h2>
+                    <p class="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto">Minden, amit tudni érdemes az ETAR rendszerről és a digitális emeléstechnikai adminisztrációról.</p>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- FAQ Item 1 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <h3 class="text-xl font-bold text-dark mb-3 flex items-center">
+                            <i class="fas fa-question-circle text-secondary mr-3"></i> 
+                            Mi az az ETAR rendszer?
+                        </h3>
+                        <p class="text-gray-700 leading-relaxed">
+                            Az ETAR (Emelőgép Törzskönyv és Adatnyilvántartó Rendszer) egy modern, felhőalapú (Google Firebase) szoftver, amely a jogszabályi elvárásoknak megfelelően, digitalizálva tartja nyilván az emelőgépeket és a hozzájuk tartozó vizsgálati jegyzőkönyveket.
+                        </p>
+                    </div>
+
+                    <!-- FAQ Item 2 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <h3 class="text-xl font-bold text-dark mb-3 flex items-center">
+                            <i class="fas fa-tools text-secondary mr-3"></i> 
+                            Milyen problémákat old meg az ETAR?
+                        </h3>
+                        <p class="text-gray-700 leading-relaxed">
+                            Megszünteti az elvesző papíralapú jegyzőkönyveket, és automatikusan figyeli a kötelező időszakos vizsgálatok határidejét. A rendszer előre értesíti az üzemeltetőt (és a szakértőt), így elkerülhető a lejárt vizsgálatok okozta balesetveszély és a munkavédelmi bírság. Okostelefonos NFC chip olvasással azonnal összeköti a fizikai gépet a felhőben tárolt adataival.
+                        </p>
+                    </div>
+
+                    <!-- FAQ Item 3 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <h3 class="text-xl font-bold text-dark mb-3 flex items-center">
+                            <i class="fas fa-shield-alt text-secondary mr-3"></i> 
+                            Mennyire biztonságosak az ETAR rendszer adatai?
+                        </h3>
+                        <p class="text-gray-700 leading-relaxed">
+                            A rendszer olyan technológiát használ, mint a megváltoztathatatlan (Immutable) adattárolás. A kiállított jegyzőkönyvek utólagosan nem módosíthatók vagy hamisíthatók anélkül, hogy a rendszer ne jelezné azonnal az adatsérülést. Ezt digitális aláírásokkal (SHA-256 hash) védjük.
+                        </p>
+                    </div>
+
+                    <!-- FAQ Item 4 -->
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <h3 class="text-xl font-bold text-dark mb-3 flex items-center">
+                            <i class="fas fa-mobile-alt text-secondary mr-3"></i> 
+                            Szükséges telepíteni a szoftvert?
+                        </h3>
+                        <p class="text-gray-700 leading-relaxed">
+                            Nem, az ETAR egy webes és hibrid app, ami azonnal megnyitható böngészőből is. Emellett PWA technológiával telepíthető a telefon főképernyőjére is, lehetőséget adva offline környezetben (NFC azonosítással) történő használatra.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section (Repositioned and Enhanced) -->
+        <section class="py-24 bg-gradient-to-b from-gray-900 to-black relative overflow-hidden border-t border-gray-800">
+            <!-- Background Elements for Modern Feel -->
+            <div class="absolute inset-0 z-0 opacity-20" style="background-image: url('images/hero_bg_pattern.svg'); background-size: cover;"></div>
+            <div class="absolute top-1/2 left-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px] -transition-y-1/2 pointer-events-none fade-in"></div>
+            <div class="absolute top-1/2 right-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-[100px] -transition-y-1/2 pointer-events-none fade-in"></div>
             
-            <div class="container mx-auto px-4 relative z-10">
+            <div class="container mx-auto px-4 relative z-10 max-w-5xl">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Készen áll a digitális átállásra?</h2>
+                    <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">Csatlakozzon a papírmentes, biztonságos és átlátható emeléstechnikai adminisztrációhoz.</p>
+                </div>
+
                 <div class="flex flex-col md:flex-row gap-8 justify-center items-stretch">
                     
                     <!-- CTA for Operators -->
-                    <div class="bg-gray-800 p-8 rounded-2xl flex-1 border border-gray-700 hover:border-blue-500 transition-all group">
-                        <h3 class="text-2xl font-bold text-white mb-4">Üzemeltetőknek</h3>
-                        <p class="text-gray-400 mb-8">Szeretné rendbe tenni emelőgépei dokumentációját és elkerülni a bírságokat? Kérjük tanulmányozza a láblécen található "Használati Útmutató" linket és vegye fel a kapcsolatot velünk!</p>
-                        <a href="mailto:hitb@h-itb.hu" class="inline-block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors">
-                            Kapcsolatfelvétel
-                        </a>
+                    <div class="bg-gray-800/40 backdrop-blur-md p-10 rounded-3xl flex-1 border border-gray-700/50 hover:border-blue-500/50 hover:shadow-[0_0_40px_rgba(37,99,235,0.15)] transition-all duration-500 group relative overflow-hidden flex flex-col">
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div class="relative z-10 flex-grow flex flex-col">
+                            <div class="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/20 group-hover:scale-110 transition-transform duration-500">
+                                <i class="fas fa-building text-3xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white mb-4">Üzemeltetőknek</h3>
+                            <p class="text-gray-400 mb-8 leading-relaxed flex-grow">Szeretné rendbe tenni emelőgépei dokumentációját, és minimalizálni a munkavédelmi bírságok kockázatát? Ismerje meg szakmai útmutatónkat!</p>
+                            <a href="mailto:hitb@h-itb.hu" class="inline-block w-full text-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-blue-900/50 mt-auto">
+                                Kapcsolatfelvétel <i class="fas fa-arrow-right ml-2 opacity-70 group-hover:translate-x-1 transition-transform"></i>
+                            </a>
+                        </div>
                     </div>
 
                     <!-- CTA for Existing Partners -->
-                    <div class="bg-gray-800 p-8 rounded-2xl flex-1 border border-gray-700 hover:border-secondary transition-all group">
-                        <h3 class="text-2xl font-bold text-white mb-4">Meglévő Partnereknek</h3>
-                        <p class="text-gray-400 mb-8">Lépjen be a rendszerbe és kezelje flottáját, töltse le jegyzőkönyveit azonnal.</p>
-                        <a href="app.html" class="inline-block w-full text-center bg-secondary hover:bg-yellow-400 text-primary font-bold py-3 rounded-lg transition-colors">
-                            Belépés a Portálra
-                        </a>
+                    <div class="bg-gray-800/40 backdrop-blur-md p-10 rounded-3xl flex-1 border border-gray-700/50 hover:border-yellow-500/50 hover:shadow-[0_0_40px_rgba(234,179,8,0.1)] transition-all duration-500 group relative overflow-hidden flex flex-col">
+                        <div class="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div class="relative z-10 flex-grow flex flex-col">
+                            <div class="w-16 h-16 bg-yellow-500/10 text-yellow-400 rounded-2xl flex items-center justify-center mb-8 border border-yellow-500/20 group-hover:scale-110 transition-transform duration-500">
+                                <i class="fas fa-sign-in-alt text-3xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white mb-4">Meglévő Partnereknek</h3>
+                            <p class="text-gray-400 mb-8 leading-relaxed flex-grow">Lépjen be a Portálra, kezelje flottáját gyorsan és egyszerűen, töltse le digitálisan hitelesített vizsgálati jegyzőkönyveit bármikor.</p>
+                            <a href="app.html" class="inline-block w-full text-center bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-gray-900 font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-yellow-900/50 mt-auto">
+                                Belépés a Portálra <i class="fas fa-arrow-right ml-2 opacity-70 group-hover:translate-x-1 transition-transform"></i>
+                            </a>
+                        </div>
                     </div>
 
                 </div>
             </div>
         </section>
     </main>
+
 
     <!-- Footer -->
     <footer class="bg-black text-gray-400 py-12 border-t border-gray-800">
