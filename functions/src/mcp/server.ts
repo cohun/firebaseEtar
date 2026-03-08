@@ -91,4 +91,4 @@ app.get('/', (req, res) => {
   res.send('ETAR MCP Demo Server is active. AI Agents should connect to the /sse endpoint.');
 });
 
-export const mcpServerApp = functions.region('europe-west4').https.onRequest(app);
+export const mcpServerApp = functions.https.onRequest(app);
