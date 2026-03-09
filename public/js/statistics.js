@@ -191,30 +191,44 @@ function renderInitialStatisticsUI(partners, userData, user) {
     
     // "Global Access" means seeing all partners in the system
     const hasGlobalAccess = userData.isEjkUser && !isEkv && hasGlobalRole;
+    const showDropdown = hasGlobalAccess || isEkv;
     
     // Sort partners alphabetically
     partners.sort((a, b) => a.name.localeCompare(b.name));
 
     let contentHtml = '';
 
-    if (hasGlobalAccess) {
+    if (showDropdown) {
         // EJK View: Dropdown + Aggregate/Specific View
         const optionsHtml = partners.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        
+        let defaultOptionHtml = '';
+        let buttonHtml = '';
+        
+        if (isEkv) {
+            defaultOptionHtml = `<option value="" disabled selected>Válassz egy partnert...</option>`;
+            // No button for EKV default
+        } else {
+            defaultOptionHtml = `<option value="all" selected>Összes Partner (Összesítő)</option>`;
+            buttonHtml = `
+                 <button id="load-all-stats-btn" class="btn btn-primary h-12 w-full md:w-auto">
+                    <i class="fas fa-download mr-2"></i> Adatok betöltése (Összes)
+                 </button>
+            `;
+        }
         
         const dropdownHtml = `
             <div class="mb-6 flex flex-col md:flex-row gap-4 items-end">
                 <div class="flex-grow">
                     <label for="stats-partner-select" class="block text-sm font-medium text-gray-300 mb-2">Partner kiválasztása</label>
                     <select id="stats-partner-select" class="input-field w-full bg-gray-700 border-gray-600 text-white">
-                        <option value="all" selected>Összes Partner (Összesítő)</option>
+                        ${defaultOptionHtml}
                         ${optionsHtml}
                     </select>
                 </div>
                 <div id="action-button-container">
                      <!-- This will dynamically change based on selection -->
-                     <button id="load-all-stats-btn" class="btn btn-primary h-12 w-full md:w-auto">
-                        <i class="fas fa-download mr-2"></i> Adatok betöltése (Összes)
-                     </button>
+                     ${buttonHtml}
                 </div>
             </div>
         `;
@@ -223,7 +237,7 @@ function renderInitialStatisticsUI(partners, userData, user) {
         contentHtml += `<div id="stats-content-area" class="min-h-[200px]">
             <div class="text-center py-12 text-gray-400">
                 <i class="fas fa-chart-bar text-4xl mb-4 opacity-50"></i>
-                <p>Válassz egy partnert a listából, vagy töltsd be az összes adatot.</p>
+                <p>Válassz egy partnert a listából${!isEkv ? ', vagy töltsd be az összes adatot' : ''}.</p>
             </div>
         </div>`; 
     } else {
@@ -381,7 +395,7 @@ function renderInitialStatisticsUI(partners, userData, user) {
     // Variables already declared at top of function
 
 
-    if (hasGlobalAccess) {
+    if (showDropdown) {
         const partnerSelect = document.getElementById('stats-partner-select');
         const actionContainer = document.getElementById('action-button-container');
         const loadAllBtn = document.getElementById('load-all-stats-btn');
@@ -416,7 +430,7 @@ function renderInitialStatisticsUI(partners, userData, user) {
                         <p>Válassz egy partnert a listából, vagy töltsd be az összes adatot.</p>
                     </div>
                 `;
-            } else {
+            } else if (selectedValue !== "") {
                 // Specific Partner Selected -> Auto Load
                 actionContainer.innerHTML = ''; // Hide button, auto-loading
                 loadStatsForPartners([selectedValue], partners, userData);
@@ -667,6 +681,9 @@ function checkPartnerAccess(userData, partnerId) {
     if (!userData) return false;
     // Sysadmin always has access
     if (userData.role === 'sysadmin' || (userData.roles && userData.roles.includes('sysadmin'))) return true;
+
+    // EKV users should have access to click through the statistics elements of assigned partners
+    if (userData.isEkvUser) return true;
 
     // Global EJK roles have access to everything
     // EJK_inspector is EXCLUDED here because they only have access to ASSIGNED partners (caught by next check)
