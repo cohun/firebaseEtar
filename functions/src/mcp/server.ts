@@ -18,7 +18,7 @@ const mcp = new McpServer({
 mcp.tool("get_synthetic_device",
   "Fetches synthetic demo data for an emelőgép (lifting equipment) to showcase ETAR capabilities.",
   { device_id: z.string().optional() },
-  async ({ device_id }) => {
+  async ({ device_id }: { device_id?: string }) => {
     return {
       content: [{
         type: "text",
@@ -49,7 +49,7 @@ mcp.tool("get_synthetic_device",
 mcp.tool("get_demo_inspection_report",
   "Retrieves a synthetic demo inspection report (Jegyzőkönyv) to demonstrate the unchangeable data structure.",
   { report_id: z.string().optional() },
-  async ({ report_id }) => {
+  async ({ report_id }: { report_id?: string }) => {
     return {
       content: [{
         type: "text",

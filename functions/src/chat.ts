@@ -8,8 +8,8 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const API_KEY = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
+
+// API Key and genAI will be instantiated where needed to make sure process.env is populated.
 
 const TEXT_MODEL_NAME = 'gemini-2.0-flash'; // Updated to a newer stable model if available, or stick to flash
 const SYSTEM_INSTRUCTION = `
@@ -42,6 +42,9 @@ async function getRelevantContext(queryText: string): Promise<string> {
     if (!queryText.trim()) return "";
     
     try {
+        const API_KEY = process.env.GEMINI_API_KEY || "";
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        
         // 1. Generate Embedding
         // Use the SAME model configuration as the indexer!
         const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
@@ -106,6 +109,7 @@ export const chatWithExpert = onCall(async (request) => {
     // Verify auth if needed? For now open public or requires auth.
     // request.auth contains user info.
     
+    const API_KEY = process.env.GEMINI_API_KEY || "";
     // Check API Key existence
     if (!API_KEY) {
         throw new HttpsError('failed-precondition', 'Server misconfigured: API Key missing.');
@@ -131,6 +135,7 @@ export const chatWithExpert = onCall(async (request) => {
         const fullSystemInstruction = SYSTEM_INSTRUCTION + systemRules + contextInjection;
 
         // 3. Call Gemini
+        const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ 
             model: TEXT_MODEL_NAME,
             systemInstruction: fullSystemInstruction

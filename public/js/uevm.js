@@ -271,7 +271,7 @@ export function getUevmModalHtml() {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-blue-300 mb-1">Következő vizsgálat időpontja</label>
-                                    <input type="date" name="uevm_kovetkezo_vizsgalat" class="input-field w-full text-white bg-gray-600 border-gray-500 rounded p-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <input type="text" name="uevm_kovetkezo_vizsgalat" placeholder="ÉÉÉÉ.HH.NN" maxlength="10" class="input-field w-full text-white bg-gray-600 border-gray-500 rounded p-2 focus:ring-blue-500 focus:border-blue-500">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-blue-300 mb-1">Következő vizsgálat jellege</label>
@@ -335,7 +335,7 @@ function generateDefectRow(num) {
             <textarea name="uevm_h${num}Action" class="w-full bg-gray-700 border border-gray-600 rounded text-white text-xs p-1" rows="2" placeholder="Teendő..."></textarea>
         </td>
         <td class="p-2 align-top">
-            <input type="date" name="uevm_h${num}Date" class="w-full bg-gray-700 border border-gray-600 rounded text-white text-xs p-1">
+            <input type="text" name="uevm_h${num}Date" placeholder="ÉÉÉÉ.HH.NN" maxlength="10" class="w-full bg-gray-700 border border-gray-600 rounded text-white text-xs p-1">
         </td>
     </tr>
     `;
@@ -399,6 +399,31 @@ export function initUevmModal(saveCallback, initialData = null) {
             validationStatus.textContent = '';
         }
     };
+
+    // Auto-formatting Date Logic
+    const handleDateInput = (e) => {
+        let input = e.target.value.replace(/\D/g, '').substring(0, 8); // Only numbers, max 8 digits
+        let formatted = '';
+        
+        if (input.length > 4) {
+            formatted += input.substring(0, 4) + '.';
+            if (input.length > 6) {
+                formatted += input.substring(4, 6) + '.' + input.substring(6);
+            } else {
+                formatted += input.substring(4);
+            }
+        } else {
+            formatted = input;
+        }
+        
+        e.target.value = formatted;
+        validateUevm();
+    };
+
+    const dateFields = form.querySelectorAll('input[name="uevm_kovetkezo_vizsgalat"], input[name^="uevm_h"][name$="Date"]');
+    dateFields.forEach(field => {
+        field.addEventListener('input', handleDateInput);
+    });
 
 
     // 1. Show Modal
