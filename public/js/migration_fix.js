@@ -63,27 +63,37 @@ export async function runMigration() {
 
             for (const deviceDoc of devicesSnapshot.docs) {
                 const deviceId = deviceDoc.id;
-                // Fetch inspections ordered by date (handling both 'finalized' and imported 'undefined' status)
-                // We fetch a few to skip potential 'draft' entries on top
+                // Fetch ALL inspections, we will sort them in memory correctly
                 const inspectionsSnapshot = await db.collection('partners').doc(partnerId)
                     .collection('devices').doc(deviceId)
                     .collection('inspections')
-                    .orderBy('vizsgalatIdopontja', 'desc')
-                    .limit(5)
                     .get();
 
                 let latestInspection = null;
 
                 if (!inspectionsSnapshot.empty) {
-                    // Find the first inspection that is NOT a draft
+                    // Filter out drafts
+                    const validInspections = [];
                     for (const doc of inspectionsSnapshot.docs) {
                         const data = doc.data();
-                        // Imported inspections have no status (undefined). Finalized have 'finalized'. 
-                        // Drafts have 'draft'. We want anything NOT 'draft'.
                         if (data.status !== 'draft') {
-                            latestInspection = data;
-                            break;
+                            validInspections.push(data);
                         }
+                    }
+
+                    // Sort valid inspections by date properly (ignoring spaces)
+                    validInspections.sort((a, b) => {
+                        const parseDate = (dStr) => {
+                            if (!dStr) return 0;
+                            // Clean spaces and keep numbers only (e.g. "2024. 05. 01." -> "20240501")
+                            const clean = dStr.replace(/[^\d]/g, '');
+                            return parseInt(clean) || 0;
+                        };
+                        return parseDate(b.vizsgalatIdopontja) - parseDate(a.vizsgalatIdopontja);
+                    });
+
+                    if (validInspections.length > 0) {
+                        latestInspection = validInspections[0];
                     }
                 }
 

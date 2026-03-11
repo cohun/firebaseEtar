@@ -1,7 +1,7 @@
 import { onAuthStateChanged } from './auth.js';
 import { checkAndEnforceSubscriptionExpiry } from './admin.js';
 import { auth } from './firebase.js';
-
+import { runMigration } from './migration_fix.js';
 // Amikor a DOM betöltődött, elindítjuk az authentikáció figyelését.
 document.addEventListener('DOMContentLoaded', () => {
     console.log("ETAR Firebase App Started");
