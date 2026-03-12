@@ -1,4 +1,4 @@
-const CACHE_NAME = 'etar-cache-v3.0.2';
+const CACHE_NAME = 'etar-cache-v3.0.3';
 const ASSETS_TO_CACHE = [
   '/offline.html',
   '/js/offline_app.js',
@@ -48,46 +48,38 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Cache találat esetén visszatérünk vele
-        if (response) {
+        // Ellenőrizzük, hogy a válasz megfelelő-e cachelésre
+        if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
 
-        // Ha nincs a cache-ben, hálózati kérés
-        return fetch(event.request).then(
-          (response) => {
-            // Ellenőrizzük, hogy a válasz megfelelő-e cachelésre
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // A dinamikus fájlok (pl letöltött jegyzőkönyvek) mentése
-            // Ezt klónozni kell, mert a response egy stream, amit csak egyszer lehet olvasni
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                // Csak az etar alatti fájlokat vagy a firebasestorage fájlokat cacheljük dinamikusan, hogy ne szemeteljük tele
-                // Illetve az unpkg.com és cdn.jsdelivr.net fájlokat (HTML5-QRCode)
-                if (event.request.url.includes(self.location.origin) || 
-                    event.request.url.includes('firebasestorage.googleapis.com') ||
-                    event.request.url.includes('unpkg.com') ||
-                    event.request.url.includes('cdn.jsdelivr.net') ||
-                    event.request.url.includes('kit.fontawesome.com')) {
-                    cache.put(event.request, responseToCache);
-                }
-              });
-
-            return response;
+        // A dinamikus fájlok (pl letöltött jegyzőkönyvek, js, html) mentése klónozva
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          if (event.request.url.includes(self.location.origin) || 
+              event.request.url.includes('firebasestorage.googleapis.com') ||
+              event.request.url.includes('unpkg.com') ||
+              event.request.url.includes('cdn.jsdelivr.net') ||
+              event.request.url.includes('kit.fontawesome.com')) {
+              cache.put(event.request, responseToCache);
           }
-        );
-      }).catch(() => {
+        });
+
+        return response; // Elsődlegesen a friss hálózati választ adjuk vissza!
+      })
+      .catch(() => {
+        // Ha offline vagyunk (sikertelen hálózati kérés), próbáljuk a cache-t
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
           // Ha offline vagyunk és egy olyan HTML fájlt kért, ami nincs cache-ben, visszaadjuk az offline.html-t (fallback)
-          if (event.request.headers.get('accept').includes('text/html')) {
+          if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
               return caches.match('/offline.html');
           }
+        });
       })
   );
 });

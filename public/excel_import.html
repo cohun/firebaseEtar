@@ -54,6 +54,13 @@
             <h3 class="text-2xl font-semibold mb-6 text-center">Excel fájl beolvasása és megjelenítése</h3>
             
             <div class="flex flex-col items-center justify-center space-y-4 mb-8">
+                <div class="w-full max-w-xs mb-2">
+                    <label for="importOperatorCategory" class="block text-sm font-medium text-gray-300 mb-1">Cél Op. ID Kategória</label>
+                    <select id="importOperatorCategory" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                        <option value="Default">Alap. (Default)</option>
+                        <!-- Kategóriák dinamikusan JS-ből -->
+                    </select>
+                </div>
                 <input type="file" id="excelFile" accept=".xlsx, .xls" class="file-input file-input-bordered file-input-primary w-full max-w-xs bg-gray-800 text-white" />
                 <button id="uploadButton" class="btn btn-primary">Feldolgozás</button>
             </div>

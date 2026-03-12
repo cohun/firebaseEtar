@@ -4,7 +4,40 @@ import { auth, db } from './firebase.js';
 
     const uploadButton = document.getElementById('uploadButton');
     const saveButton = document.getElementById('saveButton');
+    const importOperatorCategory = document.getElementById('importOperatorCategory');
     let jsonData = []; // To store the parsed excel data
+
+    // --- Load Categories on Init ---
+    let availableOperatorCategories = ['Default'];
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            const partnerId = sessionStorage.getItem('lastPartnerId');
+            if (partnerId) {
+                try {
+                    const partnerDoc = await db.collection('partners').doc(partnerId).get();
+                    if (partnerDoc.exists) {
+                        const data = partnerDoc.data();
+                        const categories = data.definedIdCategories || [];
+                        availableOperatorCategories = ['Default', ...categories];
+                        
+                        // Fetch the element dynamically in case script parsed early
+                        const importOperatorCategory = document.getElementById('importOperatorCategory');
+                        if (importOperatorCategory) {
+                             importOperatorCategory.innerHTML = availableOperatorCategories.map(cat =>
+                                `<option value="${cat}">${cat === 'Default' ? 'Alap. (Default)' : cat}</option>`
+                            ).join('');
+                        } else {
+                            console.error("DEBUG: importOperatorCategory DOM elem nem talalhato!");
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error loading operator categories:", error);
+                }
+            } else {
+                console.warn("Nincs lastPartnerId a sessionStorage-ben!");
+            }
+        }
+    });
 
     const deviceMapping = {
         description: ['Megnevezés'],
@@ -188,6 +221,18 @@ import { auth, db } from './firebase.js';
                     deviceData.kov_vizsg = inspectionData.kovetkezoIdoszakosVizsgalat;
                     deviceData.kov_vizsg_datum = inspectionData.kovetkezoIdoszakosVizsgalat;
 
+                    // Handle Selected Operator Category
+                    const selectedCategory = importOperatorCategory ? importOperatorCategory.value : 'Default';
+                    
+                    if (selectedCategory !== 'Default' && deviceData.operatorId) {
+                        // Move the imported operatorId to the specific category
+                        const val = deviceData.operatorId;
+                        delete deviceData.operatorId; // Remove from base
+                        deviceData.operatorIds = {};
+                        deviceData.operatorIds[selectedCategory] = val;
+                    }
+
+
                     const deviceRef = db.collection('partners').doc(partnerId).collection('devices').doc();
                     batch.set(deviceRef, deviceData);
 
@@ -341,12 +386,20 @@ import { auth, db } from './firebase.js';
 
                             // ONLY check fields that belong to the DEVICE document (from deviceMapping)
                             // We do NOT check inspection fields as they are in subcollections and always missing on the device doc.
+                            
+                            const selectedCategory = importOperatorCategory ? importOperatorCategory.value : 'Default';
+
                             for (const key in deviceMapping) { 
                                 // Skip internal/special keys if any. 
                                 // Note: deviceMapping keys are the target field names.
                                 
                                 let newVal = importData[key]; // Use importData (only matches deviceMapping)
                                 let oldVal = existingDev[key];
+
+                                // Custom check for operatorId based on category
+                                if (key === 'operatorId' && selectedCategory !== 'Default') {
+                                    oldVal = existingDev.customIds ? existingDev.customIds[selectedCategory] : undefined;
+                                }
 
                                 // SKIP EMPTY CSV VALUES
                                 if (newVal === undefined || newVal === null || String(newVal).trim() === '') {
@@ -497,12 +550,18 @@ import { auth, db } from './firebase.js';
             
             // To properly handle >500, let's just collect all operations first, then chunk them.
             const operations = [];
+            const selectedCategory = importOperatorCategory ? importOperatorCategory.value : 'Default';
 
             if (doOverwrite) {
                 bulkAnalysisResult.modified.forEach(mod => {
                     const updateData = {};
                     mod.changes.forEach(c => {
-                        updateData[c.field] = mod.fullData[c.field]; // Use the RAW new value (not stringified check)
+                        if (c.field === 'operatorId' && selectedCategory !== 'Default') {
+                            // Update specific nested key
+                            updateData[`customIds.${selectedCategory}`] = mod.fullData[c.field];
+                        } else {
+                            updateData[c.field] = mod.fullData[c.field]; // Use the RAW new value (not stringified check)
+                        }
                     });
                     
                     // Add metadata
@@ -534,6 +593,14 @@ import { auth, db } from './firebase.js';
             if (doUploadNew) {
                 bulkAnalysisResult.newDevices.forEach(newItem => {
                     const newData = newItem.data;
+
+                    if (selectedCategory !== 'Default' && newData.operatorId) {
+                         const val = newData.operatorId;
+                         delete newData.operatorId;
+                         newData.customIds = {};
+                         newData.customIds[selectedCategory] = val;
+                    }
+
                     newData.createdAt = firebase.firestore.Timestamp.now();
                     newData.partnerId = bulkAnalysisResult.partnerId;
                     newData.comment = 'active'; // Default
