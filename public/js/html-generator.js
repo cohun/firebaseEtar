@@ -84,6 +84,18 @@ export async function getTemplateForDraft(draft) {
         }
     }
 
+    // NEW: Handle 'Terhelési próba' specific template
+    if (draft.vizsgalatJellege === 'Terhelési próba') {
+        try {
+            console.log("Loading specialized template: templates/load_test.html");
+            const response = await fetch('templates/load_test.html?v=' + new Date().getTime());
+            if (!response.ok) throw new Error(`Template 'load_test.html' could not be loaded.`);
+            return await response.text();
+        } catch (error) {
+            console.error("Error loading load_test.html:", error);
+        }
+    }
+
     // NEW: Handle 'Rögzítőeszköz vizsgálat' specific template
     if (draft.vizsgalatJellege === 'Rögzítőeszköz vizsgálat') {
         try {
@@ -384,6 +396,16 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
          certNumber = nameMatch[2]; 
     }
 
+    let nyilatkozat_szovege = '';
+    if (draft.vizsgalatJellege === 'Terhelési próba') {
+        const probaterheles = draft.probaterhelesMerteke || '-';
+        if (draft.szemrevetelezesEredmenye === 'Sérült' || draft.mukodesiProbaEredmenye === 'Üzemképtelen') {
+            nyilatkozat_szovege = `A meghatározott <strong>${probaterheles} kg</strong> próbaterhelést követően elvégzett szemrevételezéses vizsgálat alapján az eszközön maradandó károsodás tapasztalható. Az eszköz a próba során az alkalmazott terhelésnek nem állt ellen, szerkezeti integritása sérült.`;
+        } else {
+            nyilatkozat_szovege = `A meghatározott <strong>${probaterheles} kg</strong> próbaterhelést követően elvégzett szemrevételezéses vizsgálat alapján az eszközön maradandó alakváltozás, deformáció, repedés vagy egyéb károsodás nem tapasztalható. Az eszköz a próba során az alkalmazott terhelésnek ellenállt, szerkezeti integritása nem sérült.`;
+        }
+    }
+
     const templateData = {
         partner_nev: partnerData.name || '',
         partner_cim: partnerData.address || '',
@@ -403,6 +425,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         kovetkezo_terhelesi: draft.kovetkezoTerhelesiProba || '',
         vizsgalat_eredmenye: vizsgalatEredmenye,
         vizsgalat_helye: draft.vizsgalatHelye || '',
+        vizsgalat_helyszine: draft.vizsgalatHelye || '', // For load_test.html
         vizsgalat_idopontja: draft.vizsgalatIdopontja || '',
         vizsgalat_jellege: draft.vizsgalatJellege || '',
         szakerto_bizonyitvanyszam: certNumber, // Used for both templates (parens added in jkv.html, not in jkv_ekv.html)
@@ -411,7 +434,15 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         szakertoiCim: expertDetails.szakertoiCim,
         kamaraiSzam: expertDetails.kamaraiSzam,
         szakerto_nev: signatureName,
+        vizsgalatot_vegezte: signatureName, // For load_test.html
         generalas_idobelyeg: new Date().toLocaleString('hu-HU'),
+        alkalmazott_probaterheles: draft.probaterhelesMerteke || '-',
+        terheles_időtartama: draft.terhelesIdotartama || '-',
+        szemrevetelezes_eredmenye: draft.szemrevetelezesEredmenye || '-',
+        mukodesi_proba_eredmenye: draft.mukodesiProbaEredmenye || '-',
+        eszkoz_nevleges_teherbiras: device.loadCapacity || '-', // For load_test.html
+        nyilatkozat_szovege: nyilatkozat_szovege, // For load_test.html
+        jegyzokonyv_id: draft.hash?.substring(0, 6).toUpperCase() || '', // For load_test.html
     };
 
     // 3. Populate the HTML template
@@ -532,6 +563,16 @@ export async function generateHtmlView(targetWindow, drafts) {
                  certNumber = nameMatch[2]; 
             }
 
+            let nyilatkozat_szovege = '';
+            if (draft.vizsgalatJellege === 'Terhelési próba') {
+                const probaterheles = draft.probaterhelesMerteke || '-';
+                if (draft.szemrevetelezesEredmenye === 'Sérült' || draft.mukodesiProbaEredmenye === 'Üzemképtelen') {
+                    nyilatkozat_szovege = `A meghatározott <strong>${probaterheles} kg</strong> próbaterhelést követően elvégzett szemrevételezéses vizsgálat alapján az eszközön maradandó károsodás tapasztalható. Az eszköz a próba során az alkalmazott terhelésnek nem állt ellen, szerkezeti integritása sérült.`;
+                } else {
+                    nyilatkozat_szovege = `A meghatározott <strong>${probaterheles} kg</strong> próbaterhelést követően elvégzett szemrevételezéses vizsgálat alapján az eszközön maradandó alakváltozás, deformáció, repedés vagy egyéb károsodás nem tapasztalható. Az eszköz a próba során az alkalmazott terhelésnek ellenállt, szerkezeti integritása nem sérült.`;
+                }
+            }
+
             const templateData = {
                 'partner_nev': partnerData.name || '-',
                 'partner_cim': partnerData.address || '-',
@@ -546,6 +587,7 @@ export async function generateHtmlView(targetWindow, drafts) {
                 'eszkoz_gyartasi_ev': deviceData.yearOfManufacture || '-',
                 'vizsgalat_idopontja': draft.vizsgalatIdopontja || '-',
                 'vizsgalat_helye': draft.vizsgalatHelye || '-',
+                'vizsgalat_helyszine': draft.vizsgalatHelye || '-', // For load_test.html
                 'vizsgalat_jellege': draft.vizsgalatJellege || '-',
                 'vizsgalat_eredmenye': vizsgalatEredmenye,
                 'feltart_hiba': draft.feltartHiba || 'Nem volt',
@@ -559,7 +601,15 @@ export async function generateHtmlView(targetWindow, drafts) {
                 'szakertoiCim': expertDetails.szakertoiCim,
                 'kamaraiSzam': expertDetails.kamaraiSzam || '',
                 'szakerto_nev': signatureName,
+                'vizsgalatot_vegezte': signatureName, // For load_test.html
                 'generalas_idobelyeg': generationTime.toLocaleString('hu-HU'),
+                'alkalmazott_probaterheles': draft.probaterhelesMerteke || '-',
+                'terheles_időtartama': draft.terhelesIdotartama || '-',
+                'szemrevetelezes_eredmenye': draft.szemrevetelezesEredmenye || '-',
+                'mukodesi_proba_eredmenye': draft.mukodesiProbaEredmenye || '-',
+                'eszkoz_nevleges_teherbiras': deviceData.loadCapacity || '-', // For load_test.html
+                'nyilatkozat_szovege': nyilatkozat_szovege, // For load_test.html
+                'jegyzokonyv_id': draft.hash?.substring(0, 6).toUpperCase() || 'N/A', // For load_test.html
             };
 
 

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terhelési Próba Jegyzőkönyv</title>
+    <style>
+        /* --- Alapstílusok (Minden nézetre) --- */
+        html {
+            box-sizing: border-box;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            line-height: 1.3;
+            background-color: #ffffff;
+        }
+        
+        /* --- Képernyős nézet (Boríték) --- */
+        .screen-view-wrapper {
+            background-color: #f4f4f4;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px; 
+            background-color: #ffffff;
+            padding: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        /* --- Tartalmi Stílusok --- */
+        .document-title {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+        }
+
+        .document-title h1 {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 0;
+            text-transform: uppercase;
+            color: #000;
+        }
+
+        .document-title p {
+            margin: 5px 0 0 0;
+            font-size: 0.9em;
+            color: #444;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-header {
+            background-color: #f0f0f0;
+            padding: 5px 10px;
+            border-bottom: 1px solid #000;
+            margin-bottom: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 0;
+            color: #000;
+            text-transform: uppercase;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: minmax(220px, 35%) 1fr; 
+            gap: 8px 0;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .data-label {
+            font-weight: normal;
+            color: #555;
+        }
+
+        .data-value {
+            font-weight: bold;
+            color: #000;
+            padding-left: 10px;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .test-description-box {
+            margin: 15px 10px;
+            padding: 15px;
+            border: 1px solid #eee;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+
+        .statement-text {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin: 20px 10px;
+            padding: 15px;
+            border-left: 4px solid #000;
+            background-color: #fff;
+            font-style: italic;
+        }
+
+        .signature-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 10px;
+        }
+        
+        .signature-block {
+            text-align: center;
+            width: 250px;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            margin-bottom: 5px;
+            height: 40px;
+        }
+        
+        .signature-label {
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 0.75em;
+            color: #777;
+        }
+
+        /* --- Mobil nézet --- */
+        @media (max-width: 600px) {
+            .screen-view-wrapper { padding: 0; }
+            .container { padding: 15px; border: none; }
+            .data-grid { grid-template-columns: 1fr; }
+            .data-value { padding-left: 0; margin-bottom: 10px; border-bottom: 1px solid #eee; }
+            .signature-section { flex-direction: column; align-items: center; gap: 40px; }
+        }
+
+        /* --- Nyomtatási stílusok (A4) --- */
+        @media print {
+            @page {
+                size: A4;
+                margin: 1.5cm;
+            }
+
+            .screen-view-wrapper {
+                display: block;
+                padding: 0;
+                margin: 0;
+                background-color: #fff !important;
+            }
+
+            html, body {
+                font-family: 'Times New Roman', Times, serif;
+                background-color: #fff !important;
+                font-size: 11pt;
+                line-height: 1.3;
+            }
+
+            .container {
+                width: 100%;
+                max-width: none;
+                padding: 0;
+                box-shadow: none;
+                border: none;
+            }
+
+            .section-header {
+                background-color: #e0e0e0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .test-description-box {
+                background-color: transparent;
+                border: 1px solid #000;
+            }
+
+            .footer {
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="screen-view-wrapper">
+        <div class="container">
+
+            <!-- Cím -->
+            <div class="document-title">
+                <h1>Teherfelvevő Eszköz Terhelési Próba Jegyzőkönyv</h1>
+                <p>Eszköz egyedi vizsgálata az üzemeltető kérésére</p>
+            </div>
+
+            <!-- Adatok -->
+            <section class="section">
+                <div class="section-header">
+                    <h2>1. Azonosító adatok</h2>
+                </div>
+                <div class="data-grid">
+                    <div class="data-label">Üzemeltető:</div>
+                    <div class="data-value">{partner_nev}</div>
+                    
+                    <div class="data-label">Vizsgálat helyszíne:</div>
+                    <div class="data-value">{vizsgalat_helyszine}</div>
+                    
+                    <div class="data-label">Eszköz megnevezése:</div>
+                    <div class="data-value">{eszkoz_megnevezes}</div>
+                    
+                    <div class="data-label">Típus / Gyári szám:</div>
+                    <div class="data-value">{eszkoz_tipus} / {eszkoz_gyari_szam}</div>
+                    
+                    <div class="data-label">Névleges teherbírás (WLL):</div>
+                    <div class="data-value">{eszkoz_nevleges_teherbiras} kg</div>
+                </div>
+            </section>
+
+            <!-- Terhelési Próba Paraméterei -->
+            <section class="section">
+                <div class="section-header">
+                    <h2>2. A terhelési próba adatai</h2>
+                </div>
+                <div class="data-grid">
+                    <div class="data-label">Próbaterhelés mértéke:</div>
+                    <div class="data-value" style="font-size: 1.1em;">{alkalmazott_probaterheles} kg</div>
+                    
+                    <div class="data-label">Terhelés időtartama:</div>
+                    <div class="data-value">{terheles_időtartama} perc</div>
+                </div>
+                
+                <div class="test-description-box">
+                    <strong>A vizsgálat módja:</strong><br>
+                    Az eszközt az üzemeltető által meghatározott terheléssel vizsgáltuk meg. A terhelést követően elvégeztük az eszköz teljes körű szemrevételezését és (amennyiben értelmezhető) működési próbáját.
+                </div>
+            </section>
+
+            <!-- Eredmény és Nyilatkozat -->
+            <section class="section">
+                <div class="section-header">
+                    <h2>3. Vizsgálati megállapítások és nyilatkozat</h2>
+                </div>
+                
+                <div class="statement-text">
+                    {nyilatkozat_szovege}
+                </div>
+
+                <div class="data-grid">
+                    <div class="data-label">Szemrevételezés eredménye:</div>
+                    <div class="data-value">{szemrevetelezes_eredmenye}</div>
+                    
+                    <div class="data-label">Működési próba eredménye:</div>
+                    <div class="data-value">{mukodesi_proba_eredmenye}</div>
+
+                    <div class="data-label">Feltárt hiba:</div>
+                    <div class="data-value">{feltart_hiba}</div>
+                    
+                    <div class="data-label">Felhasznált anyagok:</div>
+                    <div class="data-value">{felhasznalt_anyagok}</div>
+                </div>
+            </section>
+
+            <!-- Aláírások -->
+            <section class="signature-section">
+                <div class="kelt-datum">
+                    <strong>Kelt:</strong> {vizsgalat_idopontja}
+                </div>
+                
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="data-value" style="border: none; text-align: center; font-weight: bold;">{vizsgalatot_vegezte}</div>
+                    <div class="data-value" style="border: none; text-align: center; font-size: 0.85em; margin-top: 3px;">H-ITB emelőgép ügyintéző</div>
+                    <div class="data-value" style="border: none; text-align: center; font-size: 0.85em;">Bizonyítvány száma: {szakerto_bizonyitvanyszam}</div>
+                </div>
+            </section>
+
+            <!-- Lábléc -->
+            <footer class="footer">
+                Jegyzőkönyv azonosító: {jegyzokonyv_id} | Generálva: {generalas_idobelyeg}
+                <br>
+                <small>Ez a jegyzőkönyv kizárólag a fenti terhelési próba tényét és annak eredményét igazolja.</small>
+            </footer>
+
+        </div>
+    </div>
+
+</body>
+</html>

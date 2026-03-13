@@ -4975,7 +4975,7 @@ export function initPartnerWorkScreen(partner, userData) {
                     <div id="inspection-main-data-container" class="mt-6 pt-4 border-t border-blue-700">
                         <h3 class="text-xl font-bold mb-4 text-green-300">Vizsgálati adatok rögzítése</h3>
                         <div id="new-inspection-form" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                            <div>
+                            <div id="container-kov-idoszakos">
                                 <label class="block text-sm">Következő időszakos vizsgálat</label>
                                 <select name="kov_idoszakos_vizsgalat_period" class="input-field">
                                     <option value="">Válasszon periódust</option>
@@ -4997,7 +4997,32 @@ export function initPartnerWorkScreen(partner, userData) {
                                 </select>
                                 <input name="kov_terhelesi_proba" type="date" class="input-field mt-2">
                             </div>
-                            <div>
+                            <!-- ÚJ: Terhelési próba egyedi mezői (alapból rejtett) -->
+                            <div id="container-terhelesi-mezok" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4" style="display: none;">
+                                <div>
+                                    <label class="block text-sm">Próbaterhelés mértéke (kg)</label>
+                                    <input type="number" name="probaterheles_merteke" class="input-field" placeholder="Pl. 1000">
+                                </div>
+                                <div>
+                                    <label class="block text-sm">Terhelés időtartama (perc)</label>
+                                    <input type="number" name="terheles_idotartama" class="input-field" placeholder="Pl. 10">
+                                </div>
+                                <div>
+                                    <label class="block text-sm">Szemrevételezés eredménye</label>
+                                    <select name="szemrevetelezes_eredmenye" class="input-field">
+                                        <option>Hibátlan</option>
+                                        <option>Sérült</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm">Működési próba eredménye</label>
+                                    <select name="mukodesi_proba_eredmenye" class="input-field">
+                                        <option>Üzemképes</option>
+                                        <option>Üzemképtelen</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="container-vizsgalat-eredmenye">
                                 <label class="block text-sm">Vizsgálat eredménye</label>
                                 <div class="flex items-center gap-2">
                                     <select name="vizsgalat_eredmenye" class="input-field flex-grow">
@@ -5123,19 +5148,31 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                     });
                 }
 
-                // --- VISIBILITY LOGIC FOR 'RÖGZÍTŐESZKÖZ VIZSGÁLAT' ---
+                // --- VISIBILITY LOGIC FOR JELLEGE DYNAMIC FIELDS ---
                 const templateSelect = document.getElementById('templateSelectNewInspection');
                 const loadTestContainer = document.getElementById('container-kov-terhelesi');
+                const idoszakosContainer = document.getElementById('container-kov-idoszakos');
+                const terhelesiMezokContainer = document.getElementById('container-terhelesi-mezok');
+                const eredmenyeContainer = document.getElementById('container-vizsgalat-eredmenye');
 
                 if (templateSelect && loadTestContainer) {
                     const handleTemplateChange = () => {
+                        // Reset visibility
+                        loadTestContainer.style.display = 'block';
+                        if (idoszakosContainer) idoszakosContainer.style.display = 'block';
+                        if (terhelesiMezokContainer) terhelesiMezokContainer.style.display = 'none';
+                        if (eredmenyeContainer) eredmenyeContainer.style.display = 'block';
+
                         if (templateSelect.value === 'Rögzítőeszköz vizsgálat' || templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
                             loadTestContainer.style.display = 'none';
                             // Opcionális: üríthetjük is a mezőket, ha elrejtjük
                             const inputs = loadTestContainer.querySelectorAll('input, select');
                             inputs.forEach(input => input.value = '');
-                        } else {
-                            loadTestContainer.style.display = 'block';
+                        } else if (templateSelect.value === 'Terhelési próba') {
+                            loadTestContainer.style.display = 'none';
+                            if (idoszakosContainer) idoszakosContainer.style.display = 'none';
+                            if (terhelesiMezokContainer) terhelesiMezokContainer.style.display = 'grid'; // Grid mert tailwind .grid osztály
+                            if (eredmenyeContainer) eredmenyeContainer.style.display = 'none'; // Vizsgálat eredményt dinamikusan csinálunk
                         }
 
                         // Update Result Dropdown Options
@@ -5330,7 +5367,11 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                         'kov_terhelesi_proba',
                         'vizsgalat_eredmenye',
                         'feltart_hiba',
-                        'felhasznalt_anyagok'
+                        'felhasznalt_anyagok',
+                        'probaterheles_merteke',
+                        'terheles_idotartama',
+                        'szemrevetelezes_eredmenye',
+                        'mukodesi_proba_eredmenye'
                     ];
                     fieldsToSave.forEach(name => {
                         const field = document.querySelector(`[name="${name}"]`);
@@ -5357,6 +5398,12 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                         feltartHiba: document.querySelector('[name="feltart_hiba"]') ? document.querySelector('[name="feltart_hiba"]').value : '',
                         felhasznaltAnyagok: document.querySelector('[name="felhasznalt_anyagok"]') ? document.querySelector('[name="felhasznalt_anyagok"]').value : '',
 
+                        // Terhelési próba mezők
+                        probaterhelesMerteke: document.querySelector('[name="probaterheles_merteke"]') ? document.querySelector('[name="probaterheles_merteke"]').value : '',
+                        terhelesIdotartama: document.querySelector('[name="terheles_idotartama"]') ? document.querySelector('[name="terheles_idotartama"]').value : '',
+                        szemrevetelezesEredmenye: document.querySelector('[name="szemrevetelezes_eredmenye"]') ? document.querySelector('[name="szemrevetelezes_eredmenye"]').value : '',
+                        mukodesiProbaEredmenye: document.querySelector('[name="mukodesi_proba_eredmenye"]') ? document.querySelector('[name="mukodesi_proba_eredmenye"]').value : '',
+
                         ajanlatKeres: document.getElementById('ajanlatKeresInput') ? document.getElementById('ajanlatKeresInput').checked : false,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         createdBy: user.displayName || user.email,
@@ -5374,6 +5421,18 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                     // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden)
                     if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') { 
                             inspectionData.kovetkezoTerhelesiProba = ''; 
+                    }
+
+                    // Ha Terhelési próba, akkor a következő vizsgálatok nem relevánsak és aszerint írjuk felül az eredményt is
+                    if (inspectionData.vizsgalatJellege === 'Terhelési próba') {
+                        inspectionData.kovetkezoIdoszakosVizsgalat = '';
+                        inspectionData.kovetkezoTerhelesiProba = '';
+                        // Eredmény generálása a két részletszempont alapján
+                        if (inspectionData.szemrevetelezesEredmenye === 'Hibátlan' && inspectionData.mukodesiProbaEredmenye === 'Üzemképes') {
+                            inspectionData.vizsgalatEredmenye = 'Megfelelt';
+                        } else {
+                            inspectionData.vizsgalatEredmenye = 'Nem felelt meg';
+                        }
                     }
 
 
@@ -5420,12 +5479,22 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                                 inspectionData.szakerto,
                                 inspectionData.vizsgalatHelye,
                                 inspectionData.vizsgalatIdopontja,
-                                inspectionData.kovetkezoIdoszakosVizsgalat,
                                 inspectionData.vizsgalatEredmenye
                             ];
 
-                            if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln') {
+                            if (inspectionData.vizsgalatJellege !== 'Terhelési próba') {
+                                requiredFields.push(inspectionData.kovetkezoIdoszakosVizsgalat);
+                            }
+
+                            if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln' && inspectionData.vizsgalatJellege !== 'Terhelési próba') {
                                     requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
+                            }
+
+                            if (inspectionData.vizsgalatJellege === 'Terhelési próba') {
+                                requiredFields.push(inspectionData.probaterhelesMerteke);
+                                requiredFields.push(inspectionData.terhelesIdotartama);
+                                requiredFields.push(inspectionData.szemrevetelezesEredmenye);
+                                requiredFields.push(inspectionData.mukodesiProbaEredmenye);
                             }
                             
                             if (requiredFields.some(field => !field || field.trim() === '')) {
@@ -5899,6 +5968,7 @@ function getNewInspectionScreenHtml(userData) {
                         <option>Fővizsgálat</option>
                         <option>Szerkezeti vizsgálat</option>
                         <option>Biztonsági Felülvizsgálat</option>
+                        <option>Terhelési próba</option>
                         <option>Rögzítőeszköz vizsgálat</option>
                         <option>Prüfung von Ladungssicherungsmitteln</option>
                         <option>Prüfung von Lastaufnahmemitteln</option>
