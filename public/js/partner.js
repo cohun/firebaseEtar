@@ -5148,12 +5148,40 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                     });
                 }
 
+                // --- AUTO-DATE LOGIC FOR 'KÖVETKEZŐ IDŐSZAKOS VIZSGÁLAT' -> 'KÖVETKEZŐ TERHELÉSI PRÓBA' ---
+                const kovIdoszakosInput = document.querySelector('[name="kov_idoszakos_vizsgalat"]');
+                const kovTerhelesiInput = document.querySelector('[name="kov_terhelesi_proba"]');
+                const kovIdoszakosPeriod = document.querySelector('[name="kov_idoszakos_vizsgalat_period"]');
+                const kovTerhelesiPeriod = document.querySelector('[name="kov_terhelesi_proba_period"]');
+
+                if (kovIdoszakosInput && kovTerhelesiInput) {
+                    kovIdoszakosInput.addEventListener('change', (e) => {
+                        // Automatikusan áttölti a kiválasztott dátumot a másik mezőbe
+                        if (e.target.value) {
+                            kovTerhelesiInput.value = e.target.value;
+                        }
+                    });
+                }
+
+                if (kovIdoszakosPeriod && kovTerhelesiPeriod) {
+                    kovIdoszakosPeriod.addEventListener('change', (e) => {
+                         // Automatikusan áttölti a periódust is
+                        if (e.target.value) {
+                            kovTerhelesiPeriod.value = e.target.value;
+                        }
+                    });
+                }
+
                 // --- VISIBILITY LOGIC FOR JELLEGE DYNAMIC FIELDS ---
                 const templateSelect = document.getElementById('templateSelectNewInspection');
                 const loadTestContainer = document.getElementById('container-kov-terhelesi');
                 const idoszakosContainer = document.getElementById('container-kov-idoszakos');
                 const terhelesiMezokContainer = document.getElementById('container-terhelesi-mezok');
                 const eredmenyeContainer = document.getElementById('container-vizsgalat-eredmenye');
+
+                // Próbaterhelés automatikus kitöltéséhez
+                const probaterhelesInput = document.querySelector('[name="probaterheles_merteke"]');
+                const terhelesIdotartamaInput = document.querySelector('[name="terheles_idotartama"]');
 
                 if (templateSelect && loadTestContainer) {
                     const handleTemplateChange = () => {
@@ -5163,11 +5191,43 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                         if (terhelesiMezokContainer) terhelesiMezokContainer.style.display = 'none';
                         if (eredmenyeContainer) eredmenyeContainer.style.display = 'block';
 
+                        // Reset we hide szemrevetelezes/mukodesi proba by default in case we show terhelesi mezok
+                        const szemreEsMukodes = terhelesiMezokContainer ? terhelesiMezokContainer.querySelectorAll('div:nth-child(3), div:nth-child(4)') : [];
+                        if (szemreEsMukodes.length === 2) {
+                            szemreEsMukodes[0].style.display = 'block';
+                            szemreEsMukodes[1].style.display = 'block';
+                        }
+
                         if (templateSelect.value === 'Rögzítőeszköz vizsgálat' || templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
                             loadTestContainer.style.display = 'none';
                             // Opcionális: üríthetjük is a mezőket, ha elrejtjük
                             const inputs = loadTestContainer.querySelectorAll('input, select');
                             inputs.forEach(input => input.value = '');
+                        } else if (templateSelect.value === 'Fővizsgálat') {
+                            // Fővizsgálat: Kérjük a próbaterhelést és az időtartamot, de nem kérjük a szemrevételezést és a próba eredményét ebből a dobozból
+                            if (terhelesiMezokContainer) {
+                                terhelesiMezokContainer.style.display = 'grid';
+                                if (szemreEsMukodes.length === 2) {
+                                    szemreEsMukodes[0].style.display = 'none';
+                                    szemreEsMukodes[1].style.display = 'none';
+                                }
+                            }
+                            
+                            // Automatikus kitöltés: 1.25 * WLL és 10 perc
+                            if (device && device.loadCapacity) {
+                                // Megpróbáljuk számmá alakítani a teherbírást. Sokszor "2000" vagy "2 t" vagy "WLL 2t" formában van tárolva.
+                                // Itt egy egyszerű számkivonást végzünk.
+                                const numericCapacity = parseFloat((device.loadCapacity + '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+                                if (!isNaN(numericCapacity) && numericCapacity > 0) {
+                                    if (probaterhelesInput && !probaterhelesInput.value) {
+                                        probaterhelesInput.value = numericCapacity * 1.25;
+                                    }
+                                }
+                            }
+                            if (terhelesIdotartamaInput && !terhelesIdotartamaInput.value) {
+                                terhelesIdotartamaInput.value = 10;
+                            }
+
                         } else if (templateSelect.value === 'Terhelési próba') {
                             loadTestContainer.style.display = 'none';
                             if (idoszakosContainer) idoszakosContainer.style.display = 'none';
@@ -5327,6 +5387,7 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                             const dd = String(nextDate.getDate()).padStart(2, '0');
                             
                             dateInput.value = `${yyyy}-${mm}-${dd}`;
+                            dateInput.dispatchEvent(new Event('change'));
                         });
                     }
                 };
@@ -5495,6 +5556,9 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                                 requiredFields.push(inspectionData.terhelesIdotartama);
                                 requiredFields.push(inspectionData.szemrevetelezesEredmenye);
                                 requiredFields.push(inspectionData.mukodesiProbaEredmenye);
+                            } else if (inspectionData.vizsgalatJellege === 'Fővizsgálat') {
+                                requiredFields.push(inspectionData.probaterhelesMerteke);
+                                requiredFields.push(inspectionData.terhelesIdotartama);
                             }
                             
                             if (requiredFields.some(field => !field || field.trim() === '')) {

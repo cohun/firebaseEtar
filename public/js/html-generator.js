@@ -406,6 +406,16 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         }
     }
 
+    let extra_vizsgalat_adatok_html = '';
+    if (draft.vizsgalatJellege === 'Fővizsgálat' && draft.probaterhelesMerteke) {
+        extra_vizsgalat_adatok_html = `
+                    <div class="data-label">Próbaterhelés mértéke (kg):</div>
+                    <div class="data-value">${draft.probaterhelesMerteke || '-'}</div>
+                    <div class="data-label">Terhelés időtartama (perc):</div>
+                    <div class="data-value">${draft.terhelesIdotartama || '-'}</div>
+        `;
+    }
+
     const templateData = {
         partner_nev: partnerData.name || '',
         partner_cim: partnerData.address || '',
@@ -428,6 +438,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         vizsgalat_helyszine: draft.vizsgalatHelye || '', // For load_test.html
         vizsgalat_idopontja: draft.vizsgalatIdopontja || '',
         vizsgalat_jellege: draft.vizsgalatJellege || '',
+        extra_vizsgalat_adatok_html: extra_vizsgalat_adatok_html, // Extra mezők Fővizsgálathoz
         szakerto_bizonyitvanyszam: certNumber, // Used for both templates (parens added in jkv.html, not in jkv_ekv.html)
         VizsgaloCegNeve: expertDetails.companyName,
         VizsgalaoCegCime: expertDetails.companyAddress,
@@ -573,6 +584,16 @@ export async function generateHtmlView(targetWindow, drafts) {
                 }
             }
 
+            let extra_vizsgalat_adatok_html = '';
+            if (draft.vizsgalatJellege === 'Fővizsgálat' && draft.probaterhelesMerteke) {
+                extra_vizsgalat_adatok_html = `
+                            <div class="data-label">Próbaterhelés mértéke (kg):</div>
+                            <div class="data-value">${draft.probaterhelesMerteke || '-'}</div>
+                            <div class="data-label">Terhelés időtartama (perc):</div>
+                            <div class="data-value">${draft.terhelesIdotartama || '-'}</div>
+                `;
+            }
+
             const templateData = {
                 'partner_nev': partnerData.name || '-',
                 'partner_cim': partnerData.address || '-',
@@ -589,6 +610,7 @@ export async function generateHtmlView(targetWindow, drafts) {
                 'vizsgalat_helye': draft.vizsgalatHelye || '-',
                 'vizsgalat_helyszine': draft.vizsgalatHelye || '-', // For load_test.html
                 'vizsgalat_jellege': draft.vizsgalatJellege || '-',
+                'extra_vizsgalat_adatok_html': extra_vizsgalat_adatok_html, // Extra mezők Fővizsgálathoz
                 'vizsgalat_eredmenye': vizsgalatEredmenye,
                 'feltart_hiba': draft.feltartHiba || 'Nem volt',
                 'felhasznalt_anyagok': draft.felhasznaltAnyagok || 'Nem volt',
