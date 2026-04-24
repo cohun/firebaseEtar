@@ -121,6 +121,18 @@ export async function getTemplateForDraft(draft) {
         }
     }
 
+    // NEW: Handle 'Inspection Load Securing Equipment' specific template
+    if (draft.vizsgalatJellege === 'Inspection Load Securing Equipment') {
+        try {
+            console.log("Loading specialized template: jkv_RLSK_English.html");
+            const response = await fetch('jkv_RLSK_English.html?v=' + new Date().getTime());
+            if (!response.ok) throw new Error(`Template 'jkv_RLSK_English.html' could not be loaded.`);
+            return await response.text();
+        } catch (error) {
+            console.error("Error loading jkv_RLSK_English.html:", error);
+        }
+    }
+
     // NEW: Handle 'Prüfung von Lastaufnahmemitteln' specific template
     if (draft.vizsgalatJellege === 'Prüfung von Lastaufnahmemitteln') {
         try {
@@ -375,7 +387,7 @@ export async function generateAndUploadFinalizedHtml(templateHtml, draft) {
         } else if (vizsgalatEredmenye === 'Nem felelt meg') {
             vizsgalatEredmenye = 'Nicht zugelassen/Nem felelt meg';
         }
-    } else if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories') {
+    } else if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories' || draft.vizsgalatJellege === 'Inspection Load Securing Equipment') {
         if (vizsgalatEredmenye === 'Megfelelt') {
             vizsgalatEredmenye = 'Megfelelt / Suitable';
         } else if (vizsgalatEredmenye === 'Nem felelt meg') {
@@ -554,7 +566,7 @@ export async function generateHtmlView(targetWindow, drafts) {
                 } else if (vizsgalatEredmenye === 'Nem felelt meg') {
                     vizsgalatEredmenye = 'Nicht zugelassen/Nem felelt meg';
                 }
-            } else if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories') {
+            } else if (draft.vizsgalatJellege === 'Inspection of Lifting Accessories' || draft.vizsgalatJellege === 'Inspection Load Securing Equipment') {
                 if (vizsgalatEredmenye === 'Megfelelt') {
                     vizsgalatEredmenye = 'Megfelelt / Suitable';
                 } else if (vizsgalatEredmenye === 'Nem felelt meg') {

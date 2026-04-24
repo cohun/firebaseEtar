@@ -5198,7 +5198,7 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                             szemreEsMukodes[1].style.display = 'block';
                         }
 
-                        if (templateSelect.value === 'Rögzítőeszköz vizsgálat' || templateSelect.value === 'Prüfung von Ladungssicherungsmitteln') {
+                        if (templateSelect.value === 'Rögzítőeszköz vizsgálat' || templateSelect.value === 'Prüfung von Ladungssicherungsmitteln' || templateSelect.value === 'Inspection Load Securing Equipment') {
                             loadTestContainer.style.display = 'none';
                             // Opcionális: üríthetjük is a mezőket, ha elrejtjük
                             const inputs = loadTestContainer.querySelectorAll('input, select');
@@ -5243,7 +5243,7 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                                     <option>Zugelassen/Megfelelt</option>
                                     <option>Nicht zugelassen/Nem felelt meg</option>
                                 `;
-                            } else if (templateSelect.value === 'Inspection of Lifting Accessories') {
+                            } else if (templateSelect.value === 'Inspection of Lifting Accessories' || templateSelect.value === 'Inspection Load Securing Equipment') {
                                 vizsgalatEredmenyeSelect.innerHTML = `
                                     <option>Megfelelt / Suitable</option>
                                     <option>Nem felelt meg / Not suitable</option>
@@ -5480,7 +5480,7 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                     };
 
                     // Ha Rögzítőeszköz vizsgálat, akkor a következő terhelési próba nem releváns (hidden)
-                    if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln') { 
+                    if (inspectionData.vizsgalatJellege === 'Rögzítőeszköz vizsgálat' || inspectionData.vizsgalatJellege === 'Prüfung von Ladungssicherungsmitteln' || inspectionData.vizsgalatJellege === 'Inspection Load Securing Equipment') { 
                             inspectionData.kovetkezoTerhelesiProba = ''; 
                     }
 
@@ -5547,7 +5547,7 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                                 requiredFields.push(inspectionData.kovetkezoIdoszakosVizsgalat);
                             }
 
-                            if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln' && inspectionData.vizsgalatJellege !== 'Terhelési próba') {
+                            if (inspectionData.vizsgalatJellege !== 'Rögzítőeszköz vizsgálat' && inspectionData.vizsgalatJellege !== 'Prüfung von Ladungssicherungsmitteln' && inspectionData.vizsgalatJellege !== 'Inspection Load Securing Equipment' && inspectionData.vizsgalatJellege !== 'Terhelési próba') {
                                     requiredFields.push(inspectionData.kovetkezoTerhelesiProba);
                             }
 
@@ -6035,6 +6035,7 @@ function getNewInspectionScreenHtml(userData) {
                         <option>Terhelési próba</option>
                         <option>Rögzítőeszköz vizsgálat</option>
                         <option>Prüfung von Ladungssicherungsmitteln</option>
+                        <option>Inspection Load Securing Equipment</option>
                         <option>Prüfung von Lastaufnahmemitteln</option>
                         <option>Inspection of Lifting Accessories</option>
                     </select>
