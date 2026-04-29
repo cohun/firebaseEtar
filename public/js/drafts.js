@@ -67,13 +67,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 // The initial query is already sorted by creation date
-                // The initial query is already sorted by creation date
                 let dGroup = db.collectionGroup('inspections').where('status', '==', 'draft');
 
+                let isInternalInspector = false;
+                let myPartnerIds = [];
+
+                if (userData && userData.partnerRoles) {
+                    for (const [pid, role] of Object.entries(userData.partnerRoles)) {
+                        if (role === 'internal_inspector') {
+                            isInternalInspector = true;
+                            myPartnerIds.push(pid);
+                        }
+                    }
+                }
+
                 if (isEkvUser) {
-                     // EKV users only see their own drafts
-                     // This requires a composite index 'status' + 'createdByUid' + 'createdAt'
-                     dGroup = dGroup.where('createdByUid', '==', user.uid);
+                    if (isInternalInspector && myPartnerIds.length > 0) {
+                        // internal_inspectors can see all drafts for their assigned partners
+                        if (myPartnerIds.length <= 10) {
+                            dGroup = dGroup.where('partnerId', 'in', myPartnerIds);
+                        } else {
+                            dGroup = dGroup.where('partnerId', 'in', myPartnerIds.slice(0, 10)); // Limit to 10 for Firestore 'in' query
+                        }
+                    } else {
+                        // Regular EKV users only see their own drafts
+                        dGroup = dGroup.where('createdByUid', '==', user.uid);
+                    }
                 }
 
                 const snapshot = await dGroup.orderBy('createdAt', 'desc').get();
@@ -120,10 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Filter drafts based on user type
                 if (userData && userData.isEkvUser) {
-                    // EKV users only see their own drafts. This is ALREADY enforced by the Firestore query: 
-                    // dGroup.where('createdByUid', '==', user.uid).
-                    // We remove the extra client-side restriction so that even if the device fetch throws a 
-                    // transient permission error on soft-navigation, the user can still see and manage their drafts.
+                    // EKV users only see their own drafts, EXCEPT internal_inspectors who see their assigned partners' drafts.
+                    // This is handled by the Firestore query.
                 } else {
                     // Helyreállítás: Az EJK felhasználók számára ne szűrjük ki a hardkódolt isI === true piszkozatokat,
                     // különben a felületi 'EKV' szűrő bepipálása ellenére sem látnák őket.
@@ -131,8 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // EJK_inspector restriction: only see assigned partners
                     if (userRoles.includes('EJK_inspector') && !userRoles.includes('EJK_admin') && !userRoles.includes('EJK_write') && !userRoles.includes('EJK_read')) {
-                         const myPartnerIds = Object.keys(userData.partnerRoles || {});
-                         allEnrichedDrafts = allEnrichedDrafts.filter(draft => myPartnerIds.includes(draft.partnerId));
+                         const myEjkPartnerIds = Object.keys(userData.partnerRoles || {});
+                         allEnrichedDrafts = allEnrichedDrafts.filter(draft => myEjkPartnerIds.includes(draft.partnerId));
                     }
                 }
 

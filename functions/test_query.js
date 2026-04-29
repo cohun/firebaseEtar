@@ -1,26 +1,27 @@
 const admin = require('firebase-admin');
 
-// Ensure we don't connect to the emulator by accident
-delete process.env.FIRESTORE_EMULATOR_HOST;
-
 admin.initializeApp({
-  projectId: 'etarrendszer'
+  projectId: "etarrendszer"
 });
 
-async function run() {
+const db = admin.firestore();
+
+async function testQuery() {
     try {
-        const db = admin.firestore();
-        const snap = await db.collection('users').get();
-        console.log(`Found ${snap.size} users`);
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.email === 'attila.hitb@gmail.com') {
-                 console.log("MATCH:", doc.id, "=>", data);
-            }
+        const query = db.collectionGroup('inspections')
+            .where('status', '==', 'draft')
+            .where('partnerId', 'in', ['rYisYspsmoRDhxuxPoKK'])
+            .orderBy('createdAt', 'desc');
+            
+        const snapshot = await query.get();
+        console.log(`Query returned ${snapshot.size} documents.`);
+        snapshot.forEach(doc => {
+            console.log(doc.id, doc.data());
         });
-    } catch(e) {
-        console.error("Error connecting to DB:", e.message);
+        
+    } catch (e) {
+        console.error(e);
     }
 }
 
-run();
+testQuery();
