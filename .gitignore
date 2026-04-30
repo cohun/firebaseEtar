@@ -73,3 +73,6 @@ node_modules/
 
 # local files
 *.local
+
+# Firebase Service Account Keys
+serviceAccountKey.json
