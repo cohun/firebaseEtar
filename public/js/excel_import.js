@@ -58,7 +58,7 @@ import { auth, db } from './firebase.js';
         felhasznaltAnyagok: ['Felhasznált anyagok', 'Utolsó vizsgálat - Felhasznált anyagok'],
         feltartHiba: ['Feltárt hiba', 'Utolsó vizsgálat - Feltárt hiba'],
         kovetkezoTerhelesiProba: ['Következő terhelési próba', 'Utolsó vizsgálat - Köv. Terhelési'],
-        vizsgalatHelye: ['Vizsgálat helye'],
+        vizsgalatHelye: ['Vizsgálat helye', 'Utolsó vizsgálat - Helyszín'],
         vizsgalatIdopontja: ['Vizsgálat időpontja', 'vizsgalatIdopontja', 'Utolsó vizsgálat - Dátum'],
         vizsgalatJellege: ['Vizsgálat jellege', 'vizsgalatJellege', 'Utolsó vizsgálat - Típus'],
         szakerto: ['Utolsó vizsgálat - Szakértő']   

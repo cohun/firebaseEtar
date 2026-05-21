@@ -4047,6 +4047,7 @@ export function initPartnerWorkScreen(partner, userData) {
             'Utolsó vizsgálat - Köv. időszakos': dev.latestInspection?.kovetkezoIdoszakosVizsgalat,
             'Utolsó vizsgálat - Köv. terhelési': dev.latestInspection?.kovetkezoTerhelesiProba,
             'Utolsó vizsgálat - Szakértő': dev.latestInspection?.szakerto,
+            'Utolsó vizsgálat - Helyszín': dev.latestInspection?.vizsgalatHelye,
             'Utolsó vizsgálat - Feltárt hiba': dev.latestInspection?.feltartHiba,
             'Utolsó vizsgálat - Felhasznált anyagok': dev.latestInspection?.felhasznaltAnyagok,
         }));
