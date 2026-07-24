@@ -11,7 +11,7 @@ const db = admin.firestore();
 
 // API Key and genAI will be instantiated where needed to make sure process.env is populated.
 
-const TEXT_MODEL_NAME = 'gemini-2.0-flash'; // Updated to a newer stable model if available, or stick to flash
+const TEXT_MODEL_NAME = 'gemini-2.5-flash'; // Updated from retired gemini-2.0-flash
 const SYSTEM_INSTRUCTION = `
 Ön a H-ITB Kft. vezető emelőgép szakértője, több évtizedes tapasztalattal az emelőgépek és teherfelvevő eszközök szakértése területén.
 A munkája során az ETAR (Emelőgép és Teherfelvevő eszközök Adminisztrációs Rendszere) rendszert használja a nyilvántartáshoz.

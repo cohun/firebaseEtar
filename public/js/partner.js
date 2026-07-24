@@ -5234,6 +5234,21 @@ MSZ 12862:1980 \u2013 Teherfelvevő eszközök biztonságtechnikai követelmény
                             if (idoszakosContainer) idoszakosContainer.style.display = 'none';
                             if (terhelesiMezokContainer) terhelesiMezokContainer.style.display = 'grid'; // Grid mert tailwind .grid osztály
                             if (eredmenyeContainer) eredmenyeContainer.style.display = 'none'; // Vizsgálat eredményt dinamikusan csinálunk
+                            
+                            // Automatikus kitöltés: 1.25 * WLL és 10 perc
+                            if (device && device.loadCapacity) {
+                                // Megpróbáljuk számmá alakítani a teherbírást. Sokszor "2000" vagy "2 t" vagy "WLL 2t" formában van tárolva.
+                                // Itt egy egyszerű számkivonást végzünk.
+                                const numericCapacity = parseFloat((device.loadCapacity + '').replace(/[^0-9.,]/g, '').replace(',', '.'));
+                                if (!isNaN(numericCapacity) && numericCapacity > 0) {
+                                    if (probaterhelesInput && !probaterhelesInput.value) {
+                                        probaterhelesInput.value = numericCapacity * 1.25;
+                                    }
+                                }
+                            }
+                            if (terhelesIdotartamaInput && !terhelesIdotartamaInput.value) {
+                                terhelesIdotartamaInput.value = 10;
+                            }
                         }
 
                         // Update Result Dropdown Options

@@ -6,10 +6,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const backButton = document.getElementById('backButton');
     const saveButton = document.getElementById('saveButton');
     const loadPreviousButton = document.getElementById('loadPreviousButton');
+    const genericHandlingButton = document.getElementById('genericHandlingButton');
     const form = document.getElementById('dataEntryForm');
     const storageKey = 'previousDeviceData';
     let currentUserData = null; // Store user data for save logic
     let scannedChipId = null; // Store scanned chip ID
+    let genericHandlingUrl = null;
 
     // Wait for Auth to be ready
     auth.onAuthStateChanged(async (user) => {
@@ -94,7 +96,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log("DEBUG: Fetched device data:", deviceData); // Adatok logolása
                     
                     // Form kitöltése a kapott adatokkal
-                    form.querySelector('[name="eszkoz_megnevezes"]').value = deviceData.description || '';
+                    const desc = deviceData.description || '';
+                    form.querySelector('[name="eszkoz_megnevezes"]').value = desc;
+                    checkGenericHandling(desc);
                     form.querySelector('[name="eszkoz_tipus"]').value = deviceData.type || '';
                     form.querySelector('[name="eszkoz_gyarto"]').value = deviceData.manufacturer || '';
                     form.querySelector('[name="eszkoz_hossz"]').value = deviceData.effectiveLength || '';
@@ -235,7 +239,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to populate form from an object
     const populateForm = (data) => {
-        form.querySelector('[name="eszkoz_megnevezes"]').value = data.description || '';
+        const desc = data.description || '';
+        form.querySelector('[name="eszkoz_megnevezes"]').value = desc;
+        checkGenericHandling(desc);
         form.querySelector('[name="eszkoz_tipus"]').value = data.type || '';
         form.querySelector('[name="eszkoz_gyarto"]').value = data.manufacturer || '';
         form.querySelector('[name="eszkoz_hossz"]').value = data.effectiveLength || '';
@@ -984,6 +990,94 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Cleanup listener on page unload if needed, though browser handles it.
         // window.addEventListener('beforeunload', () => { docsUnsubscribe(); quotaUnsubscribe(); });
+    }
+
+    // --- GENERIC HANDLING MANUALS LOGIC ---
+    async function checkGenericHandling(description) {
+        if (!genericHandlingButton) return;
+        if (!description || description.trim() === '') {
+            updateGenericHandlingButtonUI(null);
+            return;
+        }
+        
+        try {
+            const cleanedDesc = description.trim();
+            console.log(`Checking generic handling for: "${cleanedDesc}"`);
+            const q = await db.collection('generic_handlings')
+                               .where('associatedDescriptions', 'array-contains', cleanedDesc)
+                               .limit(1)
+                               .get();
+            
+            if (!q.empty) {
+                const doc = q.docs[0].data();
+                updateGenericHandlingButtonUI(doc.downloadUrl);
+            } else {
+                updateGenericHandlingButtonUI(null);
+            }
+        } catch (error) {
+            console.error("Error checking generic handling:", error);
+            updateGenericHandlingButtonUI(null);
+        }
+    }
+
+    function updateGenericHandlingButtonUI(url) {
+        if (!genericHandlingButton) return;
+        genericHandlingUrl = url;
+        if (url) {
+            genericHandlingButton.classList.remove('btn-secondary', 'opacity-50');
+            genericHandlingButton.classList.add('btn-success');
+            genericHandlingButton.title = 'Generikus kezelési útmutató megtekintése';
+        } else {
+            genericHandlingButton.classList.remove('btn-success');
+            genericHandlingButton.classList.add('btn-secondary', 'opacity-50');
+            genericHandlingButton.title = 'Nem elérhető ehhez a megnevezéshez';
+        }
+    }
+
+    function showInfoModal(messageHtml) {
+        let modal = document.getElementById('custom-info-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'custom-info-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 border border-blue-500 rounded-lg p-6 max-w-sm w-full shadow-2xl transform transition-all text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-900/50 mb-4 ring-2 ring-blue-500">
+                        <i class="fas fa-info-circle text-blue-400 text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">Információ</h3>
+                    <div class="mt-2 mb-6">
+                        <p class="text-gray-300">${messageHtml}</p>
+                    </div>
+                    <div>
+                        <button id="modal-info-ok-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm">
+                            Rendben
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        modal.classList.remove('hidden');
+        document.getElementById('modal-info-ok-btn').onclick = () => modal.classList.add('hidden');
+    }
+
+    // Set up listeners for Megnevezés field
+    const descInput = form.querySelector('[name="eszkoz_megnevezes"]');
+    if (descInput) {
+        descInput.addEventListener('change', () => checkGenericHandling(descInput.value));
+        descInput.addEventListener('blur', () => checkGenericHandling(descInput.value));
+    }
+
+    // Click handler for Generic Handling button
+    if (genericHandlingButton) {
+        genericHandlingButton.addEventListener('click', () => {
+            if (genericHandlingUrl) {
+                window.open(genericHandlingUrl, '_blank');
+            } else {
+                showInfoModal('Ez a generikus kezelési útmutató jelenleg még nem elérhető ehhez a termékhez.');
+            }
+        });
     }
 
 });

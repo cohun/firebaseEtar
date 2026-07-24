@@ -102,15 +102,13 @@ Az EKV felhasználók hozzáférése attól függ, kinek a megbízásából dolg
 2.  **Partner (Ügyfél) Megbízásából:**
     *   Ha maga a partner kér fel egy külsős szakértőt, a szakértő **ELŐFIZETÉSI DÍJ** (Subscriber szerepkör) ellenében használhatja az ETAR rendszer minden képességét az adott partnernél (jegyzőkönyv generálás, nyilvántartás).
 
-### Munkavégzés
-*   **Vizsgálati Jog:** Az EKV felhasználók általában nem az összes eszközt vizsgálják, csak azokat, amelyekre megbízást kaptak (pl. csak a híddaruk, vagy csak a targoncák).
-*   **Adatok:** A jegyzőkönyveken a szakértő saját adatai (Cégnév, Kamarai szám) szerepelnek, nem a H-ITB adatai.
+## 📖 Generikus Kezelési Útmutatók (ÚJ FUNKCIÓ)
 
-### Előfizetés és Szerepkörök
-*   `Subscriber` (Előfizető): Teljes jogú hozzáférés a partner eszközeihez (előfizetéses modell).
-*   `Inspector` / `Subcontractor`: Korlátozott, eseti megbízás.
-*   **Előfizetés lejárata:** A felületen színkódolt számláló jelzi a lejárat idejét (🟢 >10 nap, 🔴 <10 nap). Lejárat után a hozzáférés korlátozódik.
+Az ETAR rendszer mostantól támogatja az eszközökhöz tartozó generikus kezelési és használati útmutatók központi kezelését. Ennek segítségével a vizsgáló és az üzemeltető felhasználók közvetlenül az eszköz adatlapjáról, egy kattintással megnyithatják a termék megnevezéséhez tartozó generikus kezelési utasításokat.
 
+Bármely eszköz adatlapját megnyitva (akár módosítás, akár megtekintés módban) megtalálható a **Generikus Kezelési** gomb.
+*   🟢 **Aktív (Zöld gomb):** Ha a gép Megnevezéséhez (pl. Körkötél, Heveder) már van feltöltve útmutató, a gomb zölden világít. Rákattintva az útmutató azonnal megnyílik egy új böngészőlapon.
+*   ⚪ **Inaktív (Szürke gomb):** Ha az adott eszközhöz még nincs társított útmutató feltöltve, a gomb szürke és áttetsző marad. Rákattintva egy tájékoztató üzenet jelzi, hogy az útmutató jelenleg még nem elérhető ehhez a termékhez.
 ---
 
 ## 📱 Közös Funkciók (Minden Felhasználónak)

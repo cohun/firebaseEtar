@@ -26,6 +26,84 @@ async function getExpertCertificateNumber(expertName) {
     }
 }
 
+export function getDeviceCategory(deviceData) {
+    if (!deviceData) return 'Teherfelvevő Eszköz';
+
+    const name = deviceData.description || deviceData.eszkoz_megnevezes || deviceData.deviceName || '';
+    const type = deviceData.type || deviceData.eszkoz_tipus || '';
+    const manufacturer = deviceData.manufacturer || deviceData.eszkoz_gyarto || '';
+
+    const normalize = (str) => {
+        if (!str) return '';
+        return str
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    const combined = normalize(`${name} ${type} ${manufacturer}`);
+    if (!combined.trim()) return 'Teherfelvevő Eszköz';
+
+    // 1. Anyagmozgató Szerkezet (C.1 & C.2)
+    const anyagmozgatoKws = [
+        'targonca', 'raklapemelo', 'beka',
+        'emeloasztal', 'szallitokocsi',
+        'villahosszabbito', 'szerelokosar', 'szkt', 'szktd',
+        'hordokezelo', 'hordobillento', 'flex hk',
+        'billenokanal', 'ladakocsi', 'hulladektarolo',
+        'daruvilla', 'rakatemelo',
+        'mt 2005', 'koe 1008', 'sp 300', 'sp 500', 'sp 800', 'spt 500', 'sps 350', 'spf 680',
+        'kt 2,5', 'kt 2.5', 'kt2,5', 'kt2.5', 'veh 2', 'veh2'
+    ];
+
+    for (const kw of anyagmozgatoKws) {
+        if (combined.includes(kw)) {
+            return 'Anyagmozgató Szerkezet';
+        }
+    }
+
+    // 2. Emelőszerkezet (A.31 - A.35 & manual cranes/trolleys)
+    const emeloszerkezetKws = [
+        'lancos emelo', 'kezi lancos', 'chain hoist',
+        'karos emelo', 'karos lancos', 'lever hoist',
+        'fogasleces', 'olajemelo', 'palackemelo', 'steeljack',
+        'vonszolo', 'kotelvonszolo', 'seilzug',
+        'forditocsiga', 'kotelfordito',
+        'csorlo', 'kotelcsorlo',
+        'retraktor', 'balanszer', 'balancer', 'sulykiegyenlito',
+        'futomacska', 'haladomu',
+        'kito cb', 'kito cx', 'gutman gle', 'gle 2000', 'gle3000', 'gutman kml', 'kmlc', 'kmn', 'kito ts',
+        'kito lb', 'kito lx', 'gutman gbe', 'kfe', 'gutman kkv', 'tecna'
+    ];
+
+    for (const kw of emeloszerkezetKws) {
+        if (combined.includes(kw)) {
+            return 'Emelőszerkezet';
+        }
+    }
+
+    // 3. Teherfelvevő Eszköz (A.41 - A.47 & accessories)
+    const teherfelvevoKws = [
+        'heveder', 'korkotel', 'roundsling', 'irs',
+        'lancfuggesztek', 'lanc-fuggesztek', 'kettengehange', 'lrg', 'lrgs',
+        'drotfuggesztek', 'sodronykotel', 'drotkotel',
+        'megfogo', 'lemezcsipesz', 'sinmegfogo', 'hordofogo', 'gerendamegfogo',
+        'emelomagnes', 'magnes', 'neo', 'pml-c', 'maxx', 'fx-v',
+        'emelogerenda', 'tehereloszto', 'beam lifting',
+        'emeloszem', 'din 580', 'plgw',
+        'horog', 'sekli', 'schakel', 'shackle', 'gyuru', 'szemescsavar', 'gyuruscsavar', 'forgoszem'
+    ];
+
+    for (const kw of teherfelvevoKws) {
+        if (combined.includes(kw)) {
+            return 'Teherfelvevő Eszköz';
+        }
+    }
+
+    // 4. Default / Fallback
+    return 'Teherfelvevő Eszköz';
+}
+
 /**
  * Generates a single HTML file from a draft, uploads it to Firebase Storage, and returns the download URL.
  * @param {string} htmlTemplate The raw HTML template string.
@@ -44,8 +122,13 @@ export async function generateAndUploadFinalizedHtml(htmlTemplate, draft) {
     const deviceData = deviceDoc.data();
     const certNumber = await getExpertCertificateNumber(draft.szakerto);
 
+    const categoryName = getDeviceCategory({ ...deviceData, ...draft });
+    const categoryNameLower = categoryName.toLowerCase();
+
     // 2. Create a map of placeholders to data
     const replacements = {
+        '{jkv_kategoria_nev}': categoryName,
+        '{jkv_kategoria_nev_kisbetus}': categoryNameLower,
         '{partner_nev}': partnerData.name || '-',
         '{partner_cim}': partnerData.address || '-',
         '{sorszam}': draft.hash?.substring(0, 6).toUpperCase() || 'N/A',

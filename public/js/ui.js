@@ -501,6 +501,11 @@ export async function showMainScreen(user, userData) {
         buttonsHtml += `<button id="externalExpertsBtn" class="btn btn-secondary w-full mt-2">Külső Szakértők</button>`;
     }
 
+    // Generikus Kezelési Útmutatók gomb: Csak attila.hitb@gmail.com részére
+    if (user && user.email === 'attila.hitb@gmail.com') {
+        buttonsHtml += `<button onclick="window.location.href='generic_handlings_admin.html'" class="btn btn-secondary w-full mt-2"><i class="fas fa-file-code me-2"></i>Generikus Kezelési Útmutatók</button>`;
+    }
+
     // "Add new company" buttons are always available for non-EJK users
     // "Add new company" buttons are always available for non-EJK users
     if (!isEjkUser) {

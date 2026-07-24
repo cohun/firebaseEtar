@@ -5,7 +5,7 @@ import { app } from "../services/firebase"; // Ensure this exports the initializ
 // import { GoogleGenAI } from "@google/genai"; 
 // export const apiKey = ... (Removed)
 
-export const TEXT_MODEL_NAME = 'gemini-2.0-flash'; // Kept for reference or if used elsewhere? 
+export const TEXT_MODEL_NAME = 'gemini-2.5-flash'; // Updated from retired gemini-2.0-flash
 // Actually, the model is now decided by backend.
 
 interface ChatResponse {
