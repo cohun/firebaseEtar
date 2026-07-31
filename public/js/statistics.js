@@ -281,6 +281,10 @@ function renderInitialStatisticsUI(partners, userData, user) {
              <div class="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
                 <h1 class="text-3xl font-bold">Statisztikák</h1>
                 <div class="flex flex-wrap gap-2 w-full lg:w-auto justify-end items-center">
+                    <button id="exportExcelBtn" class="btn text-white hidden flex-row items-center gap-2 shadow" style="background-color: #10b981; border: 1px solid #059669;" title="Részletes havi bontású lista letöltése Excelben">
+                        <i class="fas fa-file-excel"></i>
+                        <span>Excel letöltés</span>
+                    </button>
                     <button id="autoMonitorBtn" class="btn btn-secondary hidden flex-row items-center gap-2" title="Automatikus figyelmeztetések beállítása">
                         <i class="far fa-square" id="autoMonitorCheckbox"></i>
                         <span>Automatikus figyelés</span>
@@ -496,6 +500,21 @@ function renderStatsContent(partnerStats, userData) {
     }
 
     contentArea.innerHTML = statsToRender.map(stats => generateStatsCardHtml(stats, isAggregateMode, userData)).join('');
+
+    // Setup Excel Export buttons
+    const exportBtn = document.getElementById('exportExcelBtn');
+    if (exportBtn) {
+        if (partnerStats && partnerStats.length > 0) {
+            exportBtn.classList.remove('hidden');
+            exportBtn.classList.add('flex');
+            const newExportBtn = exportBtn.cloneNode(true);
+            exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
+            newExportBtn.addEventListener('click', () => exportStatsToExcel(partnerStats));
+        } else {
+            exportBtn.classList.add('hidden');
+            exportBtn.classList.remove('flex');
+        }
+    }
 
     // Setup message buttons
     if (!isAggregateMode) {
@@ -1081,4 +1100,105 @@ async function initHitbMsgModal(partner, userData, pStats) {
 
     modal.dataset.partnerName = partner.name || '';
     modal.classList.remove('hidden');
+}
+
+// --- EXCEL EXPORT FOR STATISTICS ---
+function exportStatsToExcel(partnerStats) {
+    if (!partnerStats || partnerStats.length === 0) {
+        alert("Nincs exportálható adat.");
+        return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+        alert("Az Excel exportáló modul nem érhető el.");
+        return;
+    }
+
+    // 1. Collect all unique YYYY-MM months across all partners and sort them
+    const allMonthsSet = new Set();
+    partnerStats.forEach(stat => {
+        if (stat.monthlyExpirations) {
+            Object.keys(stat.monthlyExpirations).forEach(m => allMonthsSet.add(m));
+        }
+    });
+    const sortedMonths = Array.from(allMonthsSet).sort();
+
+    // Helper to format "YYYY-MM" to "YYYY. hónapnév" (e.g. "2026. július")
+    const formatMonthHeader = (yearMonth) => {
+        if (!yearMonth || !yearMonth.includes('-')) return yearMonth;
+        const [y, m] = yearMonth.split('-');
+        const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+        const monthName = date.toLocaleString('hu-HU', { month: 'long' });
+        return `${y}. ${monthName}`;
+    };
+
+    // Sort partners alphabetically
+    const sortedPartnerStats = [...partnerStats].sort((a, b) => a.partnerName.localeCompare(b.partnerName));
+
+    // --- MUNKALAP 1: Havi Cégmátrix ---
+    const monthHeadersFormatted = sortedMonths.map(formatMonthHeader);
+    const matrixHeader = ["Partner / Cég neve", ...monthHeadersFormatted, "Lejárt", "Nincs vizsgálat", "Összesen (Eszközök)"];
+
+    const monthTotals = new Array(sortedMonths.length).fill(0);
+    let totalExpired = 0;
+    let totalNoInspection = 0;
+    let grandTotalDevices = 0;
+
+    const matrixRows = sortedPartnerStats.map(stat => {
+        const row = [stat.partnerName];
+        sortedMonths.forEach((m, idx) => {
+            const count = (stat.monthlyExpirations && stat.monthlyExpirations[m]) ? stat.monthlyExpirations[m].count : 0;
+            row.push(count);
+            monthTotals[idx] += count;
+        });
+
+        const expired = stat.expiredCount || 0;
+        const noInspection = stat.noInspectionCount || 0;
+        const total = stat.totalDevices || 0;
+
+        row.push(expired);
+        row.push(noInspection);
+        row.push(total);
+
+        totalExpired += expired;
+        totalNoInspection += noInspection;
+        grandTotalDevices += total;
+
+        return row;
+    });
+
+    // Add summary row at the end
+    const summaryRow = ["Összesen", ...monthTotals, totalExpired, totalNoInspection, grandTotalDevices];
+    matrixRows.push(summaryRow);
+
+    const wsMatrix = XLSX.utils.aoa_to_sheet([matrixHeader, ...matrixRows]);
+
+    // --- MUNKALAP 2: Havi céges bontás ---
+    const monthlyListRows = [];
+    sortedMonths.forEach(m => {
+        const formattedMonth = formatMonthHeader(m);
+        sortedPartnerStats.forEach(stat => {
+            const count = (stat.monthlyExpirations && stat.monthlyExpirations[m]) ? stat.monthlyExpirations[m].count : 0;
+            if (count > 0) {
+                monthlyListRows.push({
+                    "Hónap": formattedMonth,
+                    "Partner neve": stat.partnerName,
+                    "Esedékes darabszám": count
+                });
+            }
+        });
+    });
+
+    const wsMonthly = XLSX.utils.json_to_sheet(monthlyListRows);
+
+    // Create workbook & attach sheets
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsMatrix, "Havi Cégmátrix");
+    XLSX.utils.book_append_sheet(wb, wsMonthly, "Havi céges bontás");
+
+    // Generate filename with current date
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fileName = `ETAR_Statisztika_Havi_Bontas_${todayStr}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
 }
