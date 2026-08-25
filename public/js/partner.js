@@ -3974,101 +3974,184 @@ export function initPartnerWorkScreen(partner, userData) {
             let devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             // Apply Source Filter (in-memory, matching fetchDevices logic)
-            // This ensures we don't show dates for devices hidden by the source switch (H-ITB / I-vizsgáló)
             if (sourceFilter === 'h-itb') {
                  devices = devices.filter(d => !d.isI);
             } else if (sourceFilter === 'external') {
                  devices = devices.filter(d => d.isI === true);
             }
 
-            const inspectionPromises = devices.map(device => {
-                let inspQuery = db.collection('partners').doc(partnerId)
-                         .collection('devices').doc(device.id)
-                         .collection('inspections')
-                         .orderBy('createdAt', 'desc')
-                         .limit(1);
+            const totalDevices = devices.length;
+            if (totalDevices === 0) return [];
 
-                // Consistency with fetchDevices for EKV users: only show their own inspections
-                if (userData && userData.isEkvUser) {
-                     inspQuery = inspQuery.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+            const updateProgressUi = (current, total) => {
+                const text = `Letöltés (${current}/${total})`;
+                if (downloadDbBtn) downloadDbBtn.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
+                if (downloadDbBtnMobile) downloadDbBtnMobile.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
+            };
+
+            // Helper to fetch latest valid inspection for a single device safely
+            const fetchLatestInspection = async (device) => {
+                try {
+                    let inspRef = db.collection('partners').doc(partnerId)
+                        .collection('devices').doc(device.id)
+                        .collection('inspections');
+
+                    let inspQuery;
+                    if (userData && userData.isEkvUser) {
+                        inspQuery = inspRef.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                    } else {
+                        inspQuery = inspRef;
+                    }
+
+                    const inspSnapshot = await inspQuery.get();
+                    if (!inspSnapshot.empty) {
+                        const validInsps = [];
+                        inspSnapshot.forEach(doc => {
+                            const data = doc.data();
+                            if (data.status !== 'draft') {
+                                validInsps.push({ id: doc.id, ...data });
+                            }
+                        });
+
+                        if (validInsps.length > 0) {
+                            validInsps.sort((a, b) => {
+                                const parseDateNum = (dStr) => {
+                                    if (!dStr) return 0;
+                                    const clean = String(dStr).replace(/[^\d]/g, '');
+                                    return parseInt(clean, 10) || 0;
+                                };
+                                const dateA = parseDateNum(a.vizsgalatIdopontja);
+                                const dateB = parseDateNum(b.vizsgalatIdopontja);
+                                if (dateA !== dateB) return dateB - dateA;
+
+                                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                                return timeB - timeA;
+                            });
+
+                            const latest = validInsps[0];
+                            device.latestInspection = latest;
+                            device.kov_vizsg = latest.kovetkezoIdoszakosVizsgalat || device.kov_vizsg;
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`Nem sikerült betölteni a vizsgálatot az eszközhöz: ${device.id}`, err);
                 }
+            };
 
-                return inspQuery.get()
-                         .then(inspectionSnapshot => {
-                             if (!inspectionSnapshot.empty) {
-                                 const latestInspection = inspectionSnapshot.docs[0].data();
-                                 // Add inspection data to the device object
-                                 device.latestInspection = latestInspection;
-                                 device.kov_vizsg = latestInspection.kovetkezoIdoszakosVizsgalat; // Enrich direct property for filter reuse
-                             }
-                         });
-            });
+            // Concurrency Pool (15 simultaneous requests max to avoid network throttling)
+            const CONCURRENCY = 15;
+            let currentIndex = 0;
+            let processedCount = 0;
 
-            await Promise.all(inspectionPromises);
+            async function worker() {
+                while (currentIndex < totalDevices) {
+                    const idx = currentIndex++;
+                    if (idx >= totalDevices) break;
+                    await fetchLatestInspection(devices[idx]);
+                    processedCount++;
+                    if (processedCount % 10 === 0 || processedCount === totalDevices) {
+                        updateProgressUi(processedCount, totalDevices);
+                    }
+                }
+            }
+
+            const workers = [];
+            const workerCount = Math.min(CONCURRENCY, totalDevices);
+            for (let i = 0; i < workerCount; i++) {
+                workers.push(worker());
+            }
+
+            await Promise.all(workers);
             return devices;
 
         } catch (error) {
             console.error("Hiba az összes eszköz lekérésekor:", error);
-            alert("Hiba történt az adatok lekérése közben.");
+            alert("Hiba történt az adatok lekérése közben: " + (error.message || error));
             return [];
         }
     }
 
     async function generateExcel() {
-        const button = this;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<span>Generálás...</span><div class="loader-small"></div>';
-        button.disabled = true;
+        const origBtnText = downloadDbBtn?.innerHTML || '<i class="fas fa-download fa-fw"></i>Adatbázis';
+        const origMobileBtnText = downloadDbBtnMobile?.innerHTML || '<i class="fas fa-download fa-fw"></i>Adatbázis letöltés';
 
-        const devices = await getAllDevicesWithInspections();
-
-        if (devices.length === 0) {
-            alert('Nincsenek adatok az exportáláshoz.');
-            button.innerHTML = originalText;
-            button.disabled = false;
-            return;
+        if (downloadDbBtn) {
+            downloadDbBtn.innerHTML = '<span>Adatok kérése...</span><div class="loader-small"></div>';
+            downloadDbBtn.disabled = true;
+        }
+        if (downloadDbBtnMobile) {
+            downloadDbBtnMobile.innerHTML = '<span>Adatok kérése...</span><div class="loader-small"></div>';
+            downloadDbBtnMobile.disabled = true;
         }
 
-        const dataForSheet = devices.map(dev => ({
-            'Azonosító': dev.id,
-            'Megnevezés': dev.description,
-            'Típus': dev.type,
-            'Gyári szám': dev.serialNumber,
-            'Operátor ID': dev.operatorId,
-            'Gyártó': dev.manufacturer,
-            'Gyártás éve': dev.yearOfManufacture,
-            'Teherbírás (WLL)': dev.loadCapacity,
-            'Hasznos hossz': dev.effectiveLength,
-            'Állapot': dev.comment,
-            'H-ITB vizsgálta': dev.isI ? 'nem' : 'igen',
-            'Utolsó vizsgálat - Típus': dev.latestInspection?.vizsgalatJellege,
-            'Utolsó vizsgálat - Dátum': dev.latestInspection?.vizsgalatIdopontja,
-            'Utolsó vizsgálat - Eredmény': dev.latestInspection?.vizsgalatEredmenye,
-            'Utolsó vizsgálat - Köv. időszakos': dev.latestInspection?.kovetkezoIdoszakosVizsgalat,
-            'Utolsó vizsgálat - Köv. terhelési': dev.latestInspection?.kovetkezoTerhelesiProba,
-            'Utolsó vizsgálat - Szakértő': dev.latestInspection?.szakerto,
-            'Utolsó vizsgálat - Helyszín': dev.latestInspection?.vizsgalatHelye,
-            'Utolsó vizsgálat - Feltárt hiba': dev.latestInspection?.feltartHiba,
-            'Utolsó vizsgálat - Felhasznált anyagok': dev.latestInspection?.felhasznaltAnyagok,
-        }));
+        try {
+            const devices = await getAllDevicesWithInspections();
 
-        const ws = XLSX.utils.json_to_sheet(dataForSheet);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Eszközök');
+            if (!devices || devices.length === 0) {
+                alert('Nincsenek adatok az exportáláshoz.');
+                return;
+            }
 
-        // Generate a file name
-        const partnerName = document.querySelector('#partner-work-screen-header h1').textContent.replace(/\s/g, '_');
-        const today = new Date().toISOString().slice(0, 10);
-        const fileName = `ETAR_DB_${partnerName}_${today}.xlsx`;
+            if (downloadDbBtn) downloadDbBtn.innerHTML = '<span>Excel készítése...</span><div class="loader-small"></div>';
+            if (downloadDbBtnMobile) downloadDbBtnMobile.innerHTML = '<span>Excel készítése...</span><div class="loader-small"></div>';
 
-        XLSX.writeFile(wb, fileName);
+            const dataForSheet = devices.map(dev => {
+                const insp = dev.latestInspection || {};
+                return {
+                    'Azonosító': dev.id || '',
+                    'Megnevezés': dev.description || '',
+                    'Típus': dev.type || '',
+                    'Gyári szám': dev.serialNumber || '',
+                    'Operátor ID': dev.operatorId || '',
+                    'Gyártó': dev.manufacturer || '',
+                    'Gyártás éve': dev.yearOfManufacture || '',
+                    'Teherbírás (WLL)': dev.loadCapacity || '',
+                    'Hasznos hossz': dev.effectiveLength || '',
+                    'Állapot': dev.comment || '',
+                    'H-ITB vizsgálta': dev.isI ? 'nem' : 'igen',
+                    'Utolsó vizsgálat - Típus': insp.vizsgalatJellege || dev.vizsgalatJellege || '',
+                    'Utolsó vizsgálat - Dátum': insp.vizsgalatIdopontja || dev.vizsg_idopont || dev.vizsgalatIdopontja || '',
+                    'Utolsó vizsgálat - Eredmény': insp.vizsgalatEredmenye || dev.status || dev.vizsgalatEredmenye || '',
+                    'Utolsó vizsgálat - Köv. időszakos': insp.kovetkezoIdoszakosVizsgalat || dev.kov_vizsg || dev.kovetkezoIdoszakosVizsgalat || '',
+                    'Utolsó vizsgálat - Köv. terhelési': insp.kovetkezoTerhelesiProba || dev.kov_terhelesi || dev.kovetkezoTerhelesiProba || '',
+                    'Utolsó vizsgálat - Szakértő': insp.szakerto || dev.szakerto || '',
+                    'Utolsó vizsgálat - Helyszín': insp.vizsgalatHelye || dev.vizsgalatHelye || '',
+                    'Utolsó vizsgálat - Feltárt hiba': insp.feltartHiba || dev.feltartHiba || '',
+                    'Utolsó vizsgálat - Felhasznált anyagok': insp.felhasznaltAnyagok || dev.felhasznaltAnyagok || '',
+                };
+            });
 
-        button.innerHTML = originalText;
-        button.disabled = false;
+            const ws = XLSX.utils.json_to_sheet(dataForSheet);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Eszközök');
+
+            // Generate a safe file name
+            const headerElem = document.querySelector('#partner-work-screen-header h1');
+            const rawPartnerName = headerElem ? headerElem.textContent.trim() : (partner?.name || 'Partner');
+            const partnerName = rawPartnerName.replace(/[/\\?%*:|"<>]/g, '_').replace(/\s+/g, '_');
+            const today = new Date().toISOString().slice(0, 10);
+            const fileName = `ETAR_DB_${partnerName}_${today}.xlsx`;
+
+            XLSX.writeFile(wb, fileName);
+
+        } catch (error) {
+            console.error("Hiba az Excel exportálása során:", error);
+            alert("Hiba történt az Excel exportálásakor: " + (error.message || error));
+        } finally {
+            if (downloadDbBtn) {
+                downloadDbBtn.innerHTML = origBtnText;
+                downloadDbBtn.disabled = false;
+            }
+            if (downloadDbBtnMobile) {
+                downloadDbBtnMobile.innerHTML = origMobileBtnText;
+                downloadDbBtnMobile.disabled = false;
+            }
+        }
     }
 
-    downloadDbBtn.addEventListener('click', generateExcel);
-    downloadDbBtnMobile.addEventListener('click', generateExcel);
+    downloadDbBtn?.addEventListener('click', generateExcel);
+    downloadDbBtnMobile?.addEventListener('click', generateExcel);
 
     // --- PWA OFFLINE PREPARATION LOGIC ---
     const prepareOfflineBtn = document.getElementById('prepare-offline-btn');
