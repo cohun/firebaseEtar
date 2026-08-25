@@ -208,13 +208,44 @@ function getEszkozListaHtml() {
                 </div>
             </div>
             <!-- Lapozó Vezérlők -->
-            <nav id="pagination-controls" class="flex items-center justify-between border-t border-gray-700 px-4 py-3 sm:px-6" aria-label="Pagination">
-                <div class="hidden sm:block">
-                    <p id="pagination-info" class="text-sm text-gray-400"></p>
+            <nav id="pagination-controls" class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-700 px-4 py-3 sm:px-6 bg-gray-900/60" aria-label="Pagination">
+                <div class="flex items-center space-x-3">
+                    <p id="pagination-info" class="text-xs sm:text-sm text-gray-300 font-medium whitespace-nowrap"></p>
+                    <div class="flex items-center space-x-1.5 text-xs text-gray-400">
+                        <select id="items-per-page-select" class="bg-gray-800 border border-gray-700 text-white rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none cursor-pointer">
+                            <option value="50" selected>50 / oldal</option>
+                            <option value="100">100 / oldal</option>
+                            <option value="200">200 / oldal</option>
+                            <option value="500">500 / oldal</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="flex flex-1 justify-between sm:justify-end">
-                    <button id="prev-page-btn" class="btn btn-secondary disabled:opacity-50" disabled>Előző</button>
-                    <button id="next-page-btn" class="btn btn-secondary ml-3 disabled:opacity-50" disabled>Következő</button>
+
+                <!-- Csúszka & Gyorslapozó Vezérlők -->
+                <div class="flex items-center space-x-1.5 sm:space-x-2">
+                    <button id="first-page-btn" class="btn btn-secondary px-2.5 py-1 text-xs sm:text-sm disabled:opacity-40" title="Első oldal" disabled>
+                        <i class="fas fa-angle-double-left"></i>
+                    </button>
+                    <button id="prev-page-btn" class="btn btn-secondary px-2.5 sm:px-3 py-1 text-xs sm:text-sm disabled:opacity-40" title="Előző oldal" disabled>
+                        <i class="fas fa-chevron-left sm:mr-1"></i><span class="hidden sm:inline">Előző</span>
+                    </button>
+
+                    <!-- Csúszka & Szám Mező -->
+                    <div class="flex items-center space-x-2 bg-gray-800/90 border border-gray-700 rounded-lg px-2.5 py-1">
+                        <input id="page-slider" type="range" min="1" max="1" value="1" class="w-20 sm:w-36 md:w-52 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-all">
+                        <div class="flex items-center space-x-1 text-xs text-gray-300 whitespace-nowrap font-medium">
+                            <span class="hidden sm:inline">Oldal:</span>
+                            <input id="page-direct-input" type="number" min="1" max="1" value="1" class="w-12 bg-gray-900 border border-gray-600 rounded px-1 py-0.5 text-center text-white font-bold text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none">
+                            <span id="page-total-label" class="text-gray-400">/ 1</span>
+                        </div>
+                    </div>
+
+                    <button id="next-page-btn" class="btn btn-secondary px-2.5 sm:px-3 py-1 text-xs sm:text-sm disabled:opacity-40" title="Következő oldal" disabled>
+                        <span class="hidden sm:inline">Következő</span><i class="fas fa-chevron-right sm:ml-1"></i>
+                    </button>
+                    <button id="last-page-btn" class="btn btn-secondary px-2.5 py-1 text-xs sm:text-sm disabled:opacity-40" title="Utolsó oldal" disabled>
+                        <i class="fas fa-angle-double-right"></i>
+                    </button>
                 </div>
             </nav>
         </div>
@@ -805,9 +836,13 @@ export function initPartnerWorkScreen(partner, userData) {
     let currentOperatorCategory = 'Default';
     let availableOperatorCategories = ['Default'];
 
+    // In-memory Device Cache for instant filtering, sorting, pagination, and dropdowns
+    let cachedAllDevices = null;
+    let cachedView = null;
+    let cachedPartnerId = null;
+
     let filters = {
         vizsg_idopont: '',
-        kov_vizsg: '',
         kov_vizsg: '',
         description: '', // New filter
         operatorId: ''   // New filter
@@ -1033,8 +1068,14 @@ export function initPartnerWorkScreen(partner, userData) {
 
     const tableBody = document.getElementById('eszköz-lista-body');
     const paginationInfo = document.getElementById('pagination-info');
+    const firstPageBtn = document.getElementById('first-page-btn');
     const prevPageBtn = document.getElementById('prev-page-btn');
     const nextPageBtn = document.getElementById('next-page-btn');
+    const lastPageBtn = document.getElementById('last-page-btn');
+    const pageSlider = document.getElementById('page-slider');
+    const pageDirectInput = document.getElementById('page-direct-input');
+    const pageTotalLabel = document.getElementById('page-total-label');
+    const itemsPerPageSelect = document.getElementById('items-per-page-select');
     const searchInput = document.getElementById('main-search-input');
     const operatorIdInput = document.getElementById('filter-operator-id'); // New input
     const vizsgIdopontInput = document.getElementById('filter-vizsg-idopont');
@@ -1355,31 +1396,34 @@ export function initPartnerWorkScreen(partner, userData) {
                 return;
             }
 
-            // Close other dropdowns if any (not implemented generic here, but good practice)
-            
-            // Show loading or cached
-            descriptionDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">Megnevezések betöltése...</div>';
-            descriptionDropdown.classList.remove('hidden');
+            // Close other dropdowns
+            if (operatorIdDropdown) operatorIdDropdown.classList.add('hidden');
+            if (kovVizsgDropdown) kovVizsgDropdown.classList.add('hidden');
 
             try {
-                // Fetch ALL active devices to get unique descriptions
-                // Optimization: We could cache this or use a separate stats collection. 
-                // For now, fetching all (lightweight) is the most robust way to get accurate current list.
-                
-                // Use a simplified query just for descriptions? Firestore doesn't support "distinct" easily without reading docs.
-                // We'll trust that fetching all for the partner isn't too massive (few thousands is ok).
-                const snapshot = await db.collection('partners').doc(partnerId).collection('devices')
-                    .where('comment', '==', currentView) // active or inactive
-                    .orderBy('description') 
-                    .get();
+                let sourceDevices = cachedAllDevices;
+                if (!sourceDevices || cachedView !== currentView || cachedPartnerId !== partnerId) {
+                    descriptionDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">Megnevezések betöltése...</div>';
+                    descriptionDropdown.classList.remove('hidden');
+
+                    let query = db.collection('partners').doc(partnerId).collection('devices')
+                        .where('comment', '==', currentView);
+                    if (userData && userData.isEkvUser) query = query.where('isI', '==', true);
+                    const snapshot = await query.get();
+                    cachedAllDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    cachedView = currentView;
+                    cachedPartnerId = partnerId;
+                    sourceDevices = cachedAllDevices;
+                }
+
+                descriptionDropdown.classList.remove('hidden');
 
                 const uniqueDescriptions = new Set();
-                snapshot.forEach(doc => {
-                    const d = doc.data();
+                sourceDevices.forEach(d => {
                     if (d.description) uniqueDescriptions.add(d.description.trim());
                 });
 
-                const sortedDescriptions = Array.from(uniqueDescriptions).sort();
+                const sortedDescriptions = Array.from(uniqueDescriptions).sort((a, b) => a.localeCompare(b, 'hu'));
                 
                 // Render List
                 let html = `
@@ -1448,18 +1492,26 @@ export function initPartnerWorkScreen(partner, userData) {
             if (descriptionDropdown) descriptionDropdown.classList.add('hidden');
             if (kovVizsgDropdown) kovVizsgDropdown.classList.add('hidden');
 
-            // Show loading
-            operatorIdDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">ID-k betöltése...</div>';
-            operatorIdDropdown.classList.remove('hidden');
-
             try {
-                const snapshot = await db.collection('partners').doc(partnerId).collection('devices')
-                    .where('comment', '==', currentView)
-                    .get();
+                let sourceDevices = cachedAllDevices;
+                if (!sourceDevices || cachedView !== currentView || cachedPartnerId !== partnerId) {
+                    operatorIdDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">ID-k betöltése...</div>';
+                    operatorIdDropdown.classList.remove('hidden');
+
+                    let query = db.collection('partners').doc(partnerId).collection('devices')
+                        .where('comment', '==', currentView);
+                    if (userData && userData.isEkvUser) query = query.where('isI', '==', true);
+                    const snapshot = await query.get();
+                    cachedAllDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    cachedView = currentView;
+                    cachedPartnerId = partnerId;
+                    sourceDevices = cachedAllDevices;
+                }
+
+                operatorIdDropdown.classList.remove('hidden');
 
                 const uniqueIds = new Set();
-                snapshot.forEach(doc => {
-                    const d = doc.data();
+                sourceDevices.forEach(d => {
                     let val = currentOperatorCategory === 'Default' 
                             ? (d.operatorId || '') 
                             : (d.customIds?.[currentOperatorCategory] || '');
@@ -1470,7 +1522,7 @@ export function initPartnerWorkScreen(partner, userData) {
                     }
                 });
 
-                const sortedIds = Array.from(uniqueIds).sort();
+                const sortedIds = Array.from(uniqueIds).sort((a, b) => a.localeCompare(b, 'hu'));
                 
                 // Render List
                 let html = `
@@ -1513,8 +1565,6 @@ export function initPartnerWorkScreen(partner, userData) {
 
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
-            // Because the header is inside a flex container that might be clicked, we need careful targeting
-            // But standard check usually works.
             if (!operatorIdHeader.contains(e.target) && !operatorIdDropdown.contains(e.target)) {
                  operatorIdDropdown.classList.add('hidden');
             }
@@ -1539,26 +1589,34 @@ export function initPartnerWorkScreen(partner, userData) {
 
             // Close other dropdowns
             if (descriptionDropdown) descriptionDropdown.classList.add('hidden');
-
-            // Show loading
-            kovVizsgDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">Dátumok betöltése...</div>';
-            kovVizsgDropdown.classList.remove('hidden');
+            if (operatorIdDropdown) operatorIdDropdown.classList.add('hidden');
 
             try {
-                // Fetch ALL devices with inspections to get unique dates
-                const devices = await getAllDevicesWithInspections();
+                let sourceDevices = cachedAllDevices;
+                if (!sourceDevices || cachedView !== currentView || cachedPartnerId !== partnerId) {
+                    kovVizsgDropdown.innerHTML = '<div class="p-2 text-gray-400 text-xs text-center">Dátumok betöltése...</div>';
+                    kovVizsgDropdown.classList.remove('hidden');
+
+                    let query = db.collection('partners').doc(partnerId).collection('devices')
+                        .where('comment', '==', currentView);
+                    if (userData && userData.isEkvUser) query = query.where('isI', '==', true);
+                    const snapshot = await query.get();
+                    cachedAllDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    cachedView = currentView;
+                    cachedPartnerId = partnerId;
+                    sourceDevices = cachedAllDevices;
+                }
+
+                kovVizsgDropdown.classList.remove('hidden');
 
                 const uniqueDates = new Set();
-                devices.forEach(d => {
-                    const date = d.kov_vizsg; // Ensure this property is populated in getAllDevicesWithInspections
-                    if (date) uniqueDates.add(date.trim());
+                sourceDevices.forEach(d => {
+                    const date = d.kov_vizsg || d.kovetkezoIdoszakosVizsgalat;
+                    if (date) uniqueDates.add(String(date).trim());
                 });
 
                 // Sort dates
-                const sortedDates = Array.from(uniqueDates).sort((a, b) => {
-                    // Simple string sort works for YYYY.MM.DD, but let's be safe
-                    return a.localeCompare(b);
-                });
+                const sortedDates = Array.from(uniqueDates).sort((a, b) => a.localeCompare(b));
 
                 // Render List
                 let html = `
@@ -1803,252 +1861,214 @@ export function initPartnerWorkScreen(partner, userData) {
         });
     }
 
-    async function fetchDevices(direction = 'next') {
+    async function fetchDevices(direction = 'next', forceRefresh = false) {
         if (!tableBody) return;
-        tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-400">Adatok betöltése...</td></tr>`;
 
         try {
-            let query = db.collection('partners').doc(partnerId).collection('devices')
-                .where('comment', '==', currentView);
+            const needsFetch = !cachedAllDevices || cachedView !== currentView || cachedPartnerId !== partnerId || forceRefresh;
 
-            // Removed server-side searchTerm query to allow client-side partial matching
-            // if (searchTerm) {
-            //     query = query.where('serialNumber', '==', searchTerm);
-            // }
-            
-            // NOTE: Date filters are handled client-side below because the data is in a subcollection
+            if (needsFetch) {
+                tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-400">Adatok betöltése a felhőből...</td></tr>`;
 
-            // Determine if we need client-side handling (filtering OR sorting by date OR complex source filtering OR search)
-            // Added searchTerm to client-side logic triggers to allow for partial/case-insensitive matching
-            const isDateFiltering = filters.vizsg_idopont || filters.kov_vizsg;
-            const isDateSorting = ['vizsg_idopont', 'kov_vizsg'].includes(currentSortField);
-            const useClientSideLogic = isDateFiltering || isDateSorting || sourceFilter === 'h-itb' || !!searchTerm || validityFilter !== 'all' || !!filters.description || !!filters.operatorId;
+                let query = db.collection('partners').doc(partnerId).collection('devices')
+                    .where('comment', '==', currentView);
 
-            if (!useClientSideLogic) {
-                // Server-side filtering for 'external' (isI == true)
-                if (sourceFilter === 'external') {
+                if (userData && userData.isEkvUser) {
                     query = query.where('isI', '==', true);
                 }
-                
-                query = query.orderBy(currentSortField, currentSortDirection);
+
+                const snapshot = await query.get();
+                cachedAllDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                cachedView = currentView;
+                cachedPartnerId = partnerId;
             }
 
-            let snapshot;
-            let devices = [];
+            let devices = [...cachedAllDevices];
 
-            if (useClientSideLogic) {
-                // FETCH ALL for client-side filtering/sorting
-                snapshot = await query.get();
-            } else {
-                // Standard Server-Side Pagination
-                if (direction === 'next' && lastVisibleDoc) {
-                    query = query.startAfter(lastVisibleDoc);
-                } else if (direction === 'prev' && firstVisibleDoc) {
-                    query = query.endBefore(firstVisibleDoc).limitToLast(itemsPerPage);
-                } else {
-                    query = query.limit(itemsPerPage);
-                }
-                snapshot = await query.get();
+            // Helper function to normalize dates (replace / and - with .)
+            const normalizeDate = (dateStr) => {
+                if (!dateStr) return '';
+                return dateStr.replace(/[\/\-]/g, '.');
+            };
+
+            // 1. Filtering (Applied in-memory over ALL cached devices)
+            if (filters.vizsg_idopont) {
+                const filterDate = normalizeDate(filters.vizsg_idopont);
+                devices = devices.filter(d => normalizeDate(d.vizsg_idopont).includes(filterDate));
+            }
+            if (filters.kov_vizsg) {
+                const filterDate = normalizeDate(filters.kov_vizsg);
+                devices = devices.filter(d => normalizeDate(d.kov_vizsg).includes(filterDate));
             }
 
-            let rawDevices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Description Filtering
+            if (filters.description) {
+                devices = devices.filter(d => (d.description || '').trim() === filters.description);
+            }
 
-            // OPTIMIZATION (2025-02-11): 
-            // Removed N+1 subcollection queries. Data is now denormalized on the device document.
-            // Migration script and write-logic ensures 'status', 'vizsg_idopont', 'kov_vizsg', 'finalizedFileUrl' are up to date.
-            
-            devices = rawDevices;
+            // Operator ID Filtering (Dropdown)
+            if (filters.operatorId) {
+                devices = devices.filter(d => {
+                    let val = currentOperatorCategory === 'Default' 
+                        ? (d.operatorId || '') 
+                        : (d.customIds?.[currentOperatorCategory] || '');
+                    return String(val).trim() === filters.operatorId;
+                });
+            }
 
-            // Legacy fallback (optional): If specific fields are missing, we could fetch, but for performance we rely on migration.
+            // Sorszám keresés (Case-Insensitive, Partial)
+            if (searchTerm) {
+                const lowerTerm = searchTerm.toLowerCase();
+                devices = devices.filter(d => String(d.serialNumber || '').toLowerCase().includes(lowerTerm));
+            }
 
+            // Operátor ID Search (Input)
+            if (searchTermOperatorId) {
+                const lowerOpTerm = searchTermOperatorId.toLowerCase();
+                devices = devices.filter(d => {
+                    const val = currentOperatorCategory === 'Default' 
+                        ? (d.operatorId || '') 
+                        : (d.customIds?.[currentOperatorCategory] || '');
+                    return String(val).toLowerCase().includes(lowerOpTerm);
+                });
+            }
 
-            // Client-Side Logic (Filtering & Sorting)
-            if (useClientSideLogic) {
-                // Helper function to normalize dates (replace / and - with .)
-                const normalizeDate = (dateStr) => {
-                    if (!dateStr) return '';
-                    return dateStr.replace(/[\/\-]/g, '.');
+            // Source Filtering
+            if (sourceFilter === 'h-itb') {
+                devices = devices.filter(d => !d.isI);
+            } else if (sourceFilter === 'external') {
+                devices = devices.filter(d => d.isI === true);
+            }
+
+            // Validity Filtering
+            if (validityFilter !== 'all') {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const isValid = (d) => {
+                     const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt' || d.status === 'Megfelelt / Suitable' || d.status === 'Üzembe helyezve';
+                     let futureDate = false;
+                     if (d.kov_vizsg) {
+                         const kovVizsgDate = parseDateSafe(d.kov_vizsg);
+                         if (kovVizsgDate) {
+                             futureDate = kovVizsgDate > today;
+                         }
+                     }
+                     return statusOk && futureDate;
                 };
 
-                // 1. Filtering
-                if (filters.vizsg_idopont) {
-                    const filterDate = normalizeDate(filters.vizsg_idopont);
-                    devices = devices.filter(d => normalizeDate(d.vizsg_idopont).includes(filterDate));
-                }
-                if (filters.kov_vizsg) {
-                    const filterDate = normalizeDate(filters.kov_vizsg);
-                    devices = devices.filter(d => normalizeDate(d.kov_vizsg).includes(filterDate));
-                }
-
-                // Description Filtering (New)
-                if (filters.description) {
-                    devices = devices.filter(d => (d.description || '').trim() === filters.description);
-                }
-
-                // Operator ID Filtering (New - Dropdown)
-                if (filters.operatorId) {
-                    devices = devices.filter(d => {
-                        let val = currentOperatorCategory === 'Default' 
-                            ? (d.operatorId || '') 
-                            : (d.customIds?.[currentOperatorCategory] || '');
-                        return String(val).trim() === filters.operatorId;
-                    });
-                }
-
-                // Sorszám keresés (Client-Side, Case-Insensitive, Partial)
-                if (searchTerm) {
-                    const lowerTerm = searchTerm.toLowerCase();
-                    devices = devices.filter(d => String(d.serialNumber || '').toLowerCase().includes(lowerTerm));
-                }
-
-                // Operátor ID Search (Existing - Input)
-                if (searchTermOperatorId) {
-                    const lowerOpTerm = searchTermOperatorId.toLowerCase();
-                    devices = devices.filter(d => {
-                        const val = currentOperatorCategory === 'Default' 
-                            ? (d.operatorId || '') 
-                            : (d.customIds?.[currentOperatorCategory] || '');
-                        return String(val).toLowerCase().includes(lowerOpTerm);
-                    });
-                }
-
-                // Source Filtering (Client-Side)
-                if (sourceFilter === 'h-itb') {
-                    // isI is false OR undefined/null
-                    devices = devices.filter(d => !d.isI);
-                } else if (sourceFilter === 'external') {
-                    // isI is true
-                    devices = devices.filter(d => d.isI === true);
-                }
-
-                // Validity Filtering (Client-Side)
-                if (validityFilter !== 'all') {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    const isValid = (d) => {
-                         const statusOk = d.status === 'Megfelelt' || d.status === 'Zugelassen/Megfelelt' || d.status === 'Megfelelt / Suitable' || d.status === 'Üzembe helyezve';
-                         let futureDate = false;
-                         if (d.kov_vizsg) {
-                             const kovVizsgDate = parseDateSafe(d.kov_vizsg);
-                             if (kovVizsgDate) {
-                                 futureDate = kovVizsgDate > today;
-                             }
-                         }
-                         return statusOk && futureDate;
-                    };
-
-                    const isDueSoon = (d) => {
-                        if (!d.kov_vizsg) return false;
-                        const kovVizsgDate = parseDateSafe(d.kov_vizsg);
-                        if (!kovVizsgDate) return false;
-                        
-                        const fortyFiveDaysFromNow = new Date(today);
-                        fortyFiveDaysFromNow.setDate(today.getDate() + 45);
-
-                        const isUpcoming = kovVizsgDate >= today && kovVizsgDate <= fortyFiveDaysFromNow;
-                        const isMegfelelt = d.status === 'Megfelelt' || 
-                                           d.status === 'Megfelelt / Suitable' || 
-                                           d.status === 'Zugelassen/Megfelelt' || 
-                                           d.status === 'Üzembe helyezve';
-                        const isExpired = kovVizsgDate < today;
-
-                        return isUpcoming || (isMegfelelt && isExpired);
-                    };
-
-                    const isExpiredStrict = (d) => {
-                        if (!d.kov_vizsg) return false;
-                        const kovVizsgDate = parseDateSafe(d.kov_vizsg);
-                        if (!kovVizsgDate) return false; // No date -> No inspection, not expired
-                        return kovVizsgDate < today;
-                    };
-
-                    if (validityFilter === 'valid') {
-                        devices = devices.filter(d => isValid(d));
-                    } else if (validityFilter === 'invalid') {
-                        devices = devices.filter(d => !isValid(d));
-                    } else if (validityFilter === 'due_soon') {
-                        devices = devices.filter(d => isDueSoon(d));
-                    } else if (validityFilter === 'expired') {
-                        devices = devices.filter(d => isExpiredStrict(d));
-                    } else if (validityFilter === 'no_inspection') {
-                        devices = devices.filter(d => !d.kov_vizsg || !parseDateSafe(d.kov_vizsg));
-                    }
-                }
-
-                // 2. Sorting
-                devices.sort((a, b) => {
-                    let valA = a[currentSortField] || '';
-                    let valB = b[currentSortField] || '';
+                const isDueSoon = (d) => {
+                    if (!d.kov_vizsg) return false;
+                    const kovVizsgDate = parseDateSafe(d.kov_vizsg);
+                    if (!kovVizsgDate) return false;
                     
-                    // Specific handling for Date fields to be robust against format differences (dots, dashes etc)
-                    if (['vizsg_idopont', 'kov_vizsg'].includes(currentSortField)) {
-                        const parseDateForSort = (dateStr) => {
-                            if (!dateStr) return -Infinity; // Push empty/invalid to bottom (or top depending on asc/desc, handled by return comparison)
-                            // Remove non-digit chars to standardize YYYY.MM.DD, YYYY-MM-DD, YYYY/MM/DD -> YYYYMMDD
-                            // This comparison works for standard ISO-like ordering (Year-Month-Day)
-                            const simplified = dateStr.replace(/[^0-9]/g, ''); 
-                            // Check if it's 8 digits (YYYYMMDD) - if so, parse as number
-                            if (simplified.length === 8) {
-                                return parseInt(simplified, 10);
-                            }
-                            // Fallback to string comparison if format is weird
-                            return dateStr;
-                        };
+                    const fortyFiveDaysFromNow = new Date(today);
+                    fortyFiveDaysFromNow.setDate(today.getDate() + 45);
 
-                        const parsedA = parseDateForSort(valA);
-                        const parsedB = parseDateForSort(valB);
+                    const isUpcoming = kovVizsgDate >= today && kovVizsgDate <= fortyFiveDaysFromNow;
+                    const isMegfelelt = d.status === 'Megfelelt' || 
+                                       d.status === 'Megfelelt / Suitable' || 
+                                       d.status === 'Zugelassen/Megfelelt' || 
+                                       d.status === 'Üzembe helyezve';
+                    const isExpired = kovVizsgDate < today;
 
-                        if (parsedA < parsedB) return currentSortDirection === 'asc' ? -1 : 1;
-                        if (parsedA > parsedB) return currentSortDirection === 'asc' ? 1 : -1;
-                        return 0;
-                    }
+                    return isUpcoming || (isMegfelelt && isExpired);
+                };
 
-                    // Default string sort
-                    if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
-                    if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+                const isExpiredStrict = (d) => {
+                    if (!d.kov_vizsg) return false;
+                    const kovVizsgDate = parseDateSafe(d.kov_vizsg);
+                    if (!kovVizsgDate) return false;
+                    return kovVizsgDate < today;
+                };
+
+                if (validityFilter === 'valid') {
+                    devices = devices.filter(d => isValid(d));
+                } else if (validityFilter === 'invalid') {
+                    devices = devices.filter(d => !isValid(d));
+                } else if (validityFilter === 'due_soon') {
+                    devices = devices.filter(d => isDueSoon(d));
+                } else if (validityFilter === 'expired') {
+                    devices = devices.filter(d => isExpiredStrict(d));
+                } else if (validityFilter === 'no_inspection') {
+                    devices = devices.filter(d => !d.kov_vizsg || !parseDateSafe(d.kov_vizsg));
+                }
+            }
+
+            // 2. Sorting
+            devices.sort((a, b) => {
+                let valA = a[currentSortField] || '';
+                let valB = b[currentSortField] || '';
+                
+                // Specific handling for Date fields to be robust against format differences (dots, dashes etc)
+                if (['vizsg_idopont', 'kov_vizsg'].includes(currentSortField)) {
+                    const parseDateForSort = (dateStr) => {
+                        if (!dateStr) return -Infinity;
+                        const simplified = String(dateStr).replace(/[^0-9]/g, ''); 
+                        if (simplified.length === 8) {
+                            return parseInt(simplified, 10);
+                        }
+                        return dateStr;
+                    };
+
+                    const parsedA = parseDateForSort(valA);
+                    const parsedB = parseDateForSort(valB);
+
+                    if (parsedA < parsedB) return currentSortDirection === 'asc' ? -1 : 1;
+                    if (parsedA > parsedB) return currentSortDirection === 'asc' ? 1 : -1;
                     return 0;
-                });
-
-                // 3. Pagination
-                const totalFiltered = devices.length;
-                
-                const maxPage = Math.ceil(totalFiltered / itemsPerPage) || 1;
-                if (currentPage > maxPage) currentPage = 1;
-
-                const startIndex = (currentPage - 1) * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                
-                const pagedDevices = devices.slice(startIndex, endIndex);
-                
-                renderTable(pagedDevices);
-                
-                paginationInfo.textContent = `Eredmények: ${totalFiltered > 0 ? startIndex + 1 : 0} - ${Math.min(endIndex, totalFiltered)} (Összesen: ${totalFiltered})`;
-                prevPageBtn.disabled = currentPage === 1;
-                nextPageBtn.disabled = endIndex >= totalFiltered;
-                
-            } else {
-                // Standard Server-Side Handling
-                if (direction === 'prev') devices.reverse();
-
-                if (snapshot.docs.length > 0) {
-                    firstVisibleDoc = snapshot.docs[0];
-                    lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-                } else {
-                    if (direction === 'next') lastVisibleDoc = null;
-                    if (direction === 'prev') firstVisibleDoc = null;
                 }
 
-                renderTable(devices);
-                updatePagination(snapshot.size);
+                // Default string sort
+                if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // 3. Pagination
+            const totalFiltered = devices.length;
+            
+            const maxPage = Math.ceil(totalFiltered / itemsPerPage) || 1;
+            if (currentPage > maxPage) currentPage = maxPage;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            
+            const pagedDevices = devices.slice(startIndex, endIndex);
+            
+            renderTable(pagedDevices);
+            
+            if (paginationInfo) {
+                paginationInfo.textContent = `Eredmények: ${totalFiltered > 0 ? startIndex + 1 : 0} - ${Math.min(endIndex, totalFiltered)} (Összesen: ${totalFiltered})`;
             }
+
+            if (pageSlider) {
+                pageSlider.min = "1";
+                pageSlider.max = String(maxPage);
+                pageSlider.value = String(currentPage);
+                pageSlider.disabled = maxPage <= 1;
+            }
+
+            if (pageDirectInput) {
+                pageDirectInput.min = "1";
+                pageDirectInput.max = String(maxPage);
+                pageDirectInput.value = String(currentPage);
+                pageDirectInput.disabled = maxPage <= 1;
+            }
+
+            if (pageTotalLabel) {
+                pageTotalLabel.textContent = `/ ${maxPage}`;
+            }
+
+            if (firstPageBtn) firstPageBtn.disabled = currentPage <= 1;
+            if (prevPageBtn) prevPageBtn.disabled = currentPage <= 1;
+            if (nextPageBtn) nextPageBtn.disabled = currentPage >= maxPage;
+            if (lastPageBtn) lastPageBtn.disabled = currentPage >= maxPage;
 
         } catch (error) {
             console.error("Hiba az eszközök lekérésekor:", error);
-            tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-red-400">Hiba történt az adatok betöltése közben.</td></tr>`;
-            if (error.code === 'failed-precondition') {
-                tableBody.innerHTML += `<tr><td colspan="10" class="text-center p-2 text-yellow-400 text-sm">Tipp: Hiányzó Firestore index. Kérjük, ellenőrizze a böngésző konzolját a létrehozási linkért.</td></tr>`;
-            }
+            tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-red-400">Hiba történt az adatok betöltése közben: ${error.message || error}</td></tr>`;
         }
     }
 
@@ -3129,12 +3149,13 @@ export function initPartnerWorkScreen(partner, userData) {
         nextPageBtn.disabled = fetchedCount < itemsPerPage;
     }
 
-    function resetAndFetch() {
+    function resetAndFetch(force = false) {
         currentPage = 1;
         firstVisibleDoc = null;
         lastVisibleDoc = null;
         updateFilterButtonVisuals(); // Update button visuals on reset/fetch
-        fetchDevices();
+        if (force) cachedAllDevices = null;
+        fetchDevices('next', force);
     }
 
     async function updateSelectedDevicesComment(newComment) {
@@ -3534,19 +3555,87 @@ export function initPartnerWorkScreen(partner, userData) {
     }
 
 
-    nextPageBtn.addEventListener('click', () => {
-        if (!nextPageBtn.disabled) {
-            currentPage++;
-            fetchDevices('next');
-        }
-    });
+    if (firstPageBtn) {
+        firstPageBtn.addEventListener('click', () => {
+            if (!firstPageBtn.disabled && currentPage !== 1) {
+                currentPage = 1;
+                fetchDevices();
+            }
+        });
+    }
 
-    prevPageBtn.addEventListener('click', () => {
-        if (!prevPageBtn.disabled) {
-            currentPage--;
-            fetchDevices('prev');
-        }
-    });
+    if (lastPageBtn) {
+        lastPageBtn.addEventListener('click', () => {
+            if (!lastPageBtn.disabled) {
+                const total = cachedAllDevices ? cachedAllDevices.length : 0;
+                const maxPage = Math.ceil(total / itemsPerPage) || 1;
+                if (currentPage !== maxPage) {
+                    currentPage = maxPage;
+                    fetchDevices();
+                }
+            }
+        });
+    }
+
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            if (!nextPageBtn.disabled) {
+                currentPage++;
+                fetchDevices('next');
+            }
+        });
+    }
+
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (!prevPageBtn.disabled) {
+                currentPage--;
+                fetchDevices('prev');
+            }
+        });
+    }
+
+    if (pageSlider) {
+        pageSlider.addEventListener('input', (e) => {
+            const targetPage = parseInt(e.target.value, 10);
+            if (targetPage && targetPage !== currentPage) {
+                currentPage = targetPage;
+                fetchDevices();
+            }
+        });
+    }
+
+    if (pageDirectInput) {
+        const handleDirectPageJump = () => {
+            let targetPage = parseInt(pageDirectInput.value, 10);
+            const maxPage = parseInt(pageSlider?.max || '1', 10);
+            if (isNaN(targetPage) || targetPage < 1) targetPage = 1;
+            if (targetPage > maxPage) targetPage = maxPage;
+            if (targetPage !== currentPage) {
+                currentPage = targetPage;
+                fetchDevices();
+            } else {
+                pageDirectInput.value = String(currentPage);
+            }
+        };
+
+        pageDirectInput.addEventListener('change', handleDirectPageJump);
+        pageDirectInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleDirectPageJump();
+                pageDirectInput.blur();
+            }
+        });
+    }
+
+    if (itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            itemsPerPage = parseInt(e.target.value, 10) || 50;
+            currentPage = 1;
+            fetchDevices();
+        });
+    }
 
     const debouncedSearch = debounce((value) => {
         searchTerm = value;
@@ -3603,13 +3692,13 @@ export function initPartnerWorkScreen(partner, userData) {
 
 
     refreshListBtn.addEventListener('click', () => {
-        resetAndFetch();
+        resetAndFetch(true);
     });
 
     inactiveToggle.addEventListener('change', () => {
         currentView = inactiveToggle.checked ? 'inactive' : 'active';
         updateUiForView(); // UI frissítése a nézetnek megfelelően
-        resetAndFetch();
+        resetAndFetch(true);
     });
 
     updateUiForView(); // Kezdeti UI beállítása
@@ -3962,16 +4051,24 @@ export function initPartnerWorkScreen(partner, userData) {
 
     async function getAllDevicesWithInspections() {
         try {
-            let query = db.collection('partners').doc(partnerId).collection('devices')
-                .where('comment', '==', currentView); // Respect Active/Inactive view
-            
-            // Filter for EKV users (Base restriction)
-            if (userData && userData.isEkvUser) {
-                query = query.where('isI', '==', true);
-            }
+            let devices = [];
+            if (cachedAllDevices && cachedView === currentView && cachedPartnerId === partnerId) {
+                devices = cachedAllDevices.map(d => ({ ...d }));
+            } else {
+                let query = db.collection('partners').doc(partnerId).collection('devices')
+                    .where('comment', '==', currentView); // Respect Active/Inactive view
+                
+                // Filter for EKV users (Base restriction)
+                if (userData && userData.isEkvUser) {
+                    query = query.where('isI', '==', true);
+                }
 
-            const snapshot = await query.get();
-            let devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const snapshot = await query.get();
+                devices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                cachedAllDevices = devices;
+                cachedView = currentView;
+                cachedPartnerId = partnerId;
+            }
 
             // Apply Source Filter (in-memory, matching fetchDevices logic)
             if (sourceFilter === 'h-itb') {
@@ -3983,86 +4080,93 @@ export function initPartnerWorkScreen(partner, userData) {
             const totalDevices = devices.length;
             if (totalDevices === 0) return [];
 
-            const updateProgressUi = (current, total) => {
-                const text = `Letöltés (${current}/${total})`;
-                if (downloadDbBtn) downloadDbBtn.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
-                if (downloadDbBtnMobile) downloadDbBtnMobile.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
-            };
+            // Only fetch from inspections subcollection for devices that lack denormalized data
+            const devicesNeedingFetch = devices.filter(d => !d.latestInspection && !d.vizsg_idopont && !d.status);
 
-            // Helper to fetch latest valid inspection for a single device safely
-            const fetchLatestInspection = async (device) => {
-                try {
-                    let inspRef = db.collection('partners').doc(partnerId)
-                        .collection('devices').doc(device.id)
-                        .collection('inspections');
+            if (devicesNeedingFetch.length > 0) {
+                const updateProgressUi = (current, total) => {
+                    const text = `Letöltés (${current}/${total})`;
+                    if (downloadDbBtn) downloadDbBtn.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
+                    if (downloadDbBtnMobile) downloadDbBtnMobile.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
+                };
 
-                    let inspQuery;
-                    if (userData && userData.isEkvUser) {
-                        inspQuery = inspRef.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
-                    } else {
-                        inspQuery = inspRef;
-                    }
+                // Helper to fetch latest valid inspection for a single device safely
+                const fetchLatestInspection = async (device) => {
+                    try {
+                        let inspRef = db.collection('partners').doc(partnerId)
+                            .collection('devices').doc(device.id)
+                            .collection('inspections');
 
-                    const inspSnapshot = await inspQuery.get();
-                    if (!inspSnapshot.empty) {
-                        const validInsps = [];
-                        inspSnapshot.forEach(doc => {
-                            const data = doc.data();
-                            if (data.status !== 'draft') {
-                                validInsps.push({ id: doc.id, ...data });
-                            }
-                        });
+                        let inspQuery;
+                        if (userData && userData.isEkvUser) {
+                            inspQuery = inspRef.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                        } else {
+                            inspQuery = inspRef;
+                        }
 
-                        if (validInsps.length > 0) {
-                            validInsps.sort((a, b) => {
-                                const parseDateNum = (dStr) => {
-                                    if (!dStr) return 0;
-                                    const clean = String(dStr).replace(/[^\d]/g, '');
-                                    return parseInt(clean, 10) || 0;
-                                };
-                                const dateA = parseDateNum(a.vizsgalatIdopontja);
-                                const dateB = parseDateNum(b.vizsgalatIdopontja);
-                                if (dateA !== dateB) return dateB - dateA;
-
-                                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-                                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-                                return timeB - timeA;
+                        const inspSnapshot = await inspQuery.get();
+                        if (!inspSnapshot.empty) {
+                            const validInsps = [];
+                            inspSnapshot.forEach(doc => {
+                                const data = doc.data();
+                                if (data.status !== 'draft') {
+                                    validInsps.push({ id: doc.id, ...data });
+                                }
                             });
 
-                            const latest = validInsps[0];
-                            device.latestInspection = latest;
-                            device.kov_vizsg = latest.kovetkezoIdoszakosVizsgalat || device.kov_vizsg;
+                            if (validInsps.length > 0) {
+                                validInsps.sort((a, b) => {
+                                    const parseDateNum = (dStr) => {
+                                        if (!dStr) return 0;
+                                        const clean = String(dStr).replace(/[^\d]/g, '');
+                                        return parseInt(clean, 10) || 0;
+                                    };
+                                    const dateA = parseDateNum(a.vizsgalatIdopontja);
+                                    const dateB = parseDateNum(b.vizsgalatIdopontja);
+                                    if (dateA !== dateB) return dateB - dateA;
+
+                                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                                    return timeB - timeA;
+                                });
+
+                                const latest = validInsps[0];
+                                device.latestInspection = latest;
+                                device.kov_vizsg = latest.kovetkezoIdoszakosVizsgalat || device.kov_vizsg;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`Nem sikerült betölteni a vizsgálatot az eszközhöz: ${device.id}`, err);
+                    }
+                };
+
+                // Concurrency Pool (15 simultaneous requests max)
+                const CONCURRENCY = 15;
+                let currentIndex = 0;
+                let processedCount = 0;
+                const totalFetch = devicesNeedingFetch.length;
+
+                async function worker() {
+                    while (currentIndex < totalFetch) {
+                        const idx = currentIndex++;
+                        if (idx >= totalFetch) break;
+                        await fetchLatestInspection(devicesNeedingFetch[idx]);
+                        processedCount++;
+                        if (processedCount % 10 === 0 || processedCount === totalFetch) {
+                            updateProgressUi(processedCount, totalFetch);
                         }
                     }
-                } catch (err) {
-                    console.warn(`Nem sikerült betölteni a vizsgálatot az eszközhöz: ${device.id}`, err);
                 }
-            };
 
-            // Concurrency Pool (15 simultaneous requests max to avoid network throttling)
-            const CONCURRENCY = 15;
-            let currentIndex = 0;
-            let processedCount = 0;
-
-            async function worker() {
-                while (currentIndex < totalDevices) {
-                    const idx = currentIndex++;
-                    if (idx >= totalDevices) break;
-                    await fetchLatestInspection(devices[idx]);
-                    processedCount++;
-                    if (processedCount % 10 === 0 || processedCount === totalDevices) {
-                        updateProgressUi(processedCount, totalDevices);
-                    }
+                const workers = [];
+                const workerCount = Math.min(CONCURRENCY, totalFetch);
+                for (let i = 0; i < workerCount; i++) {
+                    workers.push(worker());
                 }
+
+                await Promise.all(workers);
             }
 
-            const workers = [];
-            const workerCount = Math.min(CONCURRENCY, totalDevices);
-            for (let i = 0; i < workerCount; i++) {
-                workers.push(worker());
-            }
-
-            await Promise.all(workers);
             return devices;
 
         } catch (error) {
