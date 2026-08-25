@@ -4080,93 +4080,86 @@ export function initPartnerWorkScreen(partner, userData) {
             const totalDevices = devices.length;
             if (totalDevices === 0) return [];
 
-            // Only fetch from inspections subcollection for devices that lack denormalized data
-            const devicesNeedingFetch = devices.filter(d => !d.latestInspection && !d.vizsg_idopont && !d.status);
+            const updateProgressUi = (current, total) => {
+                const text = `Letöltés (${current}/${total})`;
+                if (downloadDbBtn) downloadDbBtn.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
+                if (downloadDbBtnMobile) downloadDbBtnMobile.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
+            };
 
-            if (devicesNeedingFetch.length > 0) {
-                const updateProgressUi = (current, total) => {
-                    const text = `Letöltés (${current}/${total})`;
-                    if (downloadDbBtn) downloadDbBtn.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
-                    if (downloadDbBtnMobile) downloadDbBtnMobile.innerHTML = `<span>${text}</span><div class="loader-small"></div>`;
-                };
+            // Helper to fetch latest valid inspection for a single device safely
+            const fetchLatestInspection = async (device) => {
+                try {
+                    let inspRef = db.collection('partners').doc(partnerId)
+                        .collection('devices').doc(device.id)
+                        .collection('inspections');
 
-                // Helper to fetch latest valid inspection for a single device safely
-                const fetchLatestInspection = async (device) => {
-                    try {
-                        let inspRef = db.collection('partners').doc(partnerId)
-                            .collection('devices').doc(device.id)
-                            .collection('inspections');
+                    let inspQuery;
+                    if (userData && userData.isEkvUser) {
+                        inspQuery = inspRef.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
+                    } else {
+                        inspQuery = inspRef;
+                    }
 
-                        let inspQuery;
-                        if (userData && userData.isEkvUser) {
-                            inspQuery = inspRef.where('createdByUid', '==', userData.uid || firebase.auth().currentUser.uid);
-                        } else {
-                            inspQuery = inspRef;
-                        }
+                    const inspSnapshot = await inspQuery.get();
+                    if (!inspSnapshot.empty) {
+                        const validInsps = [];
+                        inspSnapshot.forEach(doc => {
+                            const data = doc.data();
+                            if (data.status !== 'draft') {
+                                validInsps.push({ id: doc.id, ...data });
+                            }
+                        });
 
-                        const inspSnapshot = await inspQuery.get();
-                        if (!inspSnapshot.empty) {
-                            const validInsps = [];
-                            inspSnapshot.forEach(doc => {
-                                const data = doc.data();
-                                if (data.status !== 'draft') {
-                                    validInsps.push({ id: doc.id, ...data });
-                                }
+                        if (validInsps.length > 0) {
+                            validInsps.sort((a, b) => {
+                                const parseDateNum = (dStr) => {
+                                    if (!dStr) return 0;
+                                    const clean = String(dStr).replace(/[^\d]/g, '');
+                                    return parseInt(clean, 10) || 0;
+                                };
+                                const dateA = parseDateNum(a.vizsgalatIdopontja);
+                                const dateB = parseDateNum(b.vizsgalatIdopontja);
+                                if (dateA !== dateB) return dateB - dateA;
+
+                                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                                return timeB - timeA;
                             });
 
-                            if (validInsps.length > 0) {
-                                validInsps.sort((a, b) => {
-                                    const parseDateNum = (dStr) => {
-                                        if (!dStr) return 0;
-                                        const clean = String(dStr).replace(/[^\d]/g, '');
-                                        return parseInt(clean, 10) || 0;
-                                    };
-                                    const dateA = parseDateNum(a.vizsgalatIdopontja);
-                                    const dateB = parseDateNum(b.vizsgalatIdopontja);
-                                    if (dateA !== dateB) return dateB - dateA;
-
-                                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-                                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-                                    return timeB - timeA;
-                                });
-
-                                const latest = validInsps[0];
-                                device.latestInspection = latest;
-                                device.kov_vizsg = latest.kovetkezoIdoszakosVizsgalat || device.kov_vizsg;
-                            }
-                        }
-                    } catch (err) {
-                        console.warn(`Nem sikerült betölteni a vizsgálatot az eszközhöz: ${device.id}`, err);
-                    }
-                };
-
-                // Concurrency Pool (15 simultaneous requests max)
-                const CONCURRENCY = 15;
-                let currentIndex = 0;
-                let processedCount = 0;
-                const totalFetch = devicesNeedingFetch.length;
-
-                async function worker() {
-                    while (currentIndex < totalFetch) {
-                        const idx = currentIndex++;
-                        if (idx >= totalFetch) break;
-                        await fetchLatestInspection(devicesNeedingFetch[idx]);
-                        processedCount++;
-                        if (processedCount % 10 === 0 || processedCount === totalFetch) {
-                            updateProgressUi(processedCount, totalFetch);
+                            const latest = validInsps[0];
+                            device.latestInspection = latest;
+                            device.kov_vizsg = latest.kovetkezoIdoszakosVizsgalat || device.kov_vizsg;
                         }
                     }
+                } catch (err) {
+                    console.warn(`Nem sikerült betölteni a vizsgálatot az eszközhöz: ${device.id}`, err);
                 }
+            };
 
-                const workers = [];
-                const workerCount = Math.min(CONCURRENCY, totalFetch);
-                for (let i = 0; i < workerCount; i++) {
-                    workers.push(worker());
+            // Concurrency Pool (20 simultaneous requests max to prevent network bottleneck)
+            const CONCURRENCY = 20;
+            let currentIndex = 0;
+            let processedCount = 0;
+
+            async function worker() {
+                while (currentIndex < totalDevices) {
+                    const idx = currentIndex++;
+                    if (idx >= totalDevices) break;
+                    await fetchLatestInspection(devices[idx]);
+                    processedCount++;
+                    if (processedCount % 10 === 0 || processedCount === totalDevices) {
+                        updateProgressUi(processedCount, totalDevices);
+                    }
                 }
-
-                await Promise.all(workers);
             }
 
+            const workers = [];
+            const workerCount = Math.min(CONCURRENCY, totalDevices);
+            for (let i = 0; i < workerCount; i++) {
+                workers.push(worker());
+            }
+
+            await Promise.all(workers);
             return devices;
 
         } catch (error) {
