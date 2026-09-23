@@ -1,4 +1,4 @@
-const CACHE_NAME = 'etar-cache-v3.0.3';
+const CACHE_NAME = 'etar-cache-v3.0.4';
 const ASSETS_TO_CACHE = [
   '/offline.html',
   '/js/offline_app.js',
@@ -40,10 +40,29 @@ self.addEventListener('fetch', (event) => {
   // Ha nem GET kérés, hagyjuk békén
   if (event.request.method !== 'GET') return;
 
-  // A Firebase Firestore / API hívásokat nem cacheljük a service workerrel, 
-  // azt a Dexie.js / app logika kezeli. Kivételt képeznek a fájl letöltések (storage).
+  // A Firebase Firestore és Storage hívásokat nem proxyzzuk át a Service Workerrel,
+  // hogy elkerüljük a Cross-Origin átirányítási (302) és CORS problémákat.
   const url = new URL(event.request.url);
-  if ((url.origin.includes('firestore.googleapis.com') || url.origin.includes('firebase')) && !url.origin.includes('firebasestorage.googleapis.com')) {
+  if (url.origin.includes('firestore.googleapis.com') || 
+      url.origin.includes('firebasestorage.googleapis.com') || 
+      url.origin.includes('storage.googleapis.com')) {
+      // Offline módban, ha a Storage fájl korábban gyorsítótárazva lett (CACHE_URLS), próbáljuk kiszolgálni:
+      if (!navigator.onLine) {
+          event.respondWith(
+              caches.match(event.request).then((cachedResponse) => {
+                  if (cachedResponse) return cachedResponse;
+                  return new Response('Offline: A kért dokumentum nincs gyorsítótárazva.', { 
+                      status: 503, 
+                      statusText: 'Service Unavailable',
+                      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+                  });
+              })
+          );
+      }
+      return;
+  }
+
+  if (url.origin.includes('firebase')) {
       return;
   }
 
@@ -55,11 +74,10 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
 
-        // A dinamikus fájlok (pl letöltött jegyzőkönyvek, js, html) mentése klónozva
+        // A dinamikus fájlok mentése klónozva
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           if (event.request.url.includes(self.location.origin) || 
-              event.request.url.includes('firebasestorage.googleapis.com') ||
               event.request.url.includes('unpkg.com') ||
               event.request.url.includes('cdn.jsdelivr.net') ||
               event.request.url.includes('kit.fontawesome.com')) {
@@ -69,16 +87,22 @@ self.addEventListener('fetch', (event) => {
 
         return response; // Elsődlegesen a friss hálózati választ adjuk vissza!
       })
-      .catch(() => {
+      .catch(async () => {
         // Ha offline vagyunk (sikertelen hálózati kérés), próbáljuk a cache-t
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Ha offline vagyunk és egy olyan HTML fájlt kért, ami nincs cache-ben, visszaadjuk az offline.html-t (fallback)
-          if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
-              return caches.match('/offline.html');
-          }
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // Ha offline vagyunk és egy olyan HTML fájlt kért, ami nincs cache-ben, visszaadjuk az offline.html-t (fallback)
+        if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
+            const offlinePage = await caches.match('/offline.html');
+            if (offlinePage) return offlinePage;
+        }
+        // Mindig érvényes Response-t kell visszaadni, sosem undefined-ot (TypeError megelőzése)
+        return new Response('Hálózati hiba (Network Error)', { 
+            status: 503, 
+            statusText: 'Network Error',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
       })
   );

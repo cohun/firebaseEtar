@@ -4661,54 +4661,52 @@ export function initPartnerWorkScreen(partner, userData) {
         generateProtocolBtnMobile.disabled = true;
 
         try {
-            // 2. Get protocol URLs
-            const protocolUrls = [];
-            const urlPromises = selectedDevices.map(async (device) => {
+            // 2. Get protocol URLs while preserving selection order
+            const urlResults = await Promise.all(selectedDevices.map(async (device) => {
                 let foundUrl = null;
 
-                // A. Try to find Finalized Inspection
-                const snapshot = await db.collection('partners').doc(partnerId)
-                    .collection('devices').doc(device.id)
-                    .collection('inspections')
-                    .where('status', '==', 'finalized')
-                    .orderBy('finalizedAt', 'desc')
-                    .limit(1)
-                    .get();
-
-                if (!snapshot.empty) {
-                    const data = snapshot.docs[0].data();
-                    if (data.fileUrl) {
-                        foundUrl = data.fileUrl;
-                    }
-                }
-
-                // B. If no inspection, try to find Usage Start Document
-                if (!foundUrl && device.serialNumber) {
-                     // Note: Requires Composite Index (partnerId + type + deviceSerialNumber + createdAt)
-                     // or simpler query if possible. 
-                     // Let's use the 'reports' collection query.
-                     const reportSnapshot = await db.collection('partners').doc(partnerId)
-                        .collection('reports')
-                        .where('deviceSerialNumber', '==', device.serialNumber)
-                        .where('type', '==', 'usage_start')
-                        .orderBy('createdAt', 'desc')
+                try {
+                    // A. Try to find Finalized Inspection
+                    const snapshot = await db.collection('partners').doc(partnerId)
+                        .collection('devices').doc(device.id)
+                        .collection('inspections')
+                        .where('status', '==', 'finalized')
+                        .orderBy('finalizedAt', 'desc')
                         .limit(1)
                         .get();
-                    
-                    if (!reportSnapshot.empty) {
-                        const data = reportSnapshot.docs[0].data();
-                        if (data.downloadUrl) {
-                            foundUrl = data.downloadUrl;
+
+                    if (!snapshot.empty) {
+                        const data = snapshot.docs[0].data();
+                        if (data.fileUrl) {
+                            foundUrl = data.fileUrl;
                         }
                     }
+
+                    // B. If no inspection, try to find Usage Start Document
+                    if (!foundUrl && device.serialNumber) {
+                        const reportSnapshot = await db.collection('partners').doc(partnerId)
+                            .collection('reports')
+                            .where('deviceSerialNumber', '==', device.serialNumber)
+                            .where('type', '==', 'usage_start')
+                            .orderBy('createdAt', 'desc')
+                            .limit(1)
+                            .get();
+                        
+                        if (!reportSnapshot.empty) {
+                            const data = reportSnapshot.docs[0].data();
+                            if (data.downloadUrl) {
+                                foundUrl = data.downloadUrl;
+                            }
+                        }
+                    }
+                } catch (lookupErr) {
+                    console.warn(`Nem sikerült a jegyzőkönyv lekérése az eszközhöz (${device.id}):`, lookupErr);
                 }
 
-                if (foundUrl) {
-                    protocolUrls.push(foundUrl);
-                }
-            });
-            await Promise.all(urlPromises);
+                return foundUrl;
+            }));
 
+            const protocolUrls = urlResults.filter(Boolean);
 
             if (protocolUrls.length === 0) {
                 alert('A kiválasztott eszközök közül egyiknek sincs véglegesített jegyzőkönyve.');
@@ -4768,22 +4766,44 @@ export function initPartnerWorkScreen(partner, userData) {
                 }
             }
 
-            // 4. Fetch HTML content from each URL (Only if NO PDFs found)
-            const fetchPromises = protocolUrls.map(url => fetch(url).then(res => {
-                if (!res.ok) {
-                    throw new Error(`Sikertelen letöltés: ${url} (${res.statusText})`);
+            // 4. Fetch HTML content with concurrency control (max 3 in parallel) and resilience
+            const fetchSingleHtml = async (url) => {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        console.warn(`Sikertelen letöltés: ${url} (${res.status} ${res.statusText})`);
+                        return null;
+                    }
+                    return await res.text();
+                } catch (err) {
+                    console.warn(`Hiba a jegyzőkönyv letöltésekor (${url}):`, err);
+                    return null;
                 }
-                return res.text();
-            }));
-            const htmlContents = await Promise.all(fetchPromises);
+            };
+
+            const htmlContents = [];
+            const CONCURRENCY = 3;
+            for (let i = 0; i < protocolUrls.length; i += CONCURRENCY) {
+                const chunk = protocolUrls.slice(i, i + CONCURRENCY);
+                const chunkResults = await Promise.all(chunk.map(url => fetchSingleHtml(url)));
+                htmlContents.push(...chunkResults);
+            }
+
+            const validHtmlContents = htmlContents.filter(Boolean);
+
+            if (validHtmlContents.length === 0) {
+                alert('Nem sikerült letölteni a kiválasztott jegyzőkönyveket.');
+                newTab.close();
+                return;
+            }
 
             // 5. Process content: Extract styles and body
             let collectedStyles = '';
-            const cleanedContents = htmlContents.map(html => {
+            const cleanedContents = validHtmlContents.map(html => {
                 // Extract style tags
                 const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
                 if (styleMatches) {
-                    collectedStyles += styleMatches.join('\\n');
+                    collectedStyles += styleMatches.join('\n');
                 }
 
                 // Extract link tags (stylesheets) - though mostly we rely on Tailwind CDN now
@@ -4791,7 +4811,7 @@ export function initPartnerWorkScreen(partner, userData) {
                 if (linkMatches) {
                     // We might want to include these if they are not the main tailwind one, 
                     // but for now let's rely on the injected Tailwind and collected inline styles.
-                    // collectedStyles += linkMatches.join('\\n'); 
+                    // collectedStyles += linkMatches.join('\n'); 
                 }
 
                 // Extract body content
